@@ -1,0 +1,21 @@
+{
+  "name": "collector-analytics",
+  "version": "1.0.0",
+  "description": "CollectorAnalytics home and auth",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "mssql": "^10.0.2"
+  }
+}
