@@ -23,6 +23,8 @@ async function getPayPalAccessToken() {
     console.error('PayPal: missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET');
     return null;
   }
+  const mode = process.env.PAYPAL_MODE || 'sandbox';
+  console.error('PayPal token: mode=' + mode + ', base=' + PAYPAL_BASE + ', client_id length=' + (clientId ? clientId.length : 0) + ', secret length=' + (clientSecret ? clientSecret.length : 0));
   try {
     const { data } = await axios.post(
       `${PAYPAL_BASE}/v1/oauth2/token`,
