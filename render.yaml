@@ -1,0 +1,26 @@
+# Render Blueprint - deploy from GitHub
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: collector-analytics
+    runtime: node
+    region: oregon
+
+    buildCommand: npm ci
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 1433
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true

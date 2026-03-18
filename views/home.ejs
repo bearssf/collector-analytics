@@ -44,6 +44,12 @@
       text-decoration: none;
     }
     .sign-out:hover { color: #f0c674; text-decoration: underline; }
+    .nav-link {
+      color: #f0c674;
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .nav-link:hover { text-decoration: underline; }
     .login-box {
       background: #111;
       border: 1px solid #333;
@@ -105,6 +111,11 @@
   <header class="header">
     <% if (user) { %>
       <div class="welcome-box">
+        <% if (user.subscription && user.subscription.status === 'active') { %>
+          <a href="/members" class="nav-link">Members</a>
+        <% } else { %>
+          <a href="/subscribe" class="nav-link">Subscribe</a>
+        <% } %>
         <span class="welcome">Welcome, <%= user.firstName %></span>
         <a href="#" onclick="document.getElementById('logout-form').submit(); return false;" class="sign-out">Sign out</a>
       </div>

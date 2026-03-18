@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscribe – CollectorAnalytics</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      color: #fff;
+      padding: 2rem;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .header a { color: #f0c674; text-decoration: none; }
+    .header a:hover { text-decoration: underline; }
+    h1 { margin: 0 0 0.5rem; font-size: 1.75rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; }
+    .plans {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .plan {
+      flex: 1;
+      min-width: 260px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .plan h2 { margin: 0 0 0.5rem; font-size: 1.25rem; }
+    .plan .price { font-size: 1.75rem; color: #f0c674; margin-bottom: 0.5rem; }
+    .plan .period { color: #888; font-size: 0.9rem; margin-bottom: 1rem; }
+    .plan form { margin-top: 1rem; }
+    .plan button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #1a5fb4;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .plan button:hover { background: #3584e4; }
+    .plan.yearly { border-color: #f0c674; }
+    .savings { font-size: 0.85rem; color: #7bc275; margin-top: 0.25rem; }
+    .error-msg { color: #e06c75; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/">← Home</a>
+    <span>Welcome, <%= user.firstName %></span>
+  </div>
+
+  <h1>Membership</h1>
+  <p class="subtitle">Get access to the members-only area. Cancel anytime.</p>
+  <% if (error === 'checkout') { %>
+    <p class="error-msg">Checkout could not be started. Please try again.</p>
+  <% } %>
+
+  <div class="plans">
+    <div class="plan">
+      <h2>Monthly</h2>
+      <div class="price">$9.99</div>
+      <div class="period">per month</div>
+      <form action="/create-checkout-session" method="post">
+        <input type="hidden" name="plan" value="monthly" />
+        <button type="submit">Subscribe monthly</button>
+      </form>
+    </div>
+    <div class="plan yearly">
+      <h2>Yearly</h2>
+      <div class="price">$99.99</div>
+      <div class="period">per year</div>
+      <div class="savings">Save about $20 vs monthly</div>
+      <form action="/create-checkout-session" method="post">
+        <input type="hidden" name="plan" value="yearly" />
+        <button type="submit">Subscribe yearly</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
