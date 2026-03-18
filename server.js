@@ -19,18 +19,26 @@ async function getPayPalAccessToken() {
   if (paypalAccessToken && Date.now() < paypalTokenExpiry) return paypalAccessToken;
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-  const { data } = await axios.post(
-    `${PAYPAL_BASE}/v1/oauth2/token`,
-    'grant_type=client_credentials',
-    {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      auth: { username: clientId, password: clientSecret },
-    }
-  );
-  paypalAccessToken = data.access_token;
-  paypalTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return paypalAccessToken;
+  if (!clientId || !clientSecret) {
+    console.error('PayPal: missing PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET');
+    return null;
+  }
+  try {
+    const { data } = await axios.post(
+      `${PAYPAL_BASE}/v1/oauth2/token`,
+      'grant_type=client_credentials',
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        auth: { username: clientId, password: clientSecret },
+      }
+    );
+    paypalAccessToken = data.access_token;
+    paypalTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+    return paypalAccessToken;
+  } catch (err) {
+    console.error('PayPal token error:', err.response?.status, err.response?.data || err.message);
+    return null;
+  }
 }
 
 async function getPayPalPlanId(planType) {
@@ -75,7 +83,11 @@ async function ensurePayPalProductAndPlans() {
     };
     const { data: monthlyPlan } = await axios.post(`${PAYPAL_BASE}/v1/billing/plans`, monthlyPlanPayload, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
     monthlyPlanId = monthlyPlan.id;
-    await p.request().input('plan_type', sql.NVarChar(20), 'monthly').input('plan_id', sql.NVarChar(50), monthlyPlanId).query('INSERT INTO paypal_plans (plan_type, plan_id) VALUES (@plan_type, @plan_id)');
+    try {
+      await p.request().input('plan_type', sql.NVarChar(20), 'monthly').input('plan_id', sql.NVarChar(50), monthlyPlanId).query('INSERT INTO paypal_plans (plan_type, plan_id) VALUES (@plan_type, @plan_id)');
+    } catch (insertErr) {
+      if (insertErr.number !== 2627) throw insertErr;
+    }
   } else {
     const { data: plan } = await axios.get(`${PAYPAL_BASE}/v1/billing/plans/${monthlyPlanId}`, { headers: { Authorization: `Bearer ${token}` } });
     productId = plan.product_id;
@@ -96,7 +108,11 @@ async function ensurePayPalProductAndPlans() {
     };
     const { data: yearlyPlan } = await axios.post(`${PAYPAL_BASE}/v1/billing/plans`, yearlyPlanPayload, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
     yearlyPlanId = yearlyPlan.id;
-    await p.request().input('plan_type', sql.NVarChar(20), 'yearly').input('plan_id', sql.NVarChar(50), yearlyPlanId).query('INSERT INTO paypal_plans (plan_type, plan_id) VALUES (@plan_type, @plan_id)');
+    try {
+      await p.request().input('plan_type', sql.NVarChar(20), 'yearly').input('plan_id', sql.NVarChar(50), yearlyPlanId).query('INSERT INTO paypal_plans (plan_type, plan_id) VALUES (@plan_type, @plan_id)');
+    } catch (insertErr) {
+      if (insertErr.number !== 2627) throw insertErr;
+    }
   }
 }
 
@@ -313,19 +329,25 @@ app.post('/create-checkout-session', requireAuth, async (req, res) => {
 
 app.get('/subscribe/paypal/start', requireAuth, async (req, res) => {
   const plan = req.query.plan === 'yearly' ? 'yearly' : 'monthly';
-  const token = await getPayPalAccessToken();
-  if (!token) return res.redirect('/subscribe?error=paypal');
   try {
-    await ensurePayPalProductAndPlans();
-  } catch (e) {
-    console.error('PayPal plans error:', e.message);
-    return res.redirect('/subscribe?error=paypal');
-  }
-  const planId = await getPayPalPlanId(plan);
-  if (!planId) return res.redirect('/subscribe?error=paypal');
-  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const user = req.session.user;
-  try {
+    const token = await getPayPalAccessToken();
+    if (!token) {
+      console.error('PayPal start: no token (check credentials and logs above)');
+      return res.redirect('/subscribe?error=paypal');
+    }
+    try {
+      await ensurePayPalProductAndPlans();
+    } catch (e) {
+      console.error('PayPal plans error:', e.response?.data || e.message);
+      return res.redirect('/subscribe?error=paypal');
+    }
+    const planId = await getPayPalPlanId(plan);
+    if (!planId) {
+      console.error('PayPal start: no plan_id for', plan);
+      return res.redirect('/subscribe?error=paypal');
+    }
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const user = req.session.user;
     const { data } = await axios.post(
       `${PAYPAL_BASE}/v1/billing/subscriptions`,
       {
@@ -341,8 +363,9 @@ app.get('/subscribe/paypal/start', requireAuth, async (req, res) => {
     );
     const approveLink = data.links?.find((l) => l.rel === 'approve')?.href;
     if (approveLink) return res.redirect(302, approveLink);
+    console.error('PayPal start: no approve link in response', data);
   } catch (err) {
-    console.error('PayPal subscription create error:', err.response?.data || err.message);
+    console.error('PayPal subscription create error:', err.response?.status, err.response?.data || err.message);
     return res.redirect('/subscribe?error=paypal');
   }
   res.redirect('/subscribe?error=paypal');
