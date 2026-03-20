@@ -6,145 +6,447 @@
   <title>AcademiqForge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: #121212;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f5f5f5;
+      --muted: #9ca3af;
+      --primary: #2b82f6;
+      --primary-hover: #4b93f7;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background: linear-gradient(165deg, #1a6fa8 0%, #0d4a72 42%, #083654 100%);
-      font-family: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
-      color: #fff;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 60% at 78% 35%, rgba(43, 130, 246, 0.14) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 90% 80%, rgba(43, 130, 246, 0.06) 0%, transparent 45%);
+      color: var(--text);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
     }
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 1rem 1.5rem;
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-start;
-      z-index: 10;
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem 2.5rem;
     }
-    .welcome-box {
-      background: rgba(0, 28, 52, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 8px;
-      padding: 0.65rem 1rem;
+
+    /* —— Top nav —— */
+    .topnav {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 1rem;
+      padding: 1.25rem 0 2rem;
       flex-wrap: wrap;
-      justify-content: flex-end;
     }
-    .header .welcome {
-      color: #e8e8e8;
-      font-size: 0.95rem;
-      font-weight: 400;
-    }
-    .sign-out {
-      color: #56b4e9;
-      font-size: 0.85rem;
-      text-decoration: none;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .sign-out:hover { color: #8ecfef; text-decoration: underline; }
-    .login-box {
-      background: rgba(0, 28, 52, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
+    .brand {
       display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.65rem;
-      max-width: 340px;
-    }
-    .login-row {
-      display: flex;
-      flex-wrap: wrap;
       align-items: center;
-      gap: 0.5rem 0.75rem;
+      gap: 0.65rem;
+      flex-shrink: 0;
     }
-    .login-box input {
-      padding: 0.5rem 0.65rem;
-      border: 1px solid #3a3a3a;
-      border-radius: 4px;
-      background: #161616;
-      color: #fff;
-      font-size: 0.88rem;
-      width: 130px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .login-box input::placeholder { color: #888; }
-    .login-box button {
-      padding: 0.5rem 0.9rem;
-      background: #1a6cad;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .login-box button:hover { background: #3584e4; }
-    .login-box .create-link {
-      color: #56b4e9;
-      font-size: 0.82rem;
-      text-decoration: none;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      text-align: center;
-    }
-    .login-box .create-link:hover { text-decoration: underline; }
-    .main {
-      min-height: 100vh;
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #141414;
+      border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 5.5rem 1.5rem 2rem;
+      flex-shrink: 0;
     }
-    .main img {
-      max-width: min(520px, 100%);
-      height: auto;
-      display: block;
+    .brand-mark span {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 12px rgba(43, 130, 246, 0.5);
     }
-    .error-msg {
-      color: #e07a7a;
+    .brand-name {
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      flex-wrap: wrap;
+    }
+    .nav-links a.nav-item {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a.nav-item:hover { color: #e5e7eb; }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .btn-ghost:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.28); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .welcome-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .welcome-text {
+      font-size: 0.9rem;
+      color: #e5e7eb;
+    }
+    .link-signout {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      padding: 0;
+    }
+    .link-signout:hover { color: #fff; }
+
+    /* —— Main grid —— */
+    .landing {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem 3rem;
+      align-items: start;
+      padding-bottom: 3rem;
+    }
+    @media (max-width: 900px) {
+      .landing { grid-template-columns: 1fr; }
+      .nav-links { order: 3; width: 100%; justify-content: center; }
+      .topnav { flex-direction: column; align-items: stretch; }
+      .nav-actions { justify-content: flex-end; }
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(43, 130, 246, 0.12);
+      color: #7ab8ff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: clamp(1.85rem, 4vw, 2.65rem);
+      font-weight: 400;
+      line-height: 1.2;
+      margin: 0 0 1.25rem;
+      color: #fafafa;
+    }
+    .hero p.lead {
+      margin: 0 0 2rem;
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 34em;
+      line-height: 1.65;
+    }
+    .hero-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .btn-lg {
+      padding: 0.7rem 1.35rem;
+      font-size: 0.9rem;
+    }
+    .btn-outline-dark {
+      background: rgba(255, 255, 255, 0.04);
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+    .btn-outline-dark:hover { background: rgba(255, 255, 255, 0.08); }
+
+    /* —— Feature cards —— */
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.35rem 1.5rem;
+      position: relative;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 1.25rem;
+      left: 1.25rem;
+      width: 1rem;
+      height: 1rem;
+      opacity: 0.25;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+    .feature-card h3 {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      margin: 0 0 0.5rem;
+      padding-left: 1.75rem;
+      color: #f3f4f6;
+    }
+    .feature-card p {
+      margin: 0;
+      padding-left: 1.75rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .footer-strip {
+      padding-top: 1rem;
       font-size: 0.8rem;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #6b7280;
+      letter-spacing: 0.02em;
     }
+    .footer-strip span.dot { margin: 0 0.5rem; opacity: 0.6; }
+
+    /* —— Sign-in modal —— */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.is-open { display: flex; }
+    .modal {
+      width: 100%;
+      max-width: 400px;
+      background: #141414;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+    }
+    .modal h2 {
+      margin: 0 0 1.25rem;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+    .modal .field { margin-bottom: 1rem; }
+    .modal label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .modal input[type="email"],
+    .modal input[type="password"] {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #0a0a0a;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    .modal input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .modal .modal-actions {
+      margin-top: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .modal .modal-actions .btn-primary { width: 100%; padding: 0.65rem; }
+    .modal .create-link {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--primary);
+    }
+    .modal .create-link:hover { text-decoration: underline; }
+    .modal .error-msg {
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.25rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0.25rem;
+    }
+    .modal-close:hover { color: #fff; }
   </style>
 </head>
 <body>
-  <header class="header">
-    <% if (user) { %>
-      <div class="welcome-box">
-        <span class="welcome">Welcome, <%= user.firstName %></span>
-        <a href="#" onclick="document.getElementById('logout-form').submit(); return false;" class="sign-out">Sign out</a>
-      </div>
-      <form id="logout-form" action="/logout" method="post" style="display: none;"><button type="submit">Sign out</button></form>
-    <% } else { %>
-      <div class="login-box">
-        <form action="/login" method="post" class="login-row">
-          <input type="email" name="email" placeholder="Email" required autocomplete="email" />
-          <input type="password" name="password" placeholder="Password" required autocomplete="current-password" />
-          <button type="submit">Sign in</button>
-        </form>
-        <% if (typeof error !== 'undefined' && error === 'missing') { %>
-          <span class="error-msg">Please enter email and password.</span>
-        <% } else if (typeof error !== 'undefined' && error === 'invalid') { %>
-          <span class="error-msg">Invalid email or password.</span>
-        <% } else if (typeof error !== 'undefined' && error === 'server') { %>
-          <span class="error-msg">Something went wrong. Try again.</span>
-        <% } %>
-        <a href="/register" class="create-link">Create an account</a>
-      </div>
-    <% } %>
-  </header>
+  <div class="shell">
+    <header class="topnav">
+      <a href="/" class="brand" title="AcademiqForge — Home">
+        <div class="brand-mark" aria-hidden="true"><span></span></div>
+        <span class="brand-name">AcademiqForge</span>
+      </a>
 
-  <main class="main">
-    <img src="/logo.png" alt="AcademiqForge" />
-  </main>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#" class="nav-item">Product</a>
+        <a href="#" class="nav-item">Workflow</a>
+        <a href="#" class="nav-item">Features</a>
+        <a href="#" class="nav-item">Start</a>
+      </nav>
+
+      <div class="nav-actions">
+        <% if (user) { %>
+          <div class="welcome-pill">
+            <span class="welcome-text">Welcome, <%= user.firstName %></span>
+            <form action="/logout" method="post" style="display:inline;"><button type="submit" class="link-signout">Sign out</button></form>
+          </div>
+          <button type="button" class="btn btn-primary">Start Forging</button>
+        <% } else { %>
+          <button type="button" class="btn btn-ghost" id="open-signin" aria-haspopup="dialog">Sign In</button>
+          <button type="button" class="btn btn-primary">Start Forging</button>
+        <% } %>
+      </div>
+    </header>
+
+    <main class="landing">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="hero-badge">The research operating system</div>
+        <h1 id="hero-heading">From idea to finished paper, with less friction and more rigor.</h1>
+        <p class="lead">Shaped by experience, hardened for usability, and polished to carry researchers from scattered notes to structured, defensible writing.</p>
+        <div class="hero-ctas">
+          <button type="button" class="btn btn-primary btn-lg">Start Forging</button>
+          <button type="button" class="btn btn-outline-dark btn-lg">View Product Preview</button>
+        </div>
+      </section>
+
+      <aside class="cards" aria-label="Highlights">
+        <article class="feature-card">
+          <h3>Shaped by Experience</h3>
+          <p>Built from real doctoral workflows so the path from concept to completed paper feels guided, not improvised.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Hardened for Usability</h3>
+          <p>A calm, minimal interface that removes friction and keeps your attention on research, writing, and momentum.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Polished for Completion</h3>
+          <p>Designed to carry you from first idea to finished paper with structure, feedback, and progress built in.</p>
+        </article>
+      </aside>
+    </main>
+
+    <footer class="footer-strip">
+      Writing workspace <span class="dot">•</span> Source organization <span class="dot">•</span> Argument feedback <span class="dot">•</span> Citation support
+    </footer>
+  </div>
+
+  <% if (!user) { %>
+  <div class="modal-backdrop" id="signin-modal" role="dialog" aria-modal="true" aria-labelledby="signin-title">
+    <div class="modal">
+      <button type="button" class="modal-close" id="close-signin" aria-label="Close">&times;</button>
+      <h2 id="signin-title">Sign in</h2>
+      <% if (typeof error !== 'undefined' && error === 'missing') { %>
+        <p class="error-msg">Please enter email and password.</p>
+      <% } else if (typeof error !== 'undefined' && error === 'invalid') { %>
+        <p class="error-msg">Invalid email or password.</p>
+      <% } else if (typeof error !== 'undefined' && error === 'server') { %>
+        <p class="error-msg">Something went wrong. Try again.</p>
+      <% } %>
+      <form action="/login" method="post">
+        <div class="field">
+          <label for="signin-email">Email</label>
+          <input type="email" id="signin-email" name="email" required autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="signin-password">Password</label>
+          <input type="password" id="signin-password" name="password" required autocomplete="current-password" />
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Sign in</button>
+          <a href="/register" class="create-link">Create an account</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <% } %>
+
+  <script>
+    (function () {
+      var modal = document.getElementById('signin-modal');
+      var openBtn = document.getElementById('open-signin');
+      var closeBtn = document.getElementById('close-signin');
+      if (!modal || !openBtn) return;
+
+      function openModal() {
+        modal.classList.add('is-open');
+        var first = modal.querySelector('input[type="email"]');
+        if (first) setTimeout(function () { first.focus(); }, 50);
+      }
+      function closeModal() {
+        modal.classList.remove('is-open');
+      }
+
+      openBtn.addEventListener('click', openModal);
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+      });
+
+      <% if (typeof error !== 'undefined' && error && !user) { %>
+      openModal();
+      <% } %>
+    })();
+  </script>
 </body>
 </html>
