@@ -21,10 +21,12 @@ Store database credentials only in environment variables or your host’s secret
 
 Used for **Upgrade to member** on **Account** (`/billing/checkout`) and **`subscriptions`** rows (`status`, Stripe IDs, `current_period_end`).
 
-1. In the [Stripe Dashboard](https://dashboard.stripe.com), create a **Product** and **recurring Price** (monthly or yearly). Copy the Price ID (`price_...`).
+1. In the [Stripe Dashboard](https://dashboard.stripe.com), create a **Product** and recurring **Prices** (e.g. monthly + yearly). Copy each Price ID (`price_...`).
 2. Add API keys and webhook secret to your environment (see `.env.example`):
    - **`STRIPE_SECRET_KEY`** — Secret key (`sk_test_...` or `sk_live_...`).
-   - **`STRIPE_PRICE_ID`** — The recurring price ID checkout should charge.
+   - **Pricing (pick one style):**
+     - **Two options on Account:** **`STRIPE_PRICE_MONTHLY`** and **`STRIPE_PRICE_YEARLY`** — both required; users choose Monthly or Yearly before Checkout.
+     - **Single option:** **`STRIPE_PRICE_ID`** only — one “Upgrade to member” button (backward compatible).
    - **`PUBLIC_BASE_URL`** — Public origin of this app **with no trailing slash**, e.g. `https://your-app.onrender.com`. Used for Checkout success/cancel URLs.
 3. **Webhooks:** Add endpoint **`POST /webhooks/stripe`**. For production, use your real `PUBLIC_BASE_URL` + `/webhooks/stripe`. Subscribe to at least:
    - `checkout.session.completed`
@@ -75,7 +77,7 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 
 ## Features
 
-- **Billing:** **Account** → **Upgrade to member** opens Stripe Checkout (`/billing/checkout`); **`POST /webhooks/stripe`** updates `subscriptions` from Stripe events (see **Stripe** section above).
+- **Billing:** **Account** → Checkout (`/billing/checkout`, optional `?interval=month|year` when both prices are set); **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
 - **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.

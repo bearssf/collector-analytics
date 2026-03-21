@@ -34,10 +34,18 @@
 
         <% if (!appAccess.paid) { %>
           <% if (stripeConfigured) { %>
-            <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
-            <p class="account-meta">Secure checkout via Stripe. You’ll return here when finished.</p>
+            <% if (billingPriceMode === 'dual') { %>
+              <div class="account-billing-choices">
+                <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
+                <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+              </div>
+              <p class="account-meta">Choose billing interval — secure checkout via Stripe. You’ll return here when finished.</p>
+            <% } else { %>
+              <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
+              <p class="account-meta">Secure checkout via Stripe. You’ll return here when finished.</p>
+            <% } %>
           <% } else { %>
-            <p class="account-meta">Online billing isn’t active on this deploy yet — the server needs all three: <strong>STRIPE_SECRET_KEY</strong>, <strong>STRIPE_PRICE_ID</strong>, and <strong>PUBLIC_BASE_URL</strong> (names must match exactly, then redeploy or restart).</p>
+            <p class="account-meta">Online billing isn’t active on this deploy yet — set <strong>STRIPE_SECRET_KEY</strong>, <strong>PUBLIC_BASE_URL</strong>, and either <strong>STRIPE_PRICE_MONTHLY</strong> + <strong>STRIPE_PRICE_YEARLY</strong> or a single <strong>STRIPE_PRICE_ID</strong>, then redeploy.</p>
             <% if (typeof billingEnvMissing !== 'undefined' && billingEnvMissing.length) { %>
               <p class="account-meta account-meta--warn">Missing from process env: <%= billingEnvMissing.join(', ') %></p>
             <% } %>

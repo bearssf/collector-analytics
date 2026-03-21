@@ -655,3 +655,17 @@
 .account-meta--warn {
   color: rgba(255, 200, 120, 0.9);
 }
+.account-billing-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  margin: 0.75rem 0 0;
+}
+.account-btn-yearly {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.account-btn-yearly:hover {
+  filter: brightness(1.12);
+}

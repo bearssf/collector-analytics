@@ -22,6 +22,11 @@ const {
 } = require('./lib/projectService');
 const createApiRouter = require('./routes/api');
 const { handleStripeWebhook } = require('./lib/billingStripe');
+const {
+  getStripePriceConfig,
+  isStripeBillingConfigured,
+  billingPriceEnvHint,
+} = require('./lib/billingConfig');
 
 const app = express();
 
@@ -257,15 +262,27 @@ app.get(
   '/billing/checkout',
   requireAuth,
   asyncHandler(async (req, res) => {
-    if (!stripe || !process.env.STRIPE_PRICE_ID || !process.env.PUBLIC_BASE_URL) {
+    if (!isStripeBillingConfigured(stripe)) {
       return res.status(503).send(
-        'Billing is not configured. Set STRIPE_SECRET_KEY, STRIPE_PRICE_ID, and PUBLIC_BASE_URL (see README).'
+        `Billing is not configured. Set STRIPE_SECRET_KEY, PUBLIC_BASE_URL, and ${billingPriceEnvHint()} (see README).`
       );
+    }
+    const cfg = getStripePriceConfig();
+    let priceId;
+    if (cfg.mode === 'legacy') {
+      priceId = cfg.priceId;
+    } else {
+      const interval = String(req.query.interval || 'month').toLowerCase();
+      if (interval === 'year') priceId = cfg.yearly;
+      else if (interval === 'month') priceId = cfg.monthly;
+      else {
+        return res.status(400).send('Invalid interval. Use ?interval=month or ?interval=year');
+      }
     }
     const base = String(process.env.PUBLIC_BASE_URL).replace(/\/$/, '');
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${base}/app/account?subscription=success`,
       cancel_url: `${base}/app/account?subscription=canceled`,
       client_reference_id: String(req.session.userId),
@@ -298,14 +315,14 @@ app.get(
       billingFlash = { kind: 'muted', text: 'Checkout was canceled. No charges were made.' };
     }
     const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
+    const priceCfg = getStripePriceConfig();
     const hasStripeSecret = !!process.env.STRIPE_SECRET_KEY;
-    const hasStripePrice = !!process.env.STRIPE_PRICE_ID;
     const hasPublicBaseUrl = !!process.env.PUBLIC_BASE_URL;
-    const stripeConfigured = !!(stripe && hasStripePrice && hasPublicBaseUrl);
+    const stripeConfigured = isStripeBillingConfigured(stripe);
     const billingEnvMissing = [];
     if (!hasStripeSecret) billingEnvMissing.push('STRIPE_SECRET_KEY');
-    if (!hasStripePrice) billingEnvMissing.push('STRIPE_PRICE_ID');
     if (!hasPublicBaseUrl) billingEnvMissing.push('PUBLIC_BASE_URL');
+    if (priceCfg.mode === 'none') billingEnvMissing.push(billingPriceEnvHint());
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -315,6 +332,7 @@ app.get(
       subscriptionRow,
       stripeConfigured,
       billingEnvMissing,
+      billingPriceMode: priceCfg.mode,
     });
   })
 );
