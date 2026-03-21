@@ -481,12 +481,17 @@ async function start() {
     await ensureCoreSchema(getPool);
     console.log('Database connected.');
   } catch (err) {
-    console.error('Database connection failed:', err.message);
-    console.error(
-      'Hint: timeouts usually mean Azure SQL is blocking Render. Enable public access on the SQL server, ' +
-        'add firewall rules for your Render service Outbound IP ranges (Dashboard → service → Outbound), ' +
-        'and confirm DB_HOST / DB_PORT in Render env vars.'
-    );
+    console.error('Database startup failed:', err.message);
+    if (err.number != null) console.error('SQL error number:', err.number);
+    if (err.lineNumber != null) console.error('SQL line:', err.lineNumber);
+    console.error(err);
+    if (/ETIMEOUT|ECONNREFUSED|ETIME|ETIMEDOUT|login failed|Login failed/i.test(String(err.message))) {
+      console.error(
+        'Hint: connection issues often mean Azure SQL is blocking Render. Enable public access on the SQL server, ' +
+          'add firewall rules for your Render service Outbound IP ranges (Dashboard → service → Outbound), ' +
+          'and confirm DB_HOST / DB_PORT in Render env vars.'
+      );
+    }
     process.exit(1);
   }
   app.listen(PORT, () => {
