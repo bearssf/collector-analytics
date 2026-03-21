@@ -37,7 +37,10 @@
             <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
             <p class="account-meta">Secure checkout via Stripe. You’ll return here when finished.</p>
           <% } else { %>
-            <p class="account-meta">Online billing is not configured on this server yet (missing Stripe env vars).</p>
+            <p class="account-meta">Online billing isn’t active on this deploy yet — the server needs all three: <strong>STRIPE_SECRET_KEY</strong>, <strong>STRIPE_PRICE_ID</strong>, and <strong>PUBLIC_BASE_URL</strong> (names must match exactly, then redeploy or restart).</p>
+            <% if (typeof billingEnvMissing !== 'undefined' && billingEnvMissing.length) { %>
+              <p class="account-meta account-meta--warn">Missing from process env: <%= billingEnvMissing.join(', ') %></p>
+            <% } %>
           <% } %>
         <% } %>
       </div>

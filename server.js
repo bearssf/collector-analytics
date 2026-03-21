@@ -284,6 +284,14 @@ app.get(
       billingFlash = { kind: 'muted', text: 'Checkout was canceled. No charges were made.' };
     }
     const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
+    const hasStripeSecret = !!process.env.STRIPE_SECRET_KEY;
+    const hasStripePrice = !!process.env.STRIPE_PRICE_ID;
+    const hasPublicBaseUrl = !!process.env.PUBLIC_BASE_URL;
+    const stripeConfigured = !!(stripe && hasStripePrice && hasPublicBaseUrl);
+    const billingEnvMissing = [];
+    if (!hasStripeSecret) billingEnvMissing.push('STRIPE_SECRET_KEY');
+    if (!hasStripePrice) billingEnvMissing.push('STRIPE_PRICE_ID');
+    if (!hasPublicBaseUrl) billingEnvMissing.push('PUBLIC_BASE_URL');
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -291,7 +299,8 @@ app.get(
       currentProjectId,
       billingFlash,
       subscriptionRow,
-      stripeConfigured: !!(stripe && process.env.STRIPE_PRICE_ID && process.env.PUBLIC_BASE_URL),
+      stripeConfigured,
+      billingEnvMissing,
     });
   })
 );

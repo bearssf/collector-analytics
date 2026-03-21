@@ -652,3 +652,6 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+.account-meta--warn {
+  color: rgba(255, 200, 120, 0.9);
+}
