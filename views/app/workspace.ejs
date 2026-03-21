@@ -5,7 +5,7 @@
 </head>
 <body class="app-body">
   <div class="app-grid">
-    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projectId: projectId, workspaceSlug: phaseSlug, appAccess: appAccess }) %>
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: phaseSlug, appAccess: appAccess }) %>
     <main class="app-canvas">
       <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
         <div class="app-trial-bar">Free trial — ends <%= appAccess.trialEndsLabel %>. The Foundry requires a paid plan.</div>

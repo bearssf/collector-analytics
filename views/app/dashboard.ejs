@@ -5,16 +5,32 @@
 </head>
 <body class="app-body">
   <div class="app-grid">
-    <%- include('../partials/app-sidebar', { user: user, navActive: 'dashboard', projectId: 'sample', workspaceSlug: '', appAccess: appAccess }) %>
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'dashboard', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
       <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
         <div class="app-trial-bar">Free trial active — ends <%= appAccess.trialEndsLabel %>. Upgrade to unlock <strong>The Foundry</strong> and full membership.</div>
       <% } %>
       <h1>Forge portfolio</h1>
-      <p class="sub">High-level stats and project progress will live here. This is a placeholder for the portfolio dashboard.</p>
-      <div class="app-placeholder">
-        <strong>Coming soon:</strong> combined progress across projects, time-on-task summaries, and quick links into each project.
-      </div>
+      <p class="sub">Your projects and quick entry into each workspace.</p>
+
+      <% if (projects && projects.length) { %>
+        <ul class="app-dashboard-list">
+          <% projects.forEach(function(p) { %>
+            <li>
+              <a href="/app/project/<%= p.id %>/anvil" class="app-dashboard-card">
+                <strong><%= p.name %></strong>
+                <span class="muted"><%= p.purpose %> · <%= p.citation_style %></span>
+              </a>
+            </li>
+          <% }); %>
+        </ul>
+        <p class="app-dashboard-actions"><a href="/app/projects/new" class="app-link-cta">+ Forge a new project</a></p>
+      <% } else { %>
+        <div class="app-placeholder">
+          <p style="margin:0 0 .75rem">No projects yet. Forge one to start with The Anvil, Crucible, and Framework.</p>
+          <p style="margin:0"><a href="/app/projects/new" class="app-btn-primary">Forge a new project</a></p>
+        </div>
+      <% } %>
     </main>
     <%- include('../partials/app-insight-panel', { insightHint: 'Portfolio-level insights and reminders will appear here.' }) %>
   </div>

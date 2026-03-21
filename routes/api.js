@@ -1,59 +1,18 @@
 const express = require('express');
 const sql = require('mssql');
-const fs = require('fs');
-const path = require('path');
 const { ensureSubscriptionRow, getSubscriptionRow, appAccessFromRow } = require('../lib/subscriptions');
-
-const PURPOSES = [
-  'Dissertation',
-  'Academic Publication',
-  'Thesis',
-  'Essay',
-  'Report',
-  'Conference Document',
-  'Other',
-];
-
-const CITATION_STYLES = ['APA', 'MLA', 'Chicago', 'Turabian', 'IEEE'];
-
-let templatesCache = null;
-function loadTemplates() {
-  if (templatesCache) return templatesCache;
-  const fp = path.join(__dirname, '..', 'data', 'project-templates.json');
-  const raw = fs.readFileSync(fp, 'utf8');
-  templatesCache = JSON.parse(raw);
-  return templatesCache;
-}
+const {
+  PURPOSES,
+  CITATION_STYLES,
+  loadTemplates,
+  listProjects,
+  getProjectBundle,
+  createProject,
+} = require('../lib/projectService');
 
 function requireApiAuth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
   next();
-}
-
-async function getProjectBundle(getPool, projectId, userId) {
-  const p = await getPool();
-  const proj = await p
-    .request()
-    .input('id', sql.Int, projectId)
-    .input('user_id', sql.Int, userId)
-    .query(`SELECT * FROM projects WHERE id = @id AND user_id = @user_id`);
-  if (!proj.recordset[0]) return null;
-  const secs = await p
-    .request()
-    .input('project_id', sql.Int, projectId)
-    .query(
-      `SELECT id, project_id, sort_order, title, slug, status, progress_percent, created_at, updated_at
-       FROM project_sections WHERE project_id = @project_id ORDER BY sort_order`
-    );
-  const cnt = await p
-    .request()
-    .input('project_id', sql.Int, projectId)
-    .query(`SELECT COUNT(*) AS n FROM sources WHERE project_id = @project_id`);
-  return {
-    project: proj.recordset[0],
-    sections: secs.recordset,
-    sourceCount: cnt.recordset[0].n,
-  };
 }
 
 function createApiRouter(getPool) {
@@ -87,15 +46,8 @@ function createApiRouter(getPool) {
 
   router.get('/projects', async (req, res, next) => {
     try {
-      const p = await getPool();
-      const r = await p
-        .request()
-        .input('user_id', sql.Int, req.session.userId)
-        .query(
-          `SELECT id, name, purpose, status, citation_style, template_key, created_at, updated_at, started_at, completed_at
-           FROM projects WHERE user_id = @user_id ORDER BY updated_at DESC`
-        );
-      res.json({ projects: r.recordset });
+      const projects = await listProjects(getPool, req.session.userId);
+      res.json({ projects });
     } catch (e) {
       next(e);
     }
@@ -103,58 +55,14 @@ function createApiRouter(getPool) {
 
   router.post('/projects', async (req, res, next) => {
     try {
-      const { name, purpose, citationStyle, templateKey } = req.body || {};
-      const tpl = loadTemplates();
-      if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
-      if (!purpose || !PURPOSES.includes(purpose)) {
-        return res.status(400).json({ error: 'invalid purpose', allowed: PURPOSES });
+      const result = await createProject(getPool, req.session.userId, req.body);
+      if (!result.ok) {
+        const { status, error, allowed } = result;
+        const payload = { error };
+        if (allowed) payload.allowed = allowed;
+        return res.status(status).json(payload);
       }
-      if (!citationStyle || !CITATION_STYLES.includes(citationStyle)) {
-        return res.status(400).json({ error: 'invalid citationStyle', allowed: CITATION_STYLES });
-      }
-      if (!templateKey || !tpl[templateKey]) {
-        return res.status(400).json({ error: 'invalid templateKey' });
-      }
-
-      const pool = await getPool();
-      const transaction = new sql.Transaction(pool);
-      let newProjectId;
-      await transaction.begin();
-      try {
-        const ins = await new sql.Request(transaction)
-          .input('user_id', sql.Int, req.session.userId)
-          .input('name', sql.NVarChar(255), String(name).trim())
-          .input('purpose', sql.NVarChar(80), purpose)
-          .input('citation_style', sql.NVarChar(40), citationStyle)
-          .input('template_key', sql.NVarChar(80), templateKey)
-          .input('status', sql.NVarChar(40), 'active')
-          .query(`
-            INSERT INTO projects (user_id, name, purpose, citation_style, template_key, status, started_at, updated_at)
-            OUTPUT INSERTED.id
-            VALUES (@user_id, @name, @purpose, @citation_style, @template_key, @status, GETDATE(), GETDATE())
-          `);
-        newProjectId = ins.recordset[0].id;
-        const sections = tpl[templateKey].sections;
-        for (let i = 0; i < sections.length; i++) {
-          const s = sections[i];
-          await new sql.Request(transaction)
-            .input('project_id', sql.Int, newProjectId)
-            .input('sort_order', sql.Int, i)
-            .input('title', sql.NVarChar(255), s.title)
-            .input('slug', sql.NVarChar(80), s.slug || null)
-            .query(`
-              INSERT INTO project_sections (project_id, sort_order, title, slug, updated_at)
-              VALUES (@project_id, @sort_order, @title, @slug, GETDATE())
-            `);
-        }
-        await transaction.commit();
-      } catch (e) {
-        await transaction.rollback();
-        throw e;
-      }
-
-      const bundle = await getProjectBundle(getPool, newProjectId, req.session.userId);
-      res.status(201).json(bundle);
+      res.status(201).json(result.bundle);
     } catch (e) {
       next(e);
     }

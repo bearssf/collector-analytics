@@ -1,5 +1,7 @@
 <% var na = typeof navActive !== 'undefined' ? navActive : ''; %>
-<% var pid = typeof projectId !== 'undefined' && projectId ? projectId : 'sample'; %>
+<% var projects = typeof projects !== 'undefined' && projects ? projects : []; %>
+<% var cur = typeof currentProjectId !== 'undefined' && currentProjectId != null ? currentProjectId : null; %>
+<% var effectivePid = cur != null ? String(cur) : (projects[0] ? String(projects[0].id) : ''); %>
 <% var slug = typeof workspaceSlug !== 'undefined' ? workspaceSlug : ''; %>
 <% var access = typeof appAccess !== 'undefined' && appAccess ? appAccess : { foundryUnlocked: false, trialing: false, paid: false }; %>
 <aside class="app-sidebar" aria-label="Workspace navigation">
@@ -18,17 +20,31 @@
 
   <div class="app-nav-section">
     <div class="app-nav-label">Project</div>
-    <nav class="app-nav">
-      <span style="display:block;padding:0 .55rem .35rem;font-size:.8rem;color:rgba(255,255,255,.45);">Sample project</span>
-      <a href="/app/project/<%= pid %>/anvil" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
-      <a href="/app/project/<%= pid %>/crucible" class="<%= slug === 'crucible' ? 'active' : '' %>">The Crucible</a>
-      <% if (access.foundryUnlocked) { %>
-        <a href="/app/project/<%= pid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %>">The Foundry</a>
+    <% if (projects.length === 0) { %>
+      <p class="app-sidebar-muted">No projects yet.<br><a href="/app/projects/new">Forge a project</a></p>
+    <% } else { %>
+      <% if (projects.length > 1) { %>
+        <nav class="app-nav app-project-picker" aria-label="Switch project">
+          <% projects.forEach(function(p) { %>
+            <a href="/app/project/<%= p.id %>/anvil" class="<%= cur == p.id ? 'active' : '' %>"><%= p.name %></a>
+          <% }); %>
+        </nav>
       <% } else { %>
-        <a href="/app/project/<%= pid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %> locked">The Foundry <span class="badge-pay">Paid</span></a>
+        <span class="app-sidebar-project-name"><%= projects[0].name %></span>
       <% } %>
-      <a href="/app/project/<%= pid %>/framework" class="<%= slug === 'framework' ? 'active' : '' %>">Framework</a>
-    </nav>
+      <% if (effectivePid) { %>
+        <nav class="app-nav">
+          <a href="/app/project/<%= effectivePid %>/anvil" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
+          <a href="/app/project/<%= effectivePid %>/crucible" class="<%= slug === 'crucible' ? 'active' : '' %>">The Crucible</a>
+          <% if (access.foundryUnlocked) { %>
+            <a href="/app/project/<%= effectivePid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %>">The Foundry</a>
+          <% } else { %>
+            <a href="/app/project/<%= effectivePid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %> locked">The Foundry <span class="badge-pay">Paid</span></a>
+          <% } %>
+          <a href="/app/project/<%= effectivePid %>/framework" class="<%= slug === 'framework' ? 'active' : '' %>">Framework</a>
+        </nav>
+      <% } %>
+    <% } %>
   </div>
 
   <div style="margin-top:auto;padding-top:1rem;font-size:.78rem;color:rgba(255,255,255,.38);">

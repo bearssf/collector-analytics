@@ -5,7 +5,7 @@
 </head>
 <body class="app-body">
   <div class="app-grid">
-    <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projectId: 'sample', workspaceSlug: '', appAccess: appAccess }) %>
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
       <h1>Account</h1>
       <p class="sub">Profile, billing, subscription, and help — placeholder until Stripe and profile APIs are wired.</p>

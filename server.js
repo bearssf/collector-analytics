@@ -8,6 +8,14 @@ const fs = require('fs');
 
 const { ensureCoreSchema } = require('./lib/schema');
 const { ensureSubscriptionRow, getSubscriptionRow, appAccessFromRow } = require('./lib/subscriptions');
+const {
+  listProjects,
+  getProjectBundle,
+  createProject,
+  loadTemplates,
+  PURPOSES,
+  CITATION_STYLES,
+} = require('./lib/projectService');
 const createApiRouter = require('./routes/api');
 
 const app = express();
@@ -195,36 +203,121 @@ app.get('/app', requireAuth, asyncHandler(loadAppAccess), (req, res) => {
   res.redirect('/app/dashboard');
 });
 
-app.get('/app/dashboard', requireAuth, asyncHandler(loadAppAccess), (req, res) => {
-  res.render('app/dashboard', {
-    user: req.session.user,
-    appAccess: res.locals.appAccess,
-  });
-});
+app.get(
+  '/app/dashboard',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    res.render('app/dashboard', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId,
+    });
+  })
+);
 
-app.get('/app/account', requireAuth, asyncHandler(loadAppAccess), (req, res) => {
-  res.render('app/account', {
-    user: req.session.user,
-    appAccess: res.locals.appAccess,
-  });
-});
+app.get(
+  '/app/account',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    res.render('app/account', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId,
+    });
+  })
+);
 
-app.get('/app/project/:projectId/:slug', requireAuth, asyncHandler(loadAppAccess), (req, res) => {
-  const { projectId, slug } = req.params;
-  const phase = WORKSPACE_PHASES[slug];
-  if (!phase) return res.status(404).send('Not found');
-  const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
-  res.render('app/workspace', {
-    user: req.session.user,
-    appAccess: res.locals.appAccess,
-    projectId,
-    projectTitle: 'Sample project',
-    phaseTitle: phase.title,
-    phaseSlug: slug,
-    foundryLocked,
-    insightHint: phase.insight,
-  });
-});
+app.get(
+  '/app/projects/new',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    const tpl = loadTemplates();
+    const templateOptions = Object.keys(tpl).map((k) => ({ key: k, label: tpl[k].label }));
+    res.render('app/project-new', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId,
+      templateOptions,
+      purposes: PURPOSES,
+      citationStyles: CITATION_STYLES,
+      error: null,
+      form: {},
+    });
+  })
+);
+
+app.post(
+  '/app/projects',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    const tpl = loadTemplates();
+    const templateOptions = Object.keys(tpl).map((k) => ({ key: k, label: tpl[k].label }));
+    const body = req.body || {};
+    const result = await createProject(getPool, req.session.userId, body);
+    if (!result.ok) {
+      return res.render('app/project-new', {
+        user: req.session.user,
+        appAccess: res.locals.appAccess,
+        projects,
+        currentProjectId,
+        templateOptions,
+        purposes: PURPOSES,
+        citationStyles: CITATION_STYLES,
+        error: result.error,
+        form: {
+          name: body.name || '',
+          purpose: body.purpose || '',
+          citationStyle: body.citationStyle || '',
+          templateKey: body.templateKey || '',
+        },
+      });
+    }
+    res.redirect(`/app/project/${result.bundle.project.id}/anvil`);
+  })
+);
+
+app.get(
+  '/app/project/:projectId/:slug',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projectId = parseInt(req.params.projectId, 10);
+    const { slug } = req.params;
+    const phase = WORKSPACE_PHASES[slug];
+    if (Number.isNaN(projectId) || !phase) return res.status(404).send('Not found');
+    const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
+    if (!bundle) return res.status(404).send('Not found');
+    const projects = await listProjects(getPool, req.session.userId);
+    const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
+    res.render('app/workspace', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId: projectId,
+      projectId,
+      projectTitle: bundle.project.name,
+      phaseTitle: phase.title,
+      phaseSlug: slug,
+      foundryLocked,
+      insightHint: phase.insight,
+    });
+  })
+);
 
 app.get('/register', (req, res) => {
   if (req.session && req.session.userId) return res.redirect('/');
