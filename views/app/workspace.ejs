@@ -15,6 +15,8 @@
         <p class="sub">Citations and notes for <strong><%= projectTitle %></strong> — link sources to your outline sections.</p>
       <% } else if (phaseSlug === 'anvil') { %>
         <p class="sub">Section drafts for <strong><%= projectTitle %></strong> — autosaves to your project outline.</p>
+      <% } else if (phaseSlug === 'framework') { %>
+        <p class="sub">Argument outline for <strong><%= projectTitle %></strong> — track status and progress per section.</p>
       <% } else { %>
         <p class="sub"><%= projectTitle %> — center canvas placeholder. Rich editor, sources, and workflow tools will mount here.</p>
       <% } %>
@@ -30,6 +32,9 @@
       <% } else if (phaseSlug === 'anvil') { %>
         <div id="anvil-root" class="anvil" data-project-id="<%= projectId %>"></div>
         <script src="/js/anvil.js" defer></script>
+      <% } else if (phaseSlug === 'framework') { %>
+        <div id="framework-root" class="framework" data-project-id="<%= projectId %>"></div>
+        <script src="/js/framework.js" defer></script>
       <% } else { %>
         <div class="app-placeholder">
           <strong>Placeholder workspace.</strong> Section-specific writing, capture, or visualization will load here for <code><%= phaseSlug %></code>.

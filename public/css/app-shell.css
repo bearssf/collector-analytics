@@ -616,3 +616,104 @@
   color: rgba(255, 200, 200, 0.95);
   font-size: 0.86rem;
 }
+
+/* Framework — outline status & progress */
+.framework {
+  max-width: 44rem;
+}
+.fw-panel {
+  width: 100%;
+}
+.fw-loading,
+.fw-muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.fw-global-status {
+  font-size: 0.82rem;
+  color: rgba(120, 200, 140, 0.95);
+  margin: 0 0 0.75rem;
+  min-height: 1.2em;
+}
+.fw-global-status:empty {
+  display: none;
+}
+.fw-global-status.is-error {
+  color: rgba(255, 160, 140, 0.95);
+}
+.fw-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.fw-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.fw-card-head {
+  margin-bottom: 0.65rem;
+}
+.fw-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.fw-slug {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.fw-card-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+@media (min-width: 560px) {
+  .fw-card-controls {
+    flex-direction: row;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}
+.fw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.fw-field-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.fw-field-progress {
+  flex: 1;
+  min-width: 10rem;
+}
+.fw-select {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 0.88rem;
+  font-family: inherit;
+  max-width: 100%;
+}
+.fw-select:focus {
+  outline: none;
+  border-color: rgba(47, 128, 237, 0.55);
+}
+.fw-range {
+  width: 100%;
+  max-width: 16rem;
+  accent-color: var(--blue);
+}
+.fw-pct {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+}
