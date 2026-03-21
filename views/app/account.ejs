@@ -8,10 +8,38 @@
     <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
       <h1>Account</h1>
-      <p class="sub">Profile, billing, subscription, and help — placeholder until Stripe and profile APIs are wired.</p>
-      <div class="app-placeholder">
+      <p class="sub">Profile, billing, and subscription.</p>
+
+      <% if (typeof billingFlash !== 'undefined' && billingFlash) { %>
+        <div class="account-flash account-flash--<%= billingFlash.kind %>"><%= billingFlash.text %></div>
+      <% } %>
+
+      <div class="app-placeholder account-block">
         <p style="margin:0 0 .5rem"><strong>Signed in as</strong> <%= user.email %></p>
-        <p style="margin:0">Update registration fields, payment method, plan, and support requests will be available here.</p>
+        <p style="margin:0 0 1rem;color:rgba(255,255,255,.55);font-size:.9rem">Profile editing and password changes will be available in a later update.</p>
+
+        <h2 class="account-h2">Subscription</h2>
+        <% if (appAccess.paid) { %>
+          <p class="account-status account-status--paid">You have an <strong>active</strong> membership. The Foundry and member features are unlocked.</p>
+          <% if (subscriptionRow && subscriptionRow.current_period_end) { %>
+            <p class="account-meta">Current period ends <%= new Date(subscriptionRow.current_period_end).toLocaleDateString(undefined, { dateStyle: 'medium' }) %>.</p>
+          <% } %>
+        <% } else if (subscriptionRow && subscriptionRow.status === 'past_due') { %>
+          <p class="account-status">Your last payment failed (<strong>past due</strong>). Update your payment method in Stripe (email from Stripe) or retry checkout when billing is configured.</p>
+        <% } else if (appAccess.trialing && appAccess.trialEndsLabel) { %>
+          <p class="account-status">Free trial active — ends <strong><%= appAccess.trialEndsLabel %></strong>. Upgrade to unlock The Foundry.</p>
+        <% } else { %>
+          <p class="account-status">No active paid subscription.</p>
+        <% } %>
+
+        <% if (!appAccess.paid) { %>
+          <% if (stripeConfigured) { %>
+            <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
+            <p class="account-meta">Secure checkout via Stripe. You’ll return here when finished.</p>
+          <% } else { %>
+            <p class="account-meta">Online billing is not configured on this server yet (missing Stripe env vars).</p>
+          <% } %>
+        <% } %>
       </div>
     </main>
     <%- include('../partials/app-insight-panel', { insightHint: 'Account alerts (renewal, payment issues) will surface here.' }) %>

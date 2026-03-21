@@ -17,6 +17,24 @@ Single-page home with centered logo, email/password sign-in, and registration ba
 
 Store database credentials only in environment variables or your host’s secret store—never commit them to git.
 
+## Stripe (subscriptions)
+
+Used for **Upgrade to member** on **Account** (`/billing/checkout`) and **`subscriptions`** rows (`status`, Stripe IDs, `current_period_end`).
+
+1. In the [Stripe Dashboard](https://dashboard.stripe.com), create a **Product** and **recurring Price** (monthly or yearly). Copy the Price ID (`price_...`).
+2. Add API keys and webhook secret to your environment (see `.env.example`):
+   - **`STRIPE_SECRET_KEY`** — Secret key (`sk_test_...` or `sk_live_...`).
+   - **`STRIPE_PRICE_ID`** — The recurring price ID checkout should charge.
+   - **`PUBLIC_BASE_URL`** — Public origin of this app **with no trailing slash**, e.g. `https://your-app.onrender.com`. Used for Checkout success/cancel URLs.
+3. **Webhooks:** Add endpoint **`POST /webhooks/stripe`**. For production, use your real `PUBLIC_BASE_URL` + `/webhooks/stripe`. Subscribe to at least:
+   - `checkout.session.completed`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`  
+   Copy the **Signing secret** into **`STRIPE_WEBHOOK_SECRET`**.
+4. **Local testing:** Install [Stripe CLI](https://stripe.com/docs/stripe-cli), run `stripe listen --forward-to localhost:3000/webhooks/stripe`, and paste the CLI webhook secret into **`STRIPE_WEBHOOK_SECRET`** for that session.
+
+Successful payment sets `subscriptions.status` to **`active`** (unlocks The Foundry). Canceled / unpaid subscriptions map to **`canceled`** (or **`past_due`** when applicable).
+
 ## Render
 
 1. Create a **Web Service** connected to this repo, runtime **Node**, build `npm ci`, start `npm start`.
@@ -52,10 +70,11 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 
 **Purposes:** Dissertation, Academic Publication, Thesis, Essay, Report, Conference Document, Other. **Citation styles:** APA, MLA, Chicago, Turabian, IEEE.
 
-**Foundry access:** `appAccess.foundryUnlocked` is true only when `subscriptions.status = 'active'` (paid). Trial rows use `status = 'trialing'` with `trial_end`. Set `DEV_SUBSCRIPTION_PAID=true` locally to simulate paid UI.
+**Foundry access:** `appAccess.foundryUnlocked` is true only when `subscriptions.status = 'active'` (paid via Stripe webhook or `DEV_SUBSCRIPTION_PAID`). Trial rows use `status = 'trialing'` with `trial_end`. Set `DEV_SUBSCRIPTION_PAID=true` locally to simulate paid UI without Stripe.
 
 ## Features
 
+- **Billing:** **Account** → **Upgrade to member** opens Stripe Checkout (`/billing/checkout`); **`POST /webhooks/stripe`** updates `subscriptions` from Stripe events (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
 - **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.

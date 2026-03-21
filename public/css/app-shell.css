@@ -616,3 +616,39 @@
   color: rgba(255, 200, 200, 0.95);
   font-size: 0.86rem;
 }
+
+.account-flash {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  max-width: 36rem;
+}
+.account-flash--ok {
+  background: rgba(80, 160, 100, 0.12);
+  border: 1px solid rgba(80, 160, 100, 0.35);
+  color: rgba(200, 240, 210, 0.95);
+}
+.account-flash--muted {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.account-block .account-h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.account-status {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.account-status--paid {
+  color: rgba(180, 230, 200, 0.95);
+}
+.account-meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

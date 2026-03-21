@@ -7,7 +7,11 @@ const path = require('path');
 const fs = require('fs');
 
 const { ensureCoreSchema } = require('./lib/schema');
-const { ensureSubscriptionRow, getSubscriptionRow, appAccessFromRow } = require('./lib/subscriptions');
+const {
+  ensureSubscriptionRow,
+  getSubscriptionRow,
+  appAccessFromRow,
+} = require('./lib/subscriptions');
 const {
   listProjects,
   getProjectBundle,
@@ -17,8 +21,14 @@ const {
   CITATION_STYLES,
 } = require('./lib/projectService');
 const createApiRouter = require('./routes/api');
+const { handleStripeWebhook } = require('./lib/billingStripe');
 
 const app = express();
+
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
 const PORT = process.env.PORT || 3000;
 
 const dbConfig = {
@@ -42,6 +52,16 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
+
+app.post(
+  '/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  asyncHandler(async (req, res) => {
+    if (!stripe) return res.status(503).send('Stripe not configured');
+    return handleStripeWebhook(req, res, stripe, getPool);
+  })
+);
+
 app.use(express.json({ limit: '2mb' }));
 
 const sessionSecret = process.env.SESSION_SECRET || 'dev-only-change-session-secret';
@@ -220,17 +240,58 @@ app.get(
 );
 
 app.get(
+  '/billing/checkout',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!stripe || !process.env.STRIPE_PRICE_ID || !process.env.PUBLIC_BASE_URL) {
+      return res.status(503).send(
+        'Billing is not configured. Set STRIPE_SECRET_KEY, STRIPE_PRICE_ID, and PUBLIC_BASE_URL (see README).'
+      );
+    }
+    const base = String(process.env.PUBLIC_BASE_URL).replace(/\/$/, '');
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      success_url: `${base}/app/account?subscription=success`,
+      cancel_url: `${base}/app/account?subscription=canceled`,
+      client_reference_id: String(req.session.userId),
+      customer_email: req.session.user.email,
+      subscription_data: {
+        metadata: { userId: String(req.session.userId) },
+      },
+      metadata: { userId: String(req.session.userId) },
+    });
+    if (!checkoutSession.url) return res.status(500).send('Checkout session did not return a URL');
+    res.redirect(303, checkoutSession.url);
+  })
+);
+
+app.get(
   '/app/account',
   requireAuth,
   asyncHandler(loadAppAccess),
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = projects.length ? projects[0].id : null;
+    const subQ = req.query.subscription;
+    let billingFlash = null;
+    if (subQ === 'success') {
+      billingFlash = {
+        kind: 'ok',
+        text: 'Thanks — checkout completed. Member access activates when Stripe confirms payment (usually seconds).',
+      };
+    } else if (subQ === 'canceled') {
+      billingFlash = { kind: 'muted', text: 'Checkout was canceled. No charges were made.' };
+    }
+    const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
       projects,
       currentProjectId,
+      billingFlash,
+      subscriptionRow,
+      stripeConfigured: !!(stripe && process.env.STRIPE_PRICE_ID && process.env.PUBLIC_BASE_URL),
     });
   })
 );
