@@ -7,6 +7,9 @@
     <div class="brand-text"><span class="a">Academiq</span><span>Forge</span></div>
   </div>
   <nav class="nav" aria-label="Primary">
+    <% if (user) { %>
+      <a href="/app/dashboard" class="<%= na === 'workspace' ? 'nav-active' : '' %>">Workspace</a>
+    <% } %>
     <a href="/product" class="<%= na === 'product' ? 'nav-active' : '' %>">Product</a>
     <a href="#">Workflow</a>
     <a href="#">Features</a>

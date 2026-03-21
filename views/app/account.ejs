@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: 'Account' }) %>
+</head>
+<body class="app-body">
+  <div class="app-grid">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projectId: 'sample', workspaceSlug: '', appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <h1>Account</h1>
+      <p class="sub">Profile, billing, subscription, and help — placeholder until Stripe and profile APIs are wired.</p>
+      <div class="app-placeholder">
+        <p style="margin:0 0 .5rem"><strong>Signed in as</strong> <%= user.email %></p>
+        <p style="margin:0">Update registration fields, payment method, plan, and support requests will be available here.</p>
+      </div>
+    </main>
+    <%- include('../partials/app-insight-panel', { insightHint: 'Account alerts (renewal, payment issues) will surface here.' }) %>
+  </div>
+</body>
+</html>

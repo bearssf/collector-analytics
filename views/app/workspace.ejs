@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: phaseTitle }) %>
+</head>
+<body class="app-body">
+  <div class="app-grid">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projectId: projectId, workspaceSlug: phaseSlug, appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
+        <div class="app-trial-bar">Free trial — ends <%= appAccess.trialEndsLabel %>. The Foundry requires a paid plan.</div>
+      <% } %>
+      <h1><%= phaseTitle %></h1>
+      <p class="sub"><%= projectTitle %> — center canvas placeholder. Rich editor, sources, and workflow tools will mount here.</p>
+
+      <% if (foundryLocked) { %>
+        <div class="app-paywall">
+          <h2>The Foundry is for members</h2>
+          <p>The Foundry is not included in the free trial. Subscribe to unlock literature-gap and topic ideation powered by your sources and interests.</p>
+        </div>
+      <% } else { %>
+        <div class="app-placeholder">
+          <strong>Placeholder workspace.</strong> Section-specific writing, capture, or visualization will load here for <code><%= phaseSlug %></code>.
+        </div>
+      <% } %>
+    </main>
+    <%- include('../partials/app-insight-panel', { insightHint: insightHint || 'Feedback and suggestions for this step will appear here.' }) %>
+  </div>
+</body>
+</html>

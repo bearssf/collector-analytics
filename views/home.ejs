@@ -49,6 +49,6 @@
     </section>
   </div>
 
-  <%- include('partials/signin-modal', { user: user, error: error, returnTo: '/' }) %>
+  <%- include('partials/signin-modal', { user: user, error: error, returnTo: typeof returnTo !== 'undefined' ? returnTo : '/', openSignin: typeof openSignin !== 'undefined' && openSignin }) %>
 </body>
 </html>

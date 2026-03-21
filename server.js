@@ -46,6 +46,50 @@ app.use(
   })
 );
 
+/** Default trial stub for logged-in users until Stripe/subscription rows exist */
+app.use((req, res, next) => {
+  if (req.session && req.session.userId) {
+    if (req.session.subscriptionStatus === undefined || req.session.subscriptionStatus === null) {
+      req.session.subscriptionStatus = 'trialing';
+      req.session.trialEndsAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    }
+  }
+  next();
+});
+
+function requireAuth(req, res, next) {
+  if (req.session && req.session.userId) return next();
+  return res.redirect(`/?signin=1&next=${encodeURIComponent(req.originalUrl)}`);
+}
+
+/** Foundry: paid members only — not included in free trial (DEV_SUBSCRIPTION_PAID=true simulates paid) */
+function loadAppAccess(req, res, next) {
+  if (process.env.DEV_SUBSCRIPTION_PAID === 'true') {
+    res.locals.appAccess = {
+      paid: true,
+      trialing: false,
+      trialEndsAt: null,
+      trialEndsLabel: '',
+      foundryUnlocked: true,
+    };
+    return next();
+  }
+  const paid = req.session.subscriptionStatus === 'active';
+  const trialEnds = req.session.trialEndsAt;
+  const trialing =
+    req.session.subscriptionStatus === 'trialing' && trialEnds && Date.now() < trialEnds;
+  res.locals.appAccess = {
+    paid,
+    trialing,
+    trialEndsAt: trialEnds ? new Date(trialEnds) : null,
+    trialEndsLabel: trialEnds
+      ? new Date(trialEnds).toLocaleDateString(undefined, { dateStyle: 'medium' })
+      : '',
+    foundryUnlocked: paid,
+  };
+  next();
+}
+
 let pool = null;
 
 async function getPool() {
@@ -120,17 +164,65 @@ function safeReturnTo(val) {
 }
 
 app.get('/', (req, res) => {
+  const next = req.query.next ? safeReturnTo(req.query.next) : '/';
   res.render('home', {
     user: req.session.user || null,
     error: req.query.error || null,
+    returnTo: next,
+    openSignin: req.query.signin === '1',
   });
 });
 
 app.get('/product', (req, res) => {
+  const next = req.query.next ? safeReturnTo(req.query.next) : '/product';
   res.render('product', {
     user: req.session.user || null,
     error: req.query.error || null,
     navActive: 'product',
+    returnTo: next,
+    openSignin: req.query.signin === '1',
+  });
+});
+
+const WORKSPACE_PHASES = {
+  anvil: { title: 'The Anvil', insight: 'Paragraph feedback, scoring, and citations will appear here.' },
+  crucible: { title: 'The Crucible', insight: 'Source lists, notes, and Semantic Scholar suggestions will appear here.' },
+  foundry: { title: 'The Foundry', insight: 'Generated research topics and gaps will appear here for paid members.' },
+  framework: { title: 'Framework', insight: 'Argument outline and evidence mapping will appear here.' },
+};
+
+app.get('/app', requireAuth, loadAppAccess, (req, res) => {
+  res.redirect('/app/dashboard');
+});
+
+app.get('/app/dashboard', requireAuth, loadAppAccess, (req, res) => {
+  res.render('app/dashboard', {
+    user: req.session.user,
+    appAccess: res.locals.appAccess,
+  });
+});
+
+app.get('/app/account', requireAuth, loadAppAccess, (req, res) => {
+  res.render('app/account', {
+    user: req.session.user,
+    appAccess: res.locals.appAccess,
+  });
+});
+
+app.get('/app/project/:projectId/:slug', requireAuth, loadAppAccess, (req, res) => {
+  const { projectId, slug } = req.params;
+  const phase = WORKSPACE_PHASES[slug];
+  if (!phase) return res.status(404).send('Not found');
+  const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
+  res.render('app/workspace', {
+    user: req.session.user,
+    appAccess: res.locals.appAccess,
+    projectId,
+    projectTitle: 'Sample project',
+    phaseTitle: phase.title,
+    phaseSlug: slug,
+    foundryLocked,
+    insightHint: phase.insight,
   });
 });
 
@@ -169,6 +261,10 @@ app.post('/login', async (req, res) => {
       lastName: user.last_name,
       email: user.email,
     };
+    if (!req.session.subscriptionStatus) {
+      req.session.subscriptionStatus = 'trialing';
+      req.session.trialEndsAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    }
     return res.redirect(back);
   } catch (err) {
     console.error('Login error:', err.message);
@@ -264,6 +360,8 @@ app.post('/register', async (req, res) => {
       lastName: user.last_name,
       email: user.email,
     };
+    req.session.subscriptionStatus = 'trialing';
+    req.session.trialEndsAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
     return res.redirect('/');
   } catch (err) {
     if (err.number === 2627 || err.code === 'EREQUEST') {

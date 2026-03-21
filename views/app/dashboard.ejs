@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: 'Portfolio dashboard' }) %>
+</head>
+<body class="app-body">
+  <div class="app-grid">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'dashboard', projectId: 'sample', workspaceSlug: '', appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
+        <div class="app-trial-bar">Free trial active — ends <%= appAccess.trialEndsLabel %>. Upgrade to unlock <strong>The Foundry</strong> and full membership.</div>
+      <% } %>
+      <h1>Forge portfolio</h1>
+      <p class="sub">High-level stats and project progress will live here. This is a placeholder for the portfolio dashboard.</p>
+      <div class="app-placeholder">
+        <strong>Coming soon:</strong> combined progress across projects, time-on-task summaries, and quick links into each project.
+      </div>
+    </main>
+    <%- include('../partials/app-insight-panel', { insightHint: 'Portfolio-level insights and reminders will appear here.' }) %>
+  </div>
+</body>
+</html>

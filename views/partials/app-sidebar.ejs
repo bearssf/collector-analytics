@@ -1,0 +1,39 @@
+<% var na = typeof navActive !== 'undefined' ? navActive : ''; %>
+<% var pid = typeof projectId !== 'undefined' && projectId ? projectId : 'sample'; %>
+<% var slug = typeof workspaceSlug !== 'undefined' ? workspaceSlug : ''; %>
+<% var access = typeof appAccess !== 'undefined' && appAccess ? appAccess : { foundryUnlocked: false, trialing: false, paid: false }; %>
+<aside class="app-sidebar" aria-label="Workspace navigation">
+  <a href="/" class="app-sidebar-brand" title="Marketing home">
+    <div class="mark"><div class="dot"></div></div>
+    <div class="word"><span class="a">Academiq</span><span>Forge</span></div>
+  </a>
+
+  <div class="app-nav-section">
+    <div class="app-nav-label">Workspace</div>
+    <nav class="app-nav">
+      <a href="/app/dashboard" class="<%= na === 'dashboard' ? 'active' : '' %>">Portfolio dashboard</a>
+      <a href="/app/account" class="<%= na === 'account' ? 'active' : '' %>">Account</a>
+    </nav>
+  </div>
+
+  <div class="app-nav-section">
+    <div class="app-nav-label">Project</div>
+    <nav class="app-nav">
+      <span style="display:block;padding:0 .55rem .35rem;font-size:.8rem;color:rgba(255,255,255,.45);">Sample project</span>
+      <a href="/app/project/<%= pid %>/anvil" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
+      <a href="/app/project/<%= pid %>/crucible" class="<%= slug === 'crucible' ? 'active' : '' %>">The Crucible</a>
+      <% if (access.foundryUnlocked) { %>
+        <a href="/app/project/<%= pid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %>">The Foundry</a>
+      <% } else { %>
+        <a href="/app/project/<%= pid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %> locked">The Foundry <span class="badge-pay">Paid</span></a>
+      <% } %>
+      <a href="/app/project/<%= pid %>/framework" class="<%= slug === 'framework' ? 'active' : '' %>">Framework</a>
+    </nav>
+  </div>
+
+  <div style="margin-top:auto;padding-top:1rem;font-size:.78rem;color:rgba(255,255,255,.38);">
+    <a href="/product" style="color:rgba(255,255,255,.55);">Product</a>
+    <span style="margin:0 .35rem">·</span>
+    <a href="/" style="color:rgba(255,255,255,.55);">Home</a>
+  </div>
+</aside>

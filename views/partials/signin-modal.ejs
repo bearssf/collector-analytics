@@ -28,13 +28,13 @@
     var modal = document.getElementById('signin-modal');
     var openBtn = document.getElementById('open-signin');
     var closeBtn = document.getElementById('close-signin');
-    if (!modal || !openBtn) return;
+    if (!modal) return;
     function openModal() { modal.classList.add('is-open'); var first = modal.querySelector('input[type="email"]'); if (first) setTimeout(function () { first.focus(); }, 50); }
     function closeModal() { modal.classList.remove('is-open'); }
-    openBtn.addEventListener('click', openModal);
+    if (openBtn) openBtn.addEventListener('click', openModal);
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
-    <% if (typeof error !== 'undefined' && error && !user) { %>openModal();<% } %>
+    <% if ((typeof error !== 'undefined' && error && !user) || (typeof openSignin !== 'undefined' && openSignin)) { %>openModal();<% } %>
   })();
 </script>
