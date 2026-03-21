@@ -325,3 +325,165 @@
 .app-link-muted:hover {
   color: #fff;
 }
+
+/* The Crucible — sources UI */
+.crucible {
+  max-width: 42rem;
+}
+.crucible-loading,
+.crucible-empty {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin: 0.5rem 0 1rem;
+}
+.crucible-error,
+.crucible-inline-error {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(220, 80, 80, 0.12);
+  border: 1px solid rgba(220, 80, 80, 0.35);
+  color: rgba(255, 200, 200, 0.95);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+.crucible-toolbar {
+  margin-bottom: 1rem;
+}
+.crucible-form {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 1.25rem;
+}
+.crucible-label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+.crucible-req {
+  color: rgba(255, 120, 120, 0.9);
+}
+.crucible-textarea {
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 0.75rem;
+  box-sizing: border-box;
+}
+.crucible-textarea:focus {
+  outline: none;
+  border-color: rgba(47, 128, 237, 0.55);
+}
+.crucible-fieldset {
+  border: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+.crucible-legend {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 0.4rem;
+}
+.crucible-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  margin-bottom: 0.35rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+}
+.crucible-check input {
+  margin-top: 0.2rem;
+}
+.crucible-muted {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+.crucible-form-actions {
+  margin-top: 0.5rem;
+}
+.crucible-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.crucible-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.crucible-citation {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.crucible-notes {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.crucible-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+.crucible-tag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(47, 128, 237, 0.15);
+  border: 1px solid rgba(47, 128, 237, 0.25);
+  color: rgba(255, 255, 255, 0.82);
+}
+.crucible-card-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.75rem;
+}
+.crucible-btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.86rem;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.crucible-btn-link:hover {
+  filter: brightness(1.1);
+}
+.crucible-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.crucible-btn-secondary:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}

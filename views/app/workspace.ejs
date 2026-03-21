@@ -11,13 +11,20 @@
         <div class="app-trial-bar">Free trial — ends <%= appAccess.trialEndsLabel %>. The Foundry requires a paid plan.</div>
       <% } %>
       <h1><%= phaseTitle %></h1>
-      <p class="sub"><%= projectTitle %> — center canvas placeholder. Rich editor, sources, and workflow tools will mount here.</p>
+      <% if (phaseSlug === 'crucible') { %>
+        <p class="sub">Citations and notes for <strong><%= projectTitle %></strong> — link sources to your outline sections.</p>
+      <% } else { %>
+        <p class="sub"><%= projectTitle %> — center canvas placeholder. Rich editor, sources, and workflow tools will mount here.</p>
+      <% } %>
 
       <% if (foundryLocked) { %>
         <div class="app-paywall">
           <h2>The Foundry is for members</h2>
           <p>The Foundry is not included in the free trial. Subscribe to unlock literature-gap and topic ideation powered by your sources and interests.</p>
         </div>
+      <% } else if (phaseSlug === 'crucible') { %>
+        <div id="crucible-root" class="crucible" data-project-id="<%= projectId %>"></div>
+        <script src="/js/crucible.js" defer></script>
       <% } else { %>
         <div class="app-placeholder">
           <strong>Placeholder workspace.</strong> Section-specific writing, capture, or visualization will load here for <code><%= phaseSlug %></code>.
