@@ -113,8 +113,13 @@ Work to keep **subscription management on AcademiqForge** (API + your UI), simil
 4. **Update payment method** — SetupIntent + Payment Element on **`/billing/payment-method`**; **`POST /api/billing/setup-intent`** + **`/complete`**; 3DS return **`GET /billing/payment-method/return`**. *(Shipped.)*
 5. **Plan change (month ↔ year, proration)** — `POST /api/billing/subscription/plan` + **`/plan/preview`** (upcoming invoice via `lib/billingPlanPreview.js`); `subscriptions.update` with `create_prorations` (`lib/billingPlanChange.js`); Account shows **estimated amount due** when switching monthly → yearly; **yearly → monthly** only within **30 days** of period end. *(Shipped.)*
 
+## The Anvil (vision)
+
+The shipped Anvil is a **section draft editor with autosave**. The full **writing workspace** vision — three-stage layout (nav | editor | feedback + citations), rich document editing, **AWS Bedrock**-assisted review (e.g. Claude), scoring, Crucible-linked citations, and export — is documented in **[`docs/anvil-vision.md`](docs/anvil-vision.md)**.
+
 ## Backlog
 
+- **The Anvil:** Implement the [Anvil vision](docs/anvil-vision.md) incrementally (rich editor, right-hand feedback/citation canvas, Bedrock review, scoring, export) — see doc for scope and engineering notes.
 - **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`) for invoices and other Stripe-hosted actions. On-site: subscription summary, auto-renew, payment method, and plan change (dual prices) per **Billing maintenance track**.
 - **User management:** **Profile edit** and **password change** are on **Account** (`PATCH /api/me`, `POST /api/me/password`). **Email** change / verification — not started (would require a verified flow and Stripe sync if billing email must match).
 
