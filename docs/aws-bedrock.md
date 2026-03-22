@@ -15,6 +15,21 @@ If AWS returns an error like *“Invocation of model ID … with on-demand throu
 
 IAM **`bedrock:InvokeModel`** must allow invoking that **inference profile** resource (often `Resource: "*"` is simplest while testing).
 
+**What value goes in `BEDROCK_INFERENCE_PROFILE_ARN`?**  
+Yes — use the **inference profile’s** identifier, not the foundation model id (e.g. not `anthropic.claude-sonnet-4-5-…v1:0`). In the console, copy either:
+
+- The **full ARN** (often `arn:aws:bedrock:region:account:inference-profile/...`), or  
+- The **profile id** string shown for that profile (some UIs use ids like `us.` / `global.` prefixes).
+
+Do **not** keep an old **`BEDROCK_MODEL_ID`** in the environment if that value was the invalid foundation model id. If **`BEDROCK_INFERENCE_PROFILE_ARN` is empty or wrong**, the app falls back to **`BEDROCK_MODEL_ID`**, which triggers *“The provided model identifier is invalid”* when that id is not accepted for `InvokeModel`.
+
+### “The provided model identifier is invalid”
+
+1. **Delete `BEDROCK_MODEL_ID`** in Render (or clear it) so only the inference profile is used.  
+2. Confirm the env key is exactly **`BEDROCK_INFERENCE_PROFILE_ARN`** (not `BEDROCK_INFERENCE_PROFILE` without `_ARN`).  
+3. Paste the **ARN or profile id** from **Inference profiles** with no extra spaces or quotes (or rely on the app’s quote-stripping after deploy).  
+4. **`AWS_REGION`** should match the region where you invoke (same as your Bedrock client region).
+
 ## What to configure
 
 | Variable | Where | Purpose |
