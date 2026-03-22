@@ -58,7 +58,7 @@ async function loadSourcesWithSections(getPool, projectId) {
     .request()
     .input('project_id', sql.Int, projectId)
     .query(
-      `SELECT s.id, s.project_id, s.citation_text, s.notes, s.doi, s.sort_order, s.created_at, s.updated_at
+      `SELECT s.id, s.project_id, s.citation_text, s.notes, s.crucible_notes, s.doi, s.sort_order, s.created_at, s.updated_at
        FROM sources s WHERE s.project_id = @project_id ORDER BY s.sort_order, s.id`
     );
   const sources = rows.recordset;
@@ -715,7 +715,7 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const { citationText, notes, sectionIds, doi, tags } = req.body || {};
+      const { citationText, notes, crucibleNotes, sectionIds, doi, tags } = req.body || {};
       if (!citationText || !String(citationText).trim()) return res.status(400).json({ error: 'citationText is required' });
       const doiNorm = normalizeDoi(doi);
       const tagsNorm = normalizeTags(tags);
@@ -727,16 +727,19 @@ function createApiRouter(getPool) {
         .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
+      const crucibleNotesVal =
+        crucibleNotes != null && String(crucibleNotes).trim() !== '' ? String(crucibleNotes) : null;
       const ins = await p
         .request()
         .input('project_id', sql.Int, projectId)
         .input('citation_text', sql.NVarChar(sql.MAX), String(citationText).trim())
         .input('notes', sql.NVarChar(sql.MAX), notes != null ? String(notes) : null)
+        .input('crucible_notes', sql.NVarChar(sql.MAX), crucibleNotesVal)
         .input('doi', sql.NVarChar(500), doiNorm)
         .query(`
-          INSERT INTO sources (project_id, citation_text, notes, doi, updated_at)
+          INSERT INTO sources (project_id, citation_text, notes, crucible_notes, doi, updated_at)
           OUTPUT INSERTED.id
-          VALUES (@project_id, @citation_text, @notes, @doi, GETDATE())
+          VALUES (@project_id, @citation_text, @notes, @crucible_notes, @doi, GETDATE())
         `);
       const sourceId = ins.recordset[0].id;
 
@@ -765,7 +768,7 @@ function createApiRouter(getPool) {
         .request()
         .input('id', sql.Int, sourceId)
         .query(
-          `SELECT id, project_id, citation_text, notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
+          `SELECT id, project_id, citation_text, notes, crucible_notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
         );
       const out = row.recordset[0];
       const sec = await p
@@ -806,6 +809,14 @@ function createApiRouter(getPool) {
       if (body.notes !== undefined) {
         updates.push('notes = @notes');
         reqB.input('notes', sql.NVarChar(sql.MAX), body.notes != null ? String(body.notes) : null);
+      }
+      if (body.crucibleNotes !== undefined) {
+        updates.push('crucible_notes = @crucible_notes');
+        reqB.input(
+          'crucible_notes',
+          sql.NVarChar(sql.MAX),
+          body.crucibleNotes != null ? String(body.crucibleNotes) : null
+        );
       }
       if (body.doi !== undefined) {
         updates.push('doi = @doi');
@@ -861,7 +872,7 @@ function createApiRouter(getPool) {
         .request()
         .input('id', sql.Int, sourceId)
         .query(
-          `SELECT id, project_id, citation_text, notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
+          `SELECT id, project_id, citation_text, notes, crucible_notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
         );
       const out = row.recordset[0];
       const sec = await p

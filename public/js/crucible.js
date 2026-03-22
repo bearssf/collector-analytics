@@ -343,6 +343,7 @@
       sources = (src && src.sources) || [];
       sources.forEach(function (s) {
         s.tags = Array.isArray(s.tags) ? s.tags : [];
+        if (s.crucible_notes == null) s.crucible_notes = '';
       });
       pruneFilterState();
       render();
@@ -466,44 +467,58 @@
     el.setAttribute('aria-hidden', 'true');
   }
 
+  function renderRelatedPaperTilesHtml(papers) {
+    let h = '<div class="crucible-related-tiles">';
+    papers.forEach(function (p) {
+      const href = p.url || 'https://www.semanticscholar.org/';
+      const title = p.title || 'Untitled';
+      const authors = (p.authors || '').trim();
+      const year =
+        p.year != null && p.year !== '' && !Number.isNaN(Number(p.year)) ? String(p.year) : '';
+      const metaBits = [];
+      if (authors) metaBits.push(authors);
+      if (year) metaBits.push(year);
+      const meta = metaBits.join(' · ');
+      h += '<a class="crucible-related-tile" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">';
+      h += '<div class="crucible-related-tile-title">' + escapeHtml(title) + '</div>';
+      if (meta) {
+        h += '<div class="crucible-related-tile-meta">' + escapeHtml(meta) + '</div>';
+      }
+      h += '</a>';
+    });
+    h += '</div>';
+    return h;
+  }
+
   function renderRelatedBodyHtml() {
     if (relatedLoading) {
-      return '<p class="crucible-related-status">Searching Semantic Scholar…</p>';
+      return '<p class="crucible-related-status">Fetching related papers (Semantic Scholar, ~1 request/s)…</p>';
     }
     if (relatedError) {
       return '<p class="crucible-related-error" role="alert">' + escapeHtml(relatedError) + '</p>';
     }
     if (!relatedResult) {
       return (
-        '<p class="crucible-muted crucible-related-placeholder">Uses your project title and sources in one Semantic Scholar search (rate-limited). ' +
-        'If no papers match or the API is busy, we can suggest search phrases via Bedrock when configured.</p>'
+        '<p class="crucible-muted crucible-related-placeholder">Uses your project title and sources for Semantic Scholar (one request at a time, ~1/s). ' +
+        'If the first search finds nothing, we may run topic searches via Bedrock and fetch papers for each.</p>'
       );
     }
     const r = relatedResult;
     if (r.source === 'semantic_scholar' && r.papers && r.papers.length) {
-      let h =
-        '<p class="crucible-related-meta">Search: <span class="crucible-related-query">' +
-        escapeHtml(r.query || '') +
-        '</span></p>';
-      h += '<ul class="crucible-related-list">';
-      r.papers.forEach(function (p) {
-        h += '<li class="crucible-related-paper">';
-        h += '<div class="crucible-related-paper-title">' + escapeHtml(p.title || 'Untitled') + '</div>';
-        h += '<div class="crucible-related-paper-sub">';
-        if (p.year) h += escapeHtml(String(p.year)) + ' · ';
-        h += escapeHtml(p.authors || '') + '</div>';
-        if (p.abstract) {
-          h += '<p class="crucible-related-abstract">' + escapeHtml(p.abstract) + '</p>';
-        }
-        if (p.url) {
-          h +=
-            '<a class="crucible-related-external" href="' +
-            escapeHtml(p.url) +
-            '" target="_blank" rel="noopener noreferrer">Open on Semantic Scholar</a>';
-        }
-        h += '</li>';
-      });
-      h += '</ul>';
+      let h = '';
+      if (r.paperDiscovery === 'multi_query') {
+        h +=
+          '<p class="crucible-related-meta">Related articles <span class="crucible-related-query">(from topic searches)</span></p>';
+      } else {
+        h +=
+          '<p class="crucible-related-meta">Matched query: <span class="crucible-related-query">' +
+          escapeHtml(r.query || '') +
+          '</span></p>';
+      }
+      h += renderRelatedPaperTilesHtml(r.papers);
+      if (r.readingTip) {
+        h += '<p class="crucible-related-tip">' + escapeHtml(r.readingTip) + '</p>';
+      }
       return h;
     }
     if (r.source === 'bedrock' && r.fallback) {
@@ -553,6 +568,30 @@
       escapeHtml(r.message || 'No suggestions available.') +
       '</p>'
     );
+  }
+
+  function renderResearchNotesTile(src) {
+    const id = src.id;
+    const raw = src.crucible_notes != null ? String(src.crucible_notes) : '';
+    let h = '<div class="crucible-research-notes">';
+    h += '<div class="crucible-research-notes-h">Research notes</div>';
+    h +=
+      '<textarea class="crucible-research-notes-textarea" rows="10" data-source-id="' +
+      id +
+      '" spellcheck="true" placeholder="Type or paste notes for this source…">' +
+      escapeHtml(raw) +
+      '</textarea>';
+    h += '<div class="crucible-research-notes-footer">';
+    h +=
+      '<button type="button" class="app-btn-primary crucible-save-notes" data-source-id="' +
+      id +
+      '">Save notes</button>';
+    h +=
+      '<span class="crucible-notes-saved-hint" hidden data-for-source="' +
+      id +
+      '">Saved</span>';
+    h += '</div></div>';
+    return h;
   }
 
   function renderFiltersHtml() {
@@ -636,8 +675,9 @@
       html += '<label class="crucible-label">Citation <span class="crucible-req">*</span></label>';
       html +=
         '<textarea class="crucible-textarea" name="citationText" rows="4" required placeholder="Full citation or reference text"></textarea>';
-      html += '<label class="crucible-label">Notes</label>';
-      html += '<textarea class="crucible-textarea" name="notes" rows="2" placeholder="Optional notes"></textarea>';
+      html += '<label class="crucible-label">Citation notes <span class="crucible-optional">(optional)</span></label>';
+      html +=
+        '<textarea class="crucible-textarea" name="notes" rows="2" placeholder="Short bibliographic notes"></textarea>';
       html +=
         '<label class="crucible-label">DOI <span class="crucible-optional">(optional)</span></label>';
       html +=
@@ -646,6 +686,10 @@
         '<label class="crucible-label">Tags <span class="crucible-optional">(optional)</span></label>';
       html +=
         '<input type="text" class="crucible-input" name="tags" autocomplete="off" placeholder="Comma-separated, e.g. meta-analysis, STEM" />';
+      html +=
+        '<label class="crucible-label">Research notes <span class="crucible-optional">(optional)</span></label>';
+      html +=
+        '<textarea class="crucible-textarea" name="crucibleNotes" rows="4" placeholder="Freeform notes (plain text; saved with the source)"></textarea>';
       html += renderSectionCheckboxes('addSec', []);
       html += '<div class="crucible-form-actions">';
       html += '<button type="submit" class="app-btn-primary">Save source</button>';
@@ -667,11 +711,17 @@
       }
     }
 
-    html += '<ul class="crucible-list">';
+    if (displayList.length) {
+      html +=
+        '<div class="crucible-split-head" aria-hidden="true"><span class="crucible-split-label">Sources</span><span class="crucible-split-label">Notes</span></div>';
+    }
+    html += '<ul class="crucible-list crucible-list--split">';
     displayList.forEach(function (src) {
       const isEditing = editingId === src.id;
       const usage = estimateInTextUsage(src, sources, sections);
-      html += '<li class="crucible-card" data-source-id="' + src.id + '">';
+      html += '<li class="crucible-row" data-source-id="' + src.id + '">';
+      html += '<div class="crucible-col crucible-col--source">';
+      html += '<div class="crucible-card crucible-card--source">';
       if (isEditing) {
         html += '<form class="crucible-form crucible-edit-form">';
         html += '<label class="crucible-label">Citation</label>';
@@ -679,7 +729,7 @@
           '<textarea class="crucible-textarea" name="citationText" rows="4" required>' +
           escapeHtml(src.citation_text) +
           '</textarea>';
-        html += '<label class="crucible-label">Notes</label>';
+        html += '<label class="crucible-label">Citation notes <span class="crucible-optional">(optional)</span></label>';
         html +=
           '<textarea class="crucible-textarea" name="notes" rows="2">' +
           escapeHtml(src.notes || '') +
@@ -763,6 +813,11 @@
           '">Tags</button>';
         html += '</div>';
       }
+      html += '</div></div>';
+      html += '<div class="crucible-col crucible-col--notes">';
+      html += '<div class="crucible-card crucible-card--notes">';
+      html += renderResearchNotesTile(src);
+      html += '</div></div>';
       html += '</li>';
     });
     html += '</ul>';
@@ -897,6 +952,8 @@
         const doiRaw = (fd.get('doi') || '').toString().trim();
         const sectionIds = collectSectionIds(formAdd, 'addSec');
         const tags = parseTagsInput(fd.get('tags'));
+        const crucibleNotesRaw = (fd.get('crucibleNotes') || '').toString();
+        const crucibleNotes = crucibleNotesRaw.trim() === '' ? null : crucibleNotesRaw;
         try {
           await api('/projects/' + projectId + '/sources', 'POST', {
             citationText,
@@ -904,6 +961,7 @@
             doi: doiRaw || null,
             sectionIds,
             tags,
+            crucibleNotes,
           });
           showAdd = false;
           await load();
@@ -959,8 +1017,8 @@
     root.querySelectorAll('.crucible-edit-form').forEach(function (form) {
       form.addEventListener('submit', async function (ev) {
         ev.preventDefault();
-        const card = form.closest('.crucible-card');
-        const id = card ? parseInt(card.getAttribute('data-source-id'), 10) : NaN;
+        const row = form.closest('.crucible-row');
+        const id = row ? parseInt(row.getAttribute('data-source-id'), 10) : NaN;
         if (Number.isNaN(id)) return;
         clearError();
         const fd = new FormData(form);
@@ -969,6 +1027,12 @@
         const doiRaw = (fd.get('doi') || '').toString().trim();
         const sectionIds = collectSectionIds(form, 'editSec-' + id);
         const tags = parseTagsInput(fd.get('tags'));
+        const taNotes = row && row.querySelector('.crucible-research-notes-textarea');
+        let crucibleNotes = undefined;
+        if (taNotes) {
+          const v = taNotes.value;
+          crucibleNotes = v.trim() === '' ? null : v;
+        }
         try {
           await api('/sources/' + id, 'PATCH', {
             citationText,
@@ -976,6 +1040,7 @@
             doi: doiRaw,
             sectionIds,
             tags,
+            crucibleNotes,
           });
           editingId = null;
           await load();
@@ -985,9 +1050,40 @@
       });
     });
 
+    root.querySelectorAll('.crucible-save-notes').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        const id = parseInt(btn.getAttribute('data-source-id'), 10);
+        if (Number.isNaN(id)) return;
+        const ta = root.querySelector('.crucible-research-notes-textarea[data-source-id="' + id + '"]');
+        if (!ta) return;
+        clearError();
+        btn.disabled = true;
+        const v = ta.value;
+        const crucibleNotes = v.trim() === '' ? null : v;
+        try {
+          await api('/sources/' + id, 'PATCH', { crucibleNotes });
+          const src = sources.find(function (s) {
+            return Number(s.id) === id;
+          });
+          if (src) src.crucible_notes = crucibleNotes == null ? '' : crucibleNotes;
+          const hint = root.querySelector('.crucible-notes-saved-hint[data-for-source="' + id + '"]');
+          if (hint) {
+            hint.hidden = false;
+            setTimeout(function () {
+              hint.hidden = true;
+            }, 2000);
+          }
+        } catch (e) {
+          showError(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
     if (focusTagsAfterEdit && editingId) {
-      const card = root.querySelector('.crucible-card[data-source-id="' + editingId + '"]');
-      const tagsInput = card && card.querySelector('input[name="tags"]');
+      const row = root.querySelector('.crucible-row[data-source-id="' + editingId + '"]');
+      const tagsInput = row && row.querySelector('.crucible-col--source input[name="tags"]');
       if (tagsInput) {
         tagsInput.focus();
         tagsInput.select();
