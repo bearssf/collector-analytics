@@ -1,5 +1,10 @@
 <% var na = typeof navActive !== 'undefined' ? navActive : ''; %>
 <% var projects = typeof projects !== 'undefined' && projects ? projects : []; %>
+<% function truncateProjectTitle(name) {
+  var s = String(name == null ? '' : name);
+  if (s.length <= 30) return s;
+  return s.slice(0, 30) + '...';
+} %>
 <% var cur = typeof currentProjectId !== 'undefined' && currentProjectId != null ? currentProjectId : null; %>
 <% var effectivePid = cur != null ? String(cur) : (projects[0] ? String(projects[0].id) : ''); %>
 <% var slug = typeof workspaceSlug !== 'undefined' ? workspaceSlug : ''; %>
@@ -30,7 +35,7 @@
           <% }); %>
         </nav>
       <% } else { %>
-        <span class="app-sidebar-project-name"><%= projects[0].name %></span>
+        <span class="app-sidebar-project-name" title="<%= projects[0].name %>"><%= truncateProjectTitle(projects[0].name) %></span>
       <% } %>
       <% if (effectivePid) { %>
         <nav class="app-nav">
