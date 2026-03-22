@@ -13,6 +13,12 @@
   let selectedId = null;
   let debounceTimer = null;
   const DEBOUNCE_MS = 900;
+  let reviewTimer = null;
+  const REVIEW_DEBOUNCE_MS = 4500;
+  const MIN_REVIEW_INTERVAL_MS = 28000;
+  let lastReviewContentHash = '';
+  let lastReviewAt = 0;
+  let bedrockReviewDisabled = false;
   let anvilSources = [];
   let anvilSourcesError = null;
   let quillEditor = null;
@@ -146,6 +152,47 @@
     return htmlIsEffectivelyEmpty(html) ? '' : String(html);
   }
 
+  function simpleContentHash(str) {
+    var h = 5381;
+    var s = String(str);
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) + h) ^ s.charCodeAt(i);
+    }
+    return String(h);
+  }
+
+  function scheduleAiReview() {
+    if (bedrockReviewDisabled) return;
+    if (reviewTimer) clearTimeout(reviewTimer);
+    reviewTimer = setTimeout(function () {
+      reviewTimer = null;
+      runAiReview();
+    }, REVIEW_DEBOUNCE_MS);
+  }
+
+  async function runAiReview() {
+    if (bedrockReviewDisabled || selectedId == null || bundle == null) return;
+    var html = getEditorHtml();
+    if (htmlIsEffectivelyEmpty(html)) return;
+    var norm = normalizeForCompare(html);
+    var hash = simpleContentHash(norm);
+    if (hash === lastReviewContentHash) return;
+    if (Date.now() - lastReviewAt < MIN_REVIEW_INTERVAL_MS) return;
+    try {
+      var data = await api('/projects/' + projectId + '/sections/' + selectedId + '/review', 'POST', { html: html });
+      lastReviewContentHash = hash;
+      lastReviewAt = Date.now();
+      if (data && data.inserted > 0) {
+        await renderFeedbackRail();
+      }
+    } catch (e) {
+      var m = e && e.message ? String(e.message) : '';
+      if (/not configured/i.test(m)) {
+        bedrockReviewDisabled = true;
+      }
+    }
+  }
+
   function getEditorHtml() {
     if (quillEditor) {
       return quillEditor.root.innerHTML;
@@ -194,6 +241,7 @@
       setQuillHtml(htmlLoad);
       quillEditor.on('text-change', function () {
         scheduleSave();
+        scheduleAiReview();
       });
       return;
     }
@@ -205,6 +253,7 @@
       ta.value = plainTextFromBody(htmlLoad);
       ta.addEventListener('input', function () {
         scheduleSave();
+        scheduleAiReview();
       });
       ta.addEventListener('blur', function () {
         if (debounceTimer) {
@@ -301,6 +350,78 @@
     if (ta && ta.tagName === 'TEXTAREA') {
       insertAtCursor(ta, snippet);
       scheduleSave();
+    }
+  }
+
+  function categoryLabel(cat) {
+    const m = {
+      logic: 'Logic',
+      evidence: 'Evidence',
+      citations: 'Citations',
+      format: 'Format',
+    };
+    return m[String(cat || '').toLowerCase()] || String(cat || '');
+  }
+
+  async function renderFeedbackRail() {
+    const mount = document.getElementById('anvil-feedback-mount');
+    if (!mount) return;
+
+    if (!bundle || !(bundle.sections && bundle.sections.length)) {
+      mount.innerHTML =
+        '<p class="anvil-feedback-msg">Feedback appears when this project has outline sections.</p>';
+      return;
+    }
+    if (selectedId == null) {
+      mount.innerHTML = '<p class="anvil-feedback-msg">Select a section to see suggestions.</p>';
+      return;
+    }
+
+    mount.innerHTML = '<p class="anvil-feedback-placeholder">Loading…</p>';
+    try {
+      const data = await api('/projects/' + projectId + '/sections/' + selectedId + '/suggestions', 'GET');
+      const list = (data && data.suggestions) || [];
+      if (!list.length) {
+        mount.innerHTML =
+          '<p class="anvil-feedback-msg">No suggestions yet. When Bedrock is configured, suggestions can appear after you pause typing.</p>';
+        return;
+      }
+      let html = '<ul class="anvil-feedback-list">';
+      list.forEach(function (sug) {
+        const st = String(sug.status || 'open').toLowerCase();
+        const isOpen = st === 'open';
+        html += '<li class="anvil-feedback-card" data-suggestion-id="' + Number(sug.id) + '">';
+        html += '<div class="anvil-feedback-card-head">';
+        html += '<span class="anvil-feedback-cat">' + escapeHtml(categoryLabel(sug.category)) + '</span>';
+        if (!isOpen) {
+          html +=
+            '<span class="anvil-feedback-status anvil-feedback-status--' +
+            escapeHtml(st) +
+            '">' +
+            (st === 'applied' ? 'Applied' : 'Ignored') +
+            '</span>';
+        }
+        html += '</div>';
+        html += '<div class="anvil-feedback-body">' + escapeHtml(sug.body) + '</div>';
+        if (isOpen) {
+          html += '<div class="anvil-feedback-actions">';
+          html +=
+            '<button type="button" class="anvil-feedback-apply" data-suggestion-id="' +
+            Number(sug.id) +
+            '">Apply</button>';
+          html +=
+            '<button type="button" class="anvil-feedback-ignore" data-suggestion-id="' +
+            Number(sug.id) +
+            '">Ignore</button>';
+          html += '</div>';
+        }
+        html += '</li>';
+      });
+      html += '</ul>';
+      mount.innerHTML = html;
+    } catch (e) {
+      mount.innerHTML =
+        '<p class="anvil-feedback-msg anvil-feedback-msg--error" role="alert">' + escapeHtml(e.message) + '</p>';
     }
   }
 
@@ -442,12 +563,17 @@
 
   function render() {
     if (!bundle) return;
+    if (reviewTimer) {
+      clearTimeout(reviewTimer);
+      reviewTimer = null;
+    }
 
     const sections = bundle.sections || [];
     if (!sections.length) {
       root.innerHTML =
         '<div class="anvil-panel"><p class="anvil-muted">No sections in this project. Add sections via your project template or create a new project.</p></div>';
       renderCitationsRail();
+      renderFeedbackRail();
       return;
     }
 
@@ -546,6 +672,7 @@
     })();
 
     renderCitationsRail();
+    renderFeedbackRail();
   }
 
   async function load() {
@@ -555,6 +682,8 @@
     anvilSourcesError = null;
     try {
       bundle = await api('/projects/' + projectId, 'GET');
+      lastReviewContentHash = '';
+      lastReviewAt = 0;
       selectedId = null;
       if (bundle.sections && bundle.sections.length) {
         const fromUrl = initialSectionIdFromUrl();
@@ -576,6 +705,7 @@
         escapeHtml(e.message) +
         '</p></div>';
       renderCitationsRail();
+      renderFeedbackRail();
       return;
     }
 
@@ -623,6 +753,32 @@
     },
     true
   );
+
+  (function bindFeedbackActions() {
+    const pane = document.getElementById('anvil-feedback-pane');
+    if (!pane) return;
+    pane.addEventListener('click', function (e) {
+      const apply = e.target.closest('.anvil-feedback-apply');
+      const ignore = e.target.closest('.anvil-feedback-ignore');
+      if (!apply && !ignore) return;
+      const btn = apply || ignore;
+      const sid = parseInt(btn.getAttribute('data-suggestion-id'), 10);
+      if (Number.isNaN(sid)) return;
+      e.preventDefault();
+      const status = apply ? 'applied' : 'ignored';
+      btn.disabled = true;
+      (async function () {
+        try {
+          await api('/projects/' + projectId + '/suggestions/' + sid, 'PATCH', { status: status });
+          await renderFeedbackRail();
+        } catch (err) {
+          alert(err.message || 'Could not update suggestion.');
+        } finally {
+          btn.disabled = false;
+        }
+      })();
+    });
+  })();
 
   (function bindCitationInsert() {
     const pane = document.getElementById('anvil-citations-pane');

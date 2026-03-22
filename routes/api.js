@@ -20,10 +20,52 @@ const {
   sanitizeFilename,
   contentDispositionAttachment,
 } = require('../lib/documentExport');
+const {
+  normalizeCategory,
+  isValidStatus,
+  rowToSuggestion,
+} = require('../lib/anvilFeedback');
+const { insertAnvilSuggestions } = require('../lib/anvilSuggestionStore');
+const { isBedrockConfigured, runSectionReview } = require('../lib/bedrockReview');
+
+function mapSuggestionRow(r) {
+  if (!r) return null;
+  return rowToSuggestion({
+    id: r.id,
+    project_id: r.project_id,
+    section_id: r.section_id,
+    category: r.category,
+    body: r.body,
+    suggestion_status: r.suggestion_status,
+    anchor_json: r.anchor_json,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  });
+}
 
 function requireApiAuth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
   next();
+}
+
+async function loadSourcesWithSections(getPool, projectId) {
+  const p = await getPool();
+  const rows = await p
+    .request()
+    .input('project_id', sql.Int, projectId)
+    .query(
+      `SELECT s.id, s.project_id, s.citation_text, s.notes, s.sort_order, s.created_at, s.updated_at
+       FROM sources s WHERE s.project_id = @project_id ORDER BY s.sort_order, s.id`
+    );
+  const sources = rows.recordset;
+  for (const s of sources) {
+    const sec = await p
+      .request()
+      .input('source_id', sql.Int, s.id)
+      .query(`SELECT section_id FROM source_sections WHERE source_id = @source_id`);
+    s.sectionIds = sec.recordset.map((r) => r.section_id);
+  }
+  return sources;
 }
 
 function createApiRouter(getPool) {
@@ -367,6 +409,242 @@ function createApiRouter(getPool) {
     }
   });
 
+  router.get('/projects/:projectId/sections/:sectionId/suggestions', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sectionId = parseInt(req.params.sectionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sectionId)) {
+        return res.status(400).json({ error: 'invalid id' });
+      }
+      const p = await getPool();
+      const own = await p
+        .request()
+        .input('sid', sql.Int, sectionId)
+        .input('pid', sql.Int, projectId)
+        .input('user_id', sql.Int, req.session.userId)
+        .query(
+          `SELECT ps.id FROM project_sections ps
+           INNER JOIN projects pr ON pr.id = ps.project_id
+           WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`
+        );
+      if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
+
+      const rows = await p
+        .request()
+        .input('section_id', sql.Int, sectionId)
+        .input('project_id', sql.Int, projectId)
+        .query(
+          `SELECT id, project_id, section_id, category, body, suggestion_status, anchor_json, created_at, updated_at
+           FROM anvil_suggestions
+           WHERE section_id = @section_id AND project_id = @project_id
+           ORDER BY created_at DESC`
+        );
+      const suggestions = rows.recordset.map(mapSuggestionRow).filter(Boolean);
+      res.json({ suggestions });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/sections/:sectionId/suggestions', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sectionId = parseInt(req.params.sectionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sectionId)) {
+        return res.status(400).json({ error: 'invalid id' });
+      }
+      const p = await getPool();
+      const own = await p
+        .request()
+        .input('sid', sql.Int, sectionId)
+        .input('pid', sql.Int, projectId)
+        .input('user_id', sql.Int, req.session.userId)
+        .query(
+          `SELECT ps.id FROM project_sections ps
+           INNER JOIN projects pr ON pr.id = ps.project_id
+           WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`
+        );
+      if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
+
+      const body = req.body || {};
+      const items = [];
+      if (Array.isArray(body.suggestions)) {
+        for (const raw of body.suggestions) {
+          const cat = normalizeCategory(raw && raw.category);
+          const text = raw && raw.body != null ? String(raw.body).trim() : '';
+          if (!cat || !text) {
+            return res.status(400).json({ error: 'Each suggestion needs category and non-empty body' });
+          }
+          items.push({
+            category: cat,
+            body: text,
+            anchorJson: raw.anchorJson != null ? String(raw.anchorJson).slice(0, 500) : null,
+          });
+        }
+      } else {
+        const cat = normalizeCategory(body.category);
+        const text = body.body != null ? String(body.body).trim() : '';
+        if (!cat || !text) return res.status(400).json({ error: 'category and body are required' });
+        items.push({
+          category: cat,
+          body: text,
+          anchorJson: body.anchorJson != null ? String(body.anchorJson).slice(0, 500) : null,
+        });
+      }
+
+      if (items.length === 0) return res.status(400).json({ error: 'No suggestions to save' });
+
+      const created = [];
+      for (const it of items) {
+        const ins = await p
+          .request()
+          .input('project_id', sql.Int, projectId)
+          .input('section_id', sql.Int, sectionId)
+          .input('category', sql.NVarChar(20), it.category)
+          .input('body', sql.NVarChar(sql.MAX), it.body)
+          .input('anchor_json', sql.NVarChar(500), it.anchorJson)
+          .query(`
+            INSERT INTO anvil_suggestions (project_id, section_id, category, body, anchor_json, updated_at)
+            OUTPUT INSERTED.id
+            VALUES (@project_id, @section_id, @category, @body, @anchor_json, GETDATE())
+          `);
+        const newId = ins.recordset[0].id;
+        const row = await p
+          .request()
+          .input('id', sql.Int, newId)
+          .query(
+            `SELECT id, project_id, section_id, category, body, suggestion_status, anchor_json, created_at, updated_at
+             FROM anvil_suggestions WHERE id = @id`
+          );
+        created.push(mapSuggestionRow(row.recordset[0]));
+      }
+
+      res.status(201).json({ suggestions: created });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.patch('/projects/:projectId/suggestions/:suggestionId', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const suggestionId = parseInt(req.params.suggestionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(suggestionId)) {
+        return res.status(400).json({ error: 'invalid id' });
+      }
+      const body = req.body || {};
+      const newStatus = body.status != null ? String(body.status).toLowerCase() : '';
+      if (!isValidStatus(newStatus) || newStatus === 'open') {
+        return res.status(400).json({ error: 'status must be applied or ignored' });
+      }
+
+      const p = await getPool();
+      const upd = await p
+        .request()
+        .input('sid', sql.Int, suggestionId)
+        .input('pid', sql.Int, projectId)
+        .input('user_id', sql.Int, req.session.userId)
+        .input('suggestion_status', sql.NVarChar(20), newStatus)
+        .query(
+          `UPDATE sug
+           SET suggestion_status = @suggestion_status, updated_at = GETDATE()
+           FROM anvil_suggestions AS sug
+           INNER JOIN projects AS pr ON pr.id = sug.project_id AND pr.user_id = @user_id
+           WHERE sug.id = @sid AND sug.project_id = @pid`
+        );
+      if (!upd.rowsAffected || !upd.rowsAffected[0]) return res.status(404).json({ error: 'Not found' });
+
+      const row = await p
+        .request()
+        .input('id', sql.Int, suggestionId)
+        .query(
+          `SELECT id, project_id, section_id, category, body, suggestion_status, anchor_json, created_at, updated_at
+           FROM anvil_suggestions WHERE id = @id`
+        );
+      res.json({ suggestion: mapSuggestionRow(row.recordset[0]) });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/sections/:sectionId/review', async (req, res, next) => {
+    try {
+      if (!isBedrockConfigured()) {
+        return res.status(503).json({
+          error: 'Bedrock is not configured',
+          bedrockConfigured: false,
+        });
+      }
+
+      const projectId = parseInt(req.params.projectId, 10);
+      const sectionId = parseInt(req.params.sectionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sectionId)) {
+        return res.status(400).json({ error: 'invalid id' });
+      }
+
+      const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
+      if (!bundle) return res.status(404).json({ error: 'Not found' });
+      const sec = bundle.sections.find(function (s) {
+        return Number(s.id) === sectionId;
+      });
+      if (!sec) return res.status(404).json({ error: 'Section not found' });
+
+      const body = req.body || {};
+      let html = body.html != null ? String(body.html) : null;
+      if (html == null) {
+        html = sec.body != null ? String(sec.body) : '';
+      }
+
+      const proj = bundle.project || {};
+      const citationStyle =
+        proj.citation_style != null ? proj.citation_style : proj.citationStyle != null ? proj.citationStyle : 'APA';
+
+      const allSources = await loadSourcesWithSections(getPool, projectId);
+      const sourcesForSection = allSources.filter(function (src) {
+        const ids = src.sectionIds || [];
+        return ids.some(function (x) {
+          return Number(x) === sectionId;
+        });
+      });
+
+      let reviewResult;
+      try {
+        reviewResult = await runSectionReview({
+          html,
+          sectionTitle: sec.title,
+          citationStyle,
+          sourcesForSection,
+        });
+      } catch (err) {
+        let msg = err && err.message ? String(err.message) : 'Bedrock request failed';
+        if (err && err.name === 'AccessDeniedException') {
+          msg = 'Bedrock access denied — check IAM permissions and model access in this region.';
+        }
+        return res.status(502).json({ error: msg, bedrockConfigured: true });
+      }
+
+      const items = reviewResult.suggestions || [];
+      if (!items.length) {
+        return res.json({
+          suggestions: [],
+          inserted: 0,
+          skipped: Boolean(reviewResult.skipped),
+          bedrockConfigured: true,
+        });
+      }
+
+      const created = await insertAnvilSuggestions(getPool, projectId, sectionId, items);
+      res.json({
+        suggestions: created,
+        inserted: created.length,
+        skipped: false,
+        bedrockConfigured: true,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.get('/projects/:projectId/sources', async (req, res, next) => {
     try {
       const projectId = parseInt(req.params.projectId, 10);
@@ -379,21 +657,7 @@ function createApiRouter(getPool) {
         .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('project_id', sql.Int, projectId)
-        .query(
-          `SELECT s.id, s.project_id, s.citation_text, s.notes, s.sort_order, s.created_at, s.updated_at
-           FROM sources s WHERE s.project_id = @project_id ORDER BY s.sort_order, s.id`
-        );
-      const sources = rows.recordset;
-      for (const s of sources) {
-        const sec = await p
-          .request()
-          .input('source_id', sql.Int, s.id)
-          .query(`SELECT section_id FROM source_sections WHERE source_id = @source_id`);
-        s.sectionIds = sec.recordset.map((r) => r.section_id);
-      }
+      const sources = await loadSourcesWithSections(getPool, projectId);
       res.json({ sources });
     } catch (e) {
       next(e);

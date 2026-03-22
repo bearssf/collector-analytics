@@ -11,6 +11,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1014.0",
     "bcryptjs": "^2.4.3",
     "connect-redis": "^7.1.1",
     "docx": "^9.6.1",

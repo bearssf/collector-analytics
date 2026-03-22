@@ -75,6 +75,10 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 | PATCH | `/api/projects/:id/sections/:sectionId` | `status`, `progressPercent`, `title`, `body` (draft: **HTML** from the Anvil rich editor, or legacy plain text; `NVARCHAR(MAX)`) |
 | GET | `/api/projects/:id/export?format=txt` or `?format=docx` | Download **whole project** as plain text or Word; uses **saved** section bodies from the database. |
 | POST | `/api/projects/:id/sections/:sectionId/export-docx` | Body `{ "html", "title" }` — build **.docx** for **this section** from current editor HTML (e.g. Anvil). Returns binary. |
+| GET | `/api/projects/:id/sections/:sectionId/suggestions` | Anvil feedback rows for the section (`status`: `open` \| `applied` \| `ignored`; categories: `logic`, `evidence`, `citations`, `format`) |
+| POST | `/api/projects/:id/sections/:sectionId/suggestions` | Single: `{ "category", "body", "anchorJson"? }`. Batch: `{ "suggestions": [ { "category", "body", "anchorJson"? }, ... ] }`. Returns `{ suggestions: [...] }`. |
+| PATCH | `/api/projects/:id/suggestions/:suggestionId` | `{ "status": "applied" \| "ignored" }` — resolves an open suggestion. |
+| POST | `/api/projects/:id/sections/:sectionId/review` | Body optional `{ "html" }` (defaults to saved section body). Calls **Amazon Bedrock** (Claude on Bedrock) and appends suggestions. Requires `AWS_REGION`, `BEDROCK_MODEL_ID`, and IAM credentials (see [docs/aws-bedrock.md](docs/aws-bedrock.md)). Returns `{ suggestions, inserted, skipped, bedrockConfigured }`. |
 | GET | `/api/projects/:id/sources` | Sources with `sectionIds` |
 | POST | `/api/projects/:id/sources` | `citationText`, `notes`, optional `sectionIds[]` |
 | PATCH | `/api/sources/:id` | Update source and/or replace `sectionIds` |
@@ -95,7 +99,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 
 - **Billing:** **Account** → subscribe via **`/billing/subscribe`** or **`/billing/checkout`**; **update payment method** on **`/billing/payment-method`** (SetupIntent + Payment Element when **`STRIPE_PUBLISHABLE_KEY`** is set); **auto-renew**; **monthly/yearly plan change** with **proration estimate** (dual prices; yearly → monthly only near renewal); **`GET /billing/portal`** for Stripe portal (invoices, etc.). **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
-- **The Anvil** (`/app/project/:id/anvil`): **Quill** rich-text drafts (HTML in `project_sections.body`); plain-text drafts are migrated to paragraphs on load. Autosave; **split rail** — citations with **Insert citation**; **export** this section (.txt / .docx) or whole project from saved data — [Anvil vision](docs/anvil-vision.md).
+- **The Anvil** (`/app/project/:id/anvil`): **Quill** rich-text drafts (HTML in `project_sections.body`); plain-text drafts are migrated to paragraphs on load. Autosave; **split rail** — **feedback & suggestions** (Bedrock-powered review when configured, list + Apply/Ignore) and **citations** with **Insert citation**; **export** this section (.txt / .docx) or whole project from saved data — [Anvil vision](docs/anvil-vision.md). **AWS Bedrock:** [docs/aws-bedrock.md](docs/aws-bedrock.md).
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
 - **Home:** Marketing landing + sign-in; **Workspace** (`/app/dashboard`) when signed in.
 - **Header (signed out):** Email and password, Sign in, and **Create an account** below.

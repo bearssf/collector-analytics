@@ -1033,6 +1033,103 @@
   font-family: ui-monospace, monospace;
 }
 
+.anvil-feedback-mount {
+  min-height: 2rem;
+}
+.anvil-feedback-placeholder,
+.anvil-feedback-msg {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.anvil-feedback-msg--error {
+  color: rgba(255, 180, 180, 0.95);
+}
+.anvil-feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.anvil-feedback-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+}
+.anvil-feedback-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.anvil-feedback-cat {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(180, 200, 255, 0.9);
+}
+.anvil-feedback-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+.anvil-feedback-status--applied {
+  background: rgba(80, 160, 100, 0.2);
+  color: rgba(190, 235, 200, 0.95);
+}
+.anvil-feedback-status--ignored {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+}
+.anvil-feedback-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.84rem;
+}
+.anvil-feedback-actions {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.anvil-feedback-apply,
+.anvil-feedback-ignore {
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+.anvil-feedback-apply {
+  border-color: rgba(80, 160, 100, 0.45);
+  background: rgba(80, 160, 100, 0.12);
+  color: rgba(200, 240, 210, 0.98);
+}
+.anvil-feedback-apply:hover:not(:disabled),
+.anvil-feedback-ignore:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.anvil-feedback-apply:disabled,
+.anvil-feedback-ignore:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .account-flash {
   padding: 0.65rem 0.85rem;
   border-radius: 10px;
