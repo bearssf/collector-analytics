@@ -16,6 +16,7 @@ No extra environment variables are required; valid codes are resolved live via t
 | **Hosted Checkout** (`/billing/checkout` when publishable key is not used) | Stripe Checkout shows a **Promotion code** field (`allow_promotion_codes: true`). |
 | **On-site Payment Element** (`/billing/subscribe`) | User enters a code in **Promotion code** and clicks **Apply** before paying. The server validates the code against Stripe and attaches it to the new subscription. |
 | **Prefill / campaigns** | Link users to `/billing/subscribe?promo=YOURCODE` (and `&interval=year` if needed) to prefill the field. |
+| **Create account** | On **`/register`**, users can choose **Subscribe as a member now** (with monthly/yearly when dual prices exist) and an optional promotion code, then continue to Checkout or the on-site subscribe page after the account is created. |
 
 ## Operations notes
 

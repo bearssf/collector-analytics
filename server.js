@@ -717,14 +717,24 @@ app.get(
   })
 );
 
+/** Locals for register.ejs (billing options for optional subscribe-after-signup). */
+function registerPageLocals(form) {
+  const cfg = getStripePriceConfig();
+  return {
+    universities: loadUniversities(),
+    searchEngines: SEARCH_ENGINES,
+    allowedTitles: ALLOWED_TITLES,
+    form: form || {},
+    memberSubscribeAvailable: !!(stripe && isStripeBillingConfigured(stripe)),
+    billingPriceMode: cfg.mode,
+  };
+}
+
 app.get('/register', (req, res) => {
   if (req.session && req.session.userId) return res.redirect('/');
   res.render('register', {
     error: null,
-    universities: loadUniversities(),
-    searchEngines: SEARCH_ENGINES,
-    allowedTitles: ALLOWED_TITLES,
-    form: {},
+    ...registerPageLocals({}),
   });
 });
 
@@ -777,7 +787,16 @@ app.post('/register', async (req, res) => {
     university,
     researchFocus,
     preferredSearchEngine,
+    subscribeChoice: subscribeChoiceRaw,
+    billingInterval: billingIntervalRaw,
+    subscribePromo: subscribePromoRaw,
   } = req.body || {};
+
+  const subscribeChoice =
+    String(subscribeChoiceRaw || 'free').toLowerCase() === 'member' ? 'member' : 'free';
+  const billingInterval =
+    String(billingIntervalRaw || 'month').toLowerCase() === 'year' ? 'year' : 'month';
+  const subscribePromo = String(subscribePromoRaw || '').trim();
 
   const form = {
     title: (title || '').trim(),
@@ -787,15 +806,15 @@ app.post('/register', async (req, res) => {
     university: (university || '').trim(),
     researchFocus: (researchFocus || '').trim(),
     preferredSearchEngine: (preferredSearchEngine || '').trim(),
+    subscribeChoice,
+    billingInterval,
+    subscribePromo,
   };
 
   const renderErr = (msg) =>
     res.render('register', {
       error: msg,
-      universities: loadUniversities(),
-      searchEngines: SEARCH_ENGINES,
-      allowedTitles: ALLOWED_TITLES,
-      form,
+      ...registerPageLocals(form),
     });
 
   if (!form.title || !ALLOWED_TITLES.includes(form.title)) {
@@ -850,7 +869,20 @@ app.post('/register', async (req, res) => {
       email: user.email,
     };
     await ensureSubscriptionRow(getPool, user.id);
-    return res.redirect('/');
+
+    const wantsMember = subscribeChoice === 'member';
+    if (wantsMember && stripe && isStripeBillingConfigured(stripe)) {
+      const cfg = getStripePriceConfig();
+      const interval = cfg.mode === 'dual' ? billingInterval : 'month';
+      let url = isStripeElementsBillingConfigured(stripe)
+        ? `/billing/subscribe?interval=${encodeURIComponent(interval)}`
+        : `/billing/checkout?interval=${encodeURIComponent(interval)}`;
+      if (subscribePromo) {
+        url += `&promo=${encodeURIComponent(subscribePromo)}`;
+      }
+      return res.redirect(302, url);
+    }
+    return res.redirect('/app/dashboard');
   } catch (err) {
     if (err.number === 2627 || err.code === 'EREQUEST') {
       return renderErr('An account with that email already exists.');

@@ -173,6 +173,71 @@
       color: #6b7280;
       margin-top: 0.35rem;
     }
+    .register-membership {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 1rem 1.1rem 1.15rem;
+      margin: 1.25rem 0 0.5rem;
+    }
+    .register-membership legend {
+      padding: 0 0.35rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+    .register-membership-lead {
+      margin: 0 0 0.85rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .register-radio {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      cursor: pointer;
+      color: #e5e7eb;
+    }
+    .register-radio input {
+      margin-top: 0.2rem;
+      width: auto;
+      flex-shrink: 0;
+    }
+    .register-interval {
+      margin: 0.75rem 0 0.5rem 1.5rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      display: none;
+    }
+    .register-interval.register-interval--visible {
+      display: block;
+    }
+    .register-interval-label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9ca3af;
+      margin-bottom: 0.45rem;
+    }
+    .register-interval label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-right: 1rem;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .register-interval input {
+      width: auto;
+    }
+    .register-promo-wrap {
+      margin-top: 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -245,6 +310,40 @@
           </select>
         </div>
 
+        <% if (typeof memberSubscribeAvailable !== 'undefined' && memberSubscribeAvailable) { %>
+        <fieldset class="register-membership">
+          <legend>Membership</legend>
+          <p class="register-membership-lead">
+            Continue with a free account (includes a trial where applicable), or go straight to paid membership after you create your account.
+          </p>
+          <label class="register-radio">
+            <input type="radio" name="subscribeChoice" value="free" <%= (form.subscribeChoice || 'free') !== 'member' ? 'checked' : '' %> />
+            <span>Free account — I’ll subscribe later if I want</span>
+          </label>
+          <label class="register-radio">
+            <input type="radio" name="subscribeChoice" value="member" <%= form.subscribeChoice === 'member' ? 'checked' : '' %> />
+            <span>Subscribe as a member now (secure payment on the next step)</span>
+          </label>
+          <% if (typeof billingPriceMode !== 'undefined' && billingPriceMode === 'dual') { %>
+          <div class="register-interval" id="register-interval" aria-live="polite">
+            <span class="register-interval-label">Plan</span>
+            <label>
+              <input type="radio" name="billingInterval" value="month" <%= (form.billingInterval || 'month') !== 'year' ? 'checked' : '' %> />
+              Monthly
+            </label>
+            <label>
+              <input type="radio" name="billingInterval" value="year" <%= form.billingInterval === 'year' ? 'checked' : '' %> />
+              Yearly
+            </label>
+          </div>
+          <% } %>
+          <div class="form-group register-promo-wrap" id="register-promo-wrap">
+            <label for="subscribePromo">Promotion code <span class="opt">(optional)</span></label>
+            <input type="text" id="subscribePromo" name="subscribePromo" placeholder="If you have one" value="<%= form.subscribePromo || '' %>" autocomplete="off" />
+          </div>
+        </fieldset>
+        <% } %>
+
         <button type="submit">Create account</button>
       </form>
     </div>
@@ -261,6 +360,23 @@
           alert('Password and confirmation must match.');
         }
       });
+
+      var intervalEl = document.getElementById('register-interval');
+      var promoWrap = document.getElementById('register-promo-wrap');
+      function syncMembershipUi() {
+        var member = document.querySelector('input[name="subscribeChoice"][value="member"]');
+        var show = member && member.checked;
+        if (intervalEl) {
+          intervalEl.classList.toggle('register-interval--visible', !!show);
+        }
+        if (promoWrap) {
+          promoWrap.style.display = show ? '' : 'none';
+        }
+      }
+      document.querySelectorAll('input[name="subscribeChoice"]').forEach(function (r) {
+        r.addEventListener('change', syncMembershipUi);
+      });
+      syncMembershipUi();
     })();
   </script>
 </body>

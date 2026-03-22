@@ -29,7 +29,7 @@ Used for **Upgrade to member** on **Account** and **`subscriptions`** rows (`sta
      - **Two options on Account:** **`STRIPE_PRICE_MONTHLY`** and **`STRIPE_PRICE_YEARLY`** — both required; users choose Monthly or Yearly.
      - **Single option:** **`STRIPE_PRICE_ID`** only — one “Upgrade to member” button (backward compatible).
    - **`PUBLIC_BASE_URL`** — Public origin of this app **with no trailing slash**, e.g. `https://your-app.onrender.com`. Used for return URLs after payment and for Checkout when the publishable key is not set.
-3. **Promotion codes (membership discounts):** Create **Coupons** and **Promotion codes** in the Stripe Dashboard. Hosted Checkout shows a promo field automatically; on-site subscribe at **`/billing/subscribe`** includes **Apply** for a code. See [docs/stripe-promotion-codes.md](./docs/stripe-promotion-codes.md).
+3. **Promotion codes (membership discounts):** Create **Coupons** and **Promotion codes** in the Stripe Dashboard. Hosted Checkout shows a promo field automatically; on-site subscribe at **`/billing/subscribe`** includes **Apply** for a code. **Registration** (`/register`) can optionally send new users to subscribe after signup. See [docs/stripe-promotion-codes.md](./docs/stripe-promotion-codes.md).
 
 4. **Webhooks:** Add endpoint **`POST /webhooks/stripe`**. For production, use your real `PUBLIC_BASE_URL` + `/webhooks/stripe`. Subscribe to at least:
    - `checkout.session.completed` (hosted Checkout only)
