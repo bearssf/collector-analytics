@@ -666,8 +666,37 @@ app.get(
     if (Number.isNaN(projectId) || !phase) return res.status(404).send('Not found');
     const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
     if (!bundle) return res.status(404).send('Not found');
+    if (
+      slug === 'anvil' &&
+      bundle.sections &&
+      bundle.sections.length > 0
+    ) {
+      const q =
+        req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
+      const valid =
+        !Number.isNaN(q) &&
+        bundle.sections.some(function (s) {
+          return Number(s.id) === q;
+        });
+      if (!valid) {
+        return res.redirect(
+          302,
+          `/app/project/${projectId}/anvil?section=${bundle.sections[0].id}`
+        );
+      }
+    }
     const projects = await listProjects(getPool, req.session.userId);
     const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
+    let anvilSections = [];
+    let anvilSectionId = null;
+    if (slug === 'anvil' && bundle.sections && bundle.sections.length) {
+      anvilSections = bundle.sections.map(function (s) {
+        return { id: s.id, title: s.title };
+      });
+      const sq =
+        req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
+      anvilSectionId = !Number.isNaN(sq) ? sq : null;
+    }
     res.render('app/workspace', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -679,6 +708,8 @@ app.get(
       phaseSlug: slug,
       foundryLocked,
       insightHint: phase.insight,
+      anvilSections,
+      anvilSectionId,
     });
   })
 );

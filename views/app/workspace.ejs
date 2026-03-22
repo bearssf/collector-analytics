@@ -8,7 +8,7 @@
 </head>
 <body class="app-body app-body--workspace-shell<%= phaseSlug === 'anvil' ? ' app-body--anvil' : '' %>">
   <div class="app-grid">
-    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: phaseSlug, appAccess: appAccess }) %>
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: phaseSlug, appAccess: appAccess, anvilSections: typeof anvilSections !== 'undefined' ? anvilSections : [], anvilSectionId: typeof anvilSectionId !== 'undefined' ? anvilSectionId : null }) %>
     <main class="app-canvas">
       <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
         <div class="app-trial-bar">Free trial — ends <%= appAccess.trialEndsLabel %>. The Foundry requires a paid plan.</div>

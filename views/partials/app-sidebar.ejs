@@ -35,7 +35,14 @@
       <% if (effectivePid) { %>
         <nav class="app-nav">
           <a href="/app/project/<%= effectivePid %>/settings" class="<%= typeof workspaceSlug !== 'undefined' && workspaceSlug === 'settings' ? 'active' : '' %>">Project settings</a>
-          <a href="/app/project/<%= effectivePid %>/anvil" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
+          <a href="/app/project/<%= effectivePid %>/anvil<%= (typeof anvilSections !== 'undefined' && anvilSections.length) ? ('?section=' + anvilSections[0].id) : '' %>" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
+          <% if (typeof anvilSections !== 'undefined' && anvilSections.length && slug === 'anvil') { %>
+          <nav class="app-nav app-nav--anvil-sections" aria-label="Section drafts">
+            <% anvilSections.forEach(function (sec) { %>
+              <a href="/app/project/<%= effectivePid %>/anvil?section=<%= sec.id %>" class="<%= typeof anvilSectionId !== 'undefined' && anvilSectionId != null && Number(anvilSectionId) === Number(sec.id) ? 'active' : '' %>"><%= sec.title %></a>
+            <% }); %>
+          </nav>
+          <% } %>
           <a href="/app/project/<%= effectivePid %>/crucible" class="<%= slug === 'crucible' ? 'active' : '' %>">The Crucible</a>
           <% if (access.foundryUnlocked) { %>
             <a href="/app/project/<%= effectivePid %>/foundry" class="<%= slug === 'foundry' ? 'active' : '' %>">The Foundry</a>

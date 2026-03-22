@@ -264,7 +264,12 @@
       return;
     }
 
-    const linked = sourcesLinkedToSection(selectedId);
+    let linked = sourcesLinkedToSection(selectedId);
+    linked = linked.slice().sort(function (a, b) {
+      return String(a.citation_text || '').localeCompare(String(b.citation_text || ''), undefined, {
+        sensitivity: 'base',
+      });
+    });
     if (!linked.length) {
       const cur = sectionById(selectedId);
       mount.innerHTML =
@@ -360,16 +365,16 @@
     setStatus('<span class="anvil-status-wait">Unsaved changes…</span>');
   }
 
-  async function flushAndSwitch(newId) {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-      debounceTimer = null;
+  function initialSectionIdFromUrl() {
+    try {
+      const u = new URL(window.location.href);
+      const s = u.searchParams.get('section');
+      if (s == null) return null;
+      const n = parseInt(s, 10);
+      return Number.isNaN(n) ? null : n;
+    } catch (e) {
+      return null;
     }
-    await saveDraft();
-    selectedId = newId;
-    quillEditor = null;
-    render();
-    setStatus('<span class="anvil-status-ok">Saved</span>');
   }
 
   function render() {
@@ -393,21 +398,6 @@
     const draft = current && current.body != null ? String(current.body) : '';
     const initialHtml = bodyToHtml(draft);
 
-    let nav = '<nav class="anvil-nav" aria-label="Sections">';
-    sections.forEach(function (s) {
-      const sid = Number(s.id);
-      const active = sid === Number(selectedId) ? ' is-active' : '';
-      nav +=
-        '<button type="button" class="anvil-nav-item' +
-        active +
-        '" data-section-id="' +
-        sid +
-        '">' +
-        escapeHtml(s.title) +
-        '</button>';
-    });
-    nav += '</nav>';
-
     const editor =
       '<div class="anvil-editor">' +
       '<div class="anvil-editor-label">Draft for <strong>' +
@@ -423,7 +413,10 @@
       '<div id="anvil-error" class="anvil-error-banner" style="display:none" role="alert"></div>' +
       '</div>';
 
-    root.innerHTML = '<div class="anvil-panel"><div class="anvil-layout">' + nav + editor + '</div></div>';
+    root.innerHTML =
+      '<div class="anvil-panel anvil-panel--writing"><div class="anvil-layout anvil-layout--single">' +
+      editor +
+      '</div></div>';
 
     mountEditor(initialHtml);
 
@@ -438,14 +431,6 @@
       });
     }
 
-    root.querySelectorAll('.anvil-nav-item').forEach(function (btn) {
-      btn.addEventListener('click', async function () {
-        const sid = parseInt(btn.getAttribute('data-section-id'), 10);
-        if (Number.isNaN(sid) || sid === Number(selectedId)) return;
-        await flushAndSwitch(sid);
-      });
-    });
-
     renderCitationsRail();
   }
 
@@ -458,7 +443,17 @@
       bundle = await api('/projects/' + projectId, 'GET');
       selectedId = null;
       if (bundle.sections && bundle.sections.length) {
-        selectedId = Number(bundle.sections[0].id);
+        const fromUrl = initialSectionIdFromUrl();
+        if (
+          fromUrl != null &&
+          bundle.sections.some(function (s) {
+            return Number(s.id) === fromUrl;
+          })
+        ) {
+          selectedId = fromUrl;
+        } else {
+          selectedId = Number(bundle.sections[0].id);
+        }
       }
     } catch (e) {
       bundle = null;
@@ -481,6 +476,39 @@
 
     render();
   }
+
+  document.addEventListener(
+    'click',
+    function (e) {
+      const a = e.target.closest('.app-nav--anvil-sections a');
+      if (!a || !document.getElementById('anvil-root')) return;
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const href = a.getAttribute('href');
+      if (!href) return;
+      let target;
+      let curUrl;
+      try {
+        target = new URL(href, window.location.origin);
+        curUrl = new URL(window.location.href);
+        if (target.pathname === curUrl.pathname && target.search === curUrl.search) {
+          e.preventDefault();
+          return;
+        }
+      } catch (err) {
+        /* ignore */
+      }
+      e.preventDefault();
+      (async function () {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        await saveDraft();
+        window.location.href = href;
+      })();
+    },
+    true
+  );
 
   (function bindCitationInsert() {
     const pane = document.getElementById('anvil-citations-pane');
