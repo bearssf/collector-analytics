@@ -656,6 +656,73 @@
   color: var(--muted);
   margin-bottom: 0.5rem;
 }
+
+/* Quill rich text (Anvil) — dark theme to match app shell */
+.anvil-quill-wrap {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  overflow: visible;
+  background: rgba(0, 0, 0, 0.28);
+}
+.anvil-quill-wrap .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 10px 10px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.4rem 0.5rem;
+}
+.anvil-quill-wrap .ql-container.ql-snow {
+  border: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+.anvil-quill-wrap .ql-editor {
+  min-height: 16rem;
+  padding: 0.75rem 0.85rem;
+  color: #fff;
+  line-height: 1.55;
+}
+.anvil-quill-wrap .ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.35);
+  font-style: normal;
+  left: 0.85rem;
+  right: 0.85rem;
+}
+.anvil-quill-wrap .ql-stroke {
+  stroke: rgba(255, 255, 255, 0.55);
+}
+.anvil-quill-wrap .ql-fill {
+  fill: rgba(255, 255, 255, 0.55);
+}
+.anvil-quill-wrap .ql-picker-label {
+  color: rgba(255, 255, 255, 0.78);
+}
+.anvil-quill-wrap .ql-picker-options {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #fff;
+}
+.anvil-quill-wrap .ql-picker-item {
+  color: rgba(255, 255, 255, 0.85);
+}
+.anvil-quill-wrap .ql-picker-item:hover {
+  background: rgba(47, 128, 237, 0.15);
+  color: #fff;
+}
+.anvil-quill-wrap .ql-snow .ql-tooltip {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.anvil-quill-wrap .ql-snow .ql-tooltip input[type='text'] {
+  color: #fff;
+  border-color: var(--line);
+  background: rgba(0, 0, 0, 0.35);
+}
+
 .anvil-textarea {
   width: 100%;
   min-height: 14rem;

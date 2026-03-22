@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <%- include('../partials/app-head', { title: phaseTitle }) %>
+  <% if (phaseSlug === 'anvil') { %>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" crossorigin="anonymous" />
+  <% } %>
 </head>
 <body class="app-body app-body--workspace-shell<%= phaseSlug === 'anvil' ? ' app-body--anvil' : '' %>">
   <div class="app-grid">
@@ -14,7 +17,7 @@
       <% if (phaseSlug === 'crucible') { %>
         <p class="sub">Citations and notes for <strong><%= projectTitle %></strong> — link sources to your outline sections.</p>
       <% } else if (phaseSlug === 'anvil') { %>
-        <p class="sub">Section drafts for <strong><%= projectTitle %></strong> — autosaves to your project outline.</p>
+        <p class="sub">Section drafts for <strong><%= projectTitle %></strong> — rich text (Quill), stored as HTML, autosaved to your outline.</p>
       <% } else if (phaseSlug === 'framework') { %>
         <p class="sub">Argument outline and evidence mapping for <strong><%= projectTitle %></strong>.</p>
       <% } else { %>
@@ -31,7 +34,6 @@
         <script src="/js/crucible.js" defer></script>
       <% } else if (phaseSlug === 'anvil') { %>
         <div id="anvil-root" class="anvil" data-project-id="<%= projectId %>"></div>
-        <script src="/js/anvil.js" defer></script>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder">
           <p style="margin:0 0 .5rem"><strong>Coming soon.</strong> The Framework workspace isn’t wired up yet—we’ll revisit the right experience for outline and evidence here.</p>
@@ -49,5 +51,9 @@
       <%- include('../partials/app-insight-panel', { insightHint: insightHint || 'Feedback and suggestions for this step will appear here.' }) %>
     <% } %>
   </div>
+  <% if (phaseSlug === 'anvil') { %>
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js" crossorigin="anonymous"></script>
+  <script src="/js/anvil.js" defer></script>
+  <% } %>
 </body>
 </html>

@@ -81,7 +81,7 @@ Suggested banding (from product notes):
 
 - **Crucible ↔ Anvil:** shared project citation style, section-linked sources, and `source_sections` (or successor) are prerequisites for attribution and insert-citation flows.
 - **Bedrock:** requires AWS account, IAM, model access, and secure server-side calls (no long-lived keys in the browser).
-- **Rich editor:** choose storage (HTML, Markdown, blocks) and migration from plain `body` if needed.
+- **Rich editor:** **Shipped:** HTML in `body` via Quill; plain-text legacy content is converted to `<p>` blocks on load.
 - **Right column:** may start as an Anvil-specific layout vs the generic `app-insight-panel` partial.
 
 ---
@@ -95,7 +95,7 @@ Work in this order so each phase **unlocks the next** without painting yourself 
 | **1** | **Anvil shell** | *(Shipped.)* Anvil uses **`app-anvil-rail`**: app sidebar \| center (`#anvil-root`) \| right rail with **Feedback & suggestions** (top) + **Citations** (bottom), placeholders + independent scroll. `body.app-body--anvil` for editor width. | `views/partials/app-anvil-rail.ejs`, `workspace.ejs`, `app-shell.css` |
 | **2** | **Citations rail (read-only)** | *(Shipped.)* **Bottom** rail lists sources whose **`sectionIds`** include the active Anvil section (`GET /api/projects/:id/sources`). Shows `citation_text` + optional `notes`; empty/error copy; scrollable list. | `anvil.js`, `app-anvil-rail.ejs` |
 | **3** | **Insert citation (plain text)** | *(Shipped.)* Each citation card has **Insert citation** → inserts at textarea cursor. **`project.citation_style`** drives formatting: **APA** `(Author, year)`; **MLA** `(Author)`; **Chicago / Turabian** `(Author year)`; **IEEE** `[n]` (order in this section’s list). Author/year **heuristics** parse the full reference line (fallbacks: `n.d.`, `Source`). | `anvil.js` |
-| **4** | **Rich editor + storage** | Choose stack (e.g. ProseMirror / TipTap / Quill). Decide **HTML vs Markdown** in `project_sections.body` (or new column) + **migration** from plain text. Enables formatting, lists, spacing UI “for free” from the component. | Phase 1–3 stable |
+| **4** | **Rich editor + storage** | *(Shipped.)* **Quill** 1.3 (Snow) from CDN; **`project_sections.body`** stores **HTML**. Legacy **plain-text** bodies are wrapped into `<p>` paragraphs on load. Toolbar: headings, bold/italic/underline/strike, lists, indent, link, clear. Fallback **textarea** if Quill fails to load. | `workspace.ejs`, `anvil.js`, `app-shell.css` |
 | **5** | **Export** | **Per-section** `.txt` first; then **`.docx`** (e.g. `docx` / HTML → docx) for one section, then **whole project** (concat + optional refs). Align with “download at project close” on **dashboard or project settings**. | Phase 4 ideal; `.txt` can ship after Phase 3 |
 | **6** | **Feedback persistence** | Schema for **suggestions**: `sectionId`, category (logic / evidence / citations / format), body text, status (`open` \| `applied` \| `ignored`), optional doc anchor. API: list, patch status, create batch. | DB migration |
 | **7** | **AWS Bedrock** | Server-only route: send **paragraph** (debounced) + **trimmed Crucible context** → model (e.g. Claude via Bedrock) → normalized suggestions → Phase 6 API. Env: `AWS_REGION`, credentials, model id. | Phase 6 |

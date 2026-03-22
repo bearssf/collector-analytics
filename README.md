@@ -72,7 +72,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 | POST | `/api/projects` | Body: `name`, `purpose`, `citationStyle`, `templateKey`; optional `purposeOther` (when purpose is Other); for `templateKey` **`other`**, `otherSectionTitle` / `otherSectionPercent` arrays (1–15 rows, **100%** total). |
 | GET | `/api/projects/:id` | Project + sections + `sourceCount` |
 | PATCH | `/api/projects/:id` | `name`, `purpose`, `citationStyle`, `purposeOther`; `otherSections` or `otherSectionsJson` for **`other`** template (section `id`, `title`, `progressPercent`); plus `status`, publishing\* fields. **`template_key`** is not changeable. |
-| PATCH | `/api/projects/:id/sections/:sectionId` | `status`, `progressPercent`, `title`, `body` (draft text, `NVARCHAR(MAX)`) |
+| PATCH | `/api/projects/:id/sections/:sectionId` | `status`, `progressPercent`, `title`, `body` (draft: **HTML** from the Anvil rich editor, or legacy plain text; `NVARCHAR(MAX)`) |
 | GET | `/api/projects/:id/sources` | Sources with `sectionIds` |
 | POST | `/api/projects/:id/sources` | `citationText`, `notes`, optional `sectionIds[]` |
 | PATCH | `/api/sources/:id` | Update source and/or replace `sectionIds` |
@@ -93,7 +93,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 
 - **Billing:** **Account** → subscribe via **`/billing/subscribe`** or **`/billing/checkout`**; **update payment method** on **`/billing/payment-method`** (SetupIntent + Payment Element when **`STRIPE_PUBLISHABLE_KEY`** is set); **auto-renew**; **monthly/yearly plan change** with **proration estimate** (dual prices; yearly → monthly only near renewal); **`GET /billing/portal`** for Stripe portal (invoices, etc.). **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
-- **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`. Right column: **split rail** — citations list linked sources with **Insert citation** (in-text snippet from project **citation style**); feedback (top) still placeholder — see [Anvil vision](docs/anvil-vision.md).
+- **The Anvil** (`/app/project/:id/anvil`): **Quill** rich-text drafts (HTML in `project_sections.body`); plain-text drafts are migrated to paragraphs on load. Autosave; **split rail** — citations with **Insert citation**; feedback (top) placeholder — [Anvil vision](docs/anvil-vision.md).
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
 - **Home:** Marketing landing + sign-in; **Workspace** (`/app/dashboard`) when signed in.
 - **Header (signed out):** Email and password, Sign in, and **Create an account** below.

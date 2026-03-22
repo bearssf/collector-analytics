@@ -1,7 +1,6 @@
 /**
- * The Anvil — section draft editor with autosave (PATCH /api/projects/:pid/sections/:sid body).
- * Citations rail: sources linked to the active section (GET /api/projects/:pid/sources).
- * Insert citation: in-text snippet from project citation_style + heuristic parse of full reference.
+ * The Anvil — rich text (Quill) with autosave; body stored as HTML in project_sections.body.
+ * Plain-text drafts are migrated to <p>…</p> on load. Citations rail + insert citation unchanged.
  */
 (function () {
   const root = document.getElementById('anvil-root');
@@ -16,6 +15,7 @@
   const DEBOUNCE_MS = 900;
   let anvilSources = [];
   let anvilSourcesError = null;
+  let quillEditor = null;
 
   async function api(path, method, body) {
     const opts = {
@@ -45,8 +45,112 @@
     return d.innerHTML;
   }
 
-  function getTextarea() {
-    return document.getElementById('anvil-body');
+  /** Migrate legacy plain-text bodies to HTML paragraphs; leave existing HTML as-is. */
+  function bodyToHtml(raw) {
+    if (raw == null || raw === '') return '';
+    const s = String(raw);
+    const t = s.trim();
+    if (t.startsWith('<') && /[a-zA-Z\/]/.test(t.slice(0, 20))) {
+      return s;
+    }
+    if (!t) return '';
+    const escaped = escapeHtml(s);
+    return '<p>' + escaped.replace(/\r\n|\r|\n/g, '</p><p>') + '</p>';
+  }
+
+  function plainTextFromBody(raw) {
+    if (raw == null || raw === '') return '';
+    const s = String(raw);
+    const t = s.trim();
+    if (t.startsWith('<')) {
+      const d = document.createElement('div');
+      d.innerHTML = s;
+      return (d.textContent || d.innerText || '').replace(/\u00a0/g, ' ');
+    }
+    return s;
+  }
+
+  function htmlIsEffectivelyEmpty(html) {
+    if (html == null || html === '') return true;
+    const t = String(html)
+      .replace(/\s|&nbsp;/g, '')
+      .replace(/<p><br\s*\/?><\/p>/gi, '')
+      .replace(/<br\s*\/?>/gi, '');
+    return t === '' || t === '<p></p>';
+  }
+
+  function normalizeForCompare(html) {
+    return htmlIsEffectivelyEmpty(html) ? '' : String(html);
+  }
+
+  function getEditorHtml() {
+    if (quillEditor) {
+      return quillEditor.root.innerHTML;
+    }
+    const ta = document.getElementById('anvil-body');
+    if (ta && ta.tagName === 'TEXTAREA') {
+      return bodyToHtml(ta.value);
+    }
+    return '';
+  }
+
+  function setQuillHtml(html) {
+    if (!quillEditor) return;
+    const h = html && String(html).trim() ? String(html) : '<p><br></p>';
+    try {
+      const delta = quillEditor.clipboard.convert(h);
+      quillEditor.setContents(delta, 'silent');
+    } catch (e) {
+      quillEditor.setText('');
+    }
+  }
+
+  function mountEditor(initialHtml) {
+    quillEditor = null;
+    const wrap = document.getElementById('anvil-quill-wrap');
+    const host = document.getElementById('anvil-editor');
+    if (!wrap || !host) return;
+
+    const htmlLoad = initialHtml && String(initialHtml).trim() ? initialHtml : '';
+
+    if (typeof Quill !== 'undefined') {
+      quillEditor = new Quill('#anvil-editor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ indent: '-1' }, { indent: '+1' }],
+            ['link'],
+            ['clean'],
+          ],
+        },
+        placeholder: 'Write your draft here…',
+      });
+      setQuillHtml(htmlLoad);
+      quillEditor.on('text-change', function () {
+        scheduleSave();
+      });
+      return;
+    }
+
+    wrap.innerHTML =
+      '<textarea id="anvil-body" class="anvil-textarea" rows="18" spellcheck="true" placeholder="Write your draft here. Autosaves after you pause typing."></textarea>';
+    const ta = document.getElementById('anvil-body');
+    if (ta) {
+      ta.value = plainTextFromBody(htmlLoad);
+      ta.addEventListener('input', function () {
+        scheduleSave();
+      });
+      ta.addEventListener('blur', function () {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        saveDraft('manual');
+      });
+    }
   }
 
   function sectionById(id) {
@@ -91,11 +195,6 @@
     return 'Source';
   }
 
-  /**
-   * @param {string} citationText - full reference from Crucible
-   * @param {string} styleRaw - APA | MLA | Chicago | Turabian | IEEE
-   * @param {number} ieeeIndex - 1-based index in this section's linked list (IEEE [n])
-   */
   function buildInTextCitation(citationText, styleRaw, ieeeIndex) {
     const style = String(styleRaw || 'APA').toUpperCase();
     const author = extractAuthorLastName(citationText);
@@ -122,6 +221,24 @@
     textarea.selectionStart = pos;
     textarea.selectionEnd = pos;
     textarea.focus();
+  }
+
+  function insertCitation(snippet) {
+    if (quillEditor) {
+      const range = quillEditor.getSelection(true);
+      let index = range ? range.index : quillEditor.getLength() - 1;
+      if (index < 0) index = 0;
+      quillEditor.insertText(index, snippet, 'user');
+      quillEditor.setSelection(index + snippet.length);
+      quillEditor.focus();
+      scheduleSave();
+      return;
+    }
+    const ta = document.getElementById('anvil-body');
+    if (ta && ta.tagName === 'TEXTAREA') {
+      insertAtCursor(ta, snippet);
+      scheduleSave();
+    }
   }
 
   function renderCitationsRail() {
@@ -210,11 +327,11 @@
 
   async function saveDraft(reason) {
     if (selectedId == null || bundle == null) return;
-    const ta = getTextarea();
-    const text = ta ? ta.value : '';
+    let text = getEditorHtml();
+    if (htmlIsEffectivelyEmpty(text)) text = '';
     const sec = sectionById(selectedId);
     const prev = sec && sec.body != null ? String(sec.body) : '';
-    if (prev === text) {
+    if (normalizeForCompare(prev) === normalizeForCompare(text)) {
       setStatus('<span class="anvil-status-ok">Saved</span>');
       return;
     }
@@ -222,11 +339,7 @@
     setStatus('<span class="anvil-status-wait">Saving…</span>');
     setError('');
     try {
-      bundle = await api(
-        '/projects/' + projectId + '/sections/' + selectedId,
-        'PATCH',
-        { body: text }
-      );
+      bundle = await api('/projects/' + projectId + '/sections/' + selectedId, 'PATCH', { body: text });
       setStatus(
         '<span class="anvil-status-ok">Saved' +
           (reason ? ' · ' + escapeHtml(reason) : '') +
@@ -254,6 +367,7 @@
     }
     await saveDraft();
     selectedId = newId;
+    quillEditor = null;
     render();
     setStatus('<span class="anvil-status-ok">Saved</span>');
   }
@@ -277,6 +391,7 @@
       current = sectionById(selectedId);
     }
     const draft = current && current.body != null ? String(current.body) : '';
+    const initialHtml = bodyToHtml(draft);
 
     let nav = '<nav class="anvil-nav" aria-label="Sections">';
     sections.forEach(function (s) {
@@ -295,12 +410,12 @@
 
     const editor =
       '<div class="anvil-editor">' +
-      '<label class="anvil-editor-label" for="anvil-body">Draft for <strong>' +
+      '<div class="anvil-editor-label">Draft for <strong>' +
       escapeHtml(current ? current.title : '') +
-      '</strong></label>' +
-      '<textarea id="anvil-body" class="anvil-textarea" rows="18" spellcheck="true" placeholder="Write your draft here. Autosaves after you pause typing.">' +
-      escapeHtml(draft) +
-      '</textarea>' +
+      '</strong></div>' +
+      '<div class="anvil-quill-wrap" id="anvil-quill-wrap">' +
+      '<div id="anvil-editor" class="anvil-quill"></div>' +
+      '</div>' +
       '<div class="anvil-editor-footer">' +
       '<span id="anvil-status" class="anvil-status"><span class="anvil-status-ok">Saved</span></span>' +
       '<button type="button" class="anvil-save-now" id="anvil-save-now">Save now</button>' +
@@ -308,30 +423,9 @@
       '<div id="anvil-error" class="anvil-error-banner" style="display:none" role="alert"></div>' +
       '</div>';
 
-    root.innerHTML =
-      '<div class="anvil-panel"><div class="anvil-layout">' + nav + editor + '</div></div>';
+    root.innerHTML = '<div class="anvil-panel"><div class="anvil-layout">' + nav + editor + '</div></div>';
 
-    const ta = getTextarea();
-    if (ta) {
-      ta.addEventListener('input', function () {
-        scheduleSave();
-      });
-      ta.addEventListener('blur', function () {
-        if (debounceTimer) {
-          clearTimeout(debounceTimer);
-          debounceTimer = null;
-        }
-        saveDraft('manual');
-      });
-    }
-
-    root.querySelectorAll('.anvil-nav-item').forEach(function (btn) {
-      btn.addEventListener('click', async function () {
-        const sid = parseInt(btn.getAttribute('data-section-id'), 10);
-        if (Number.isNaN(sid) || sid === Number(selectedId)) return;
-        await flushAndSwitch(sid);
-      });
-    });
+    mountEditor(initialHtml);
 
     const saveBtn = document.getElementById('anvil-save-now');
     if (saveBtn) {
@@ -344,11 +438,20 @@
       });
     }
 
+    root.querySelectorAll('.anvil-nav-item').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        const sid = parseInt(btn.getAttribute('data-section-id'), 10);
+        if (Number.isNaN(sid) || sid === Number(selectedId)) return;
+        await flushAndSwitch(sid);
+      });
+    });
+
     renderCitationsRail();
   }
 
   async function load() {
     root.innerHTML = '<p class="anvil-loading">Loading workspace…</p>';
+    quillEditor = null;
     anvilSources = [];
     anvilSourcesError = null;
     try {
@@ -391,16 +494,13 @@
         return Number(s.id) === sid;
       });
       if (!src) return;
-      const ta = getTextarea();
-      if (!ta) return;
       const ieeeIdx = parseInt(btn.getAttribute('data-ieee-index'), 10);
       const snippet = buildInTextCitation(
         src.citation_text,
         projectCitationStyle(),
         Number.isNaN(ieeeIdx) ? 1 : ieeeIdx
       );
-      insertAtCursor(ta, snippet);
-      scheduleSave();
+      insertCitation(snippet);
     });
   })();
 
