@@ -115,6 +115,12 @@
     return d.innerHTML;
   }
 
+  function doiLandingPageUrl(doi) {
+    if (doi == null || String(doi).trim() === '') return null;
+    const d = String(doi).trim();
+    return 'https://doi.org/' + encodeURIComponent(d).replace(/%2F/g, '/');
+  }
+
   /** Migrate legacy plain-text bodies to HTML paragraphs; leave existing HTML as-is. */
   function bodyToHtml(raw) {
     if (raw == null || raw === '') return '';
@@ -691,6 +697,15 @@
       const titleAttr = escapeHtml('Insert at cursor: ' + preview);
       html += '<li class="anvil-citation-card">';
       html += '<div class="anvil-citation-text">' + escapeHtml(src.citation_text) + '</div>';
+      if (src.doi) {
+        const doiHref = doiLandingPageUrl(src.doi);
+        if (doiHref) {
+          html +=
+            '<div class="anvil-citation-doi-wrap"><a class="anvil-citation-doi" href="' +
+            escapeHtml(doiHref) +
+            '" target="_blank" rel="noopener noreferrer">Open DOI</a></div>';
+        }
+      }
       if (src.notes) {
         html += '<div class="anvil-citation-notes">' + escapeHtml(src.notes) + '</div>';
       }
@@ -870,22 +885,14 @@
       '<div class="anvil-quill-wrap" id="anvil-quill-wrap">' +
       '<div id="anvil-editor" class="anvil-quill"></div>' +
       '</div>' +
+      '<div class="anvil-editor-footer">' +
+      '<span id="anvil-status" class="anvil-status"><span class="anvil-status-ok">Saved</span></span>' +
+      '<button type="button" class="anvil-save-now" id="anvil-save-now">Save now</button>' +
+      '</div>' +
       '<div class="anvil-export-bar">' +
       '<span class="anvil-export-label">Export</span>' +
       '<button type="button" class="anvil-export-btn" id="anvil-export-section-txt">This section (.txt)</button>' +
       '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">This section (.docx)</button>' +
-      '<span class="anvil-export-sep" aria-hidden="true">·</span>' +
-      '<a class="anvil-export-link" href="/api/projects/' +
-      projectId +
-      '/export?format=txt">Whole project (.txt)</a>' +
-      '<a class="anvil-export-link" href="/api/projects/' +
-      projectId +
-      '/export?format=docx">Whole project (.docx)</a>' +
-      '<p class="anvil-export-hint">Whole-project files use <strong>saved</strong> content from the server. Save your draft before exporting if needed.</p>' +
-      '</div>' +
-      '<div class="anvil-editor-footer">' +
-      '<span id="anvil-status" class="anvil-status"><span class="anvil-status-ok">Saved</span></span>' +
-      '<button type="button" class="anvil-save-now" id="anvil-save-now">Save now</button>' +
       '</div>' +
       '<div id="anvil-error" class="anvil-error-banner" style="display:none" role="alert"></div>' +
       '</div>';

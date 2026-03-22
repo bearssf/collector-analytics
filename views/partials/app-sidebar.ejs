@@ -26,7 +26,7 @@
       <% if (projects.length > 1) { %>
         <nav class="app-nav app-project-picker" aria-label="Switch project">
           <% projects.forEach(function(p) { %>
-            <a href="/app/project/<%= p.id %>/anvil" class="<%= cur == p.id ? 'active' : '' %>"><%= p.name %></a>
+            <a href="/app/project/<%= p.id %>/anvil" class="<%= (cur == p.id && na === 'workspace') ? 'active' : '' %>"><%= p.name %></a>
           <% }); %>
         </nav>
       <% } else { %>

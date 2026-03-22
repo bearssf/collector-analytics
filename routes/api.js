@@ -12,6 +12,7 @@ const {
   getProjectBundle,
   createProject,
   updateProjectSettings,
+  deleteProject,
 } = require('../lib/projectService');
 const {
   buildSectionDocxBuffer,
@@ -27,6 +28,8 @@ const {
 } = require('../lib/anvilFeedback');
 const { insertAnvilSuggestions } = require('../lib/anvilSuggestionStore');
 const { isBedrockConfigured, runSectionReview } = require('../lib/bedrockReview');
+const { normalizeDoi } = require('../lib/doi');
+const { getRelatedReadingSuggestions } = require('../lib/relatedArticles');
 
 function mapSuggestionRow(r) {
   if (!r) return null;
@@ -54,7 +57,7 @@ async function loadSourcesWithSections(getPool, projectId) {
     .request()
     .input('project_id', sql.Int, projectId)
     .query(
-      `SELECT s.id, s.project_id, s.citation_text, s.notes, s.sort_order, s.created_at, s.updated_at
+      `SELECT s.id, s.project_id, s.citation_text, s.notes, s.doi, s.sort_order, s.created_at, s.updated_at
        FROM sources s WHERE s.project_id = @project_id ORDER BY s.sort_order, s.id`
     );
   const sources = rows.recordset;
@@ -235,6 +238,20 @@ function createApiRouter(getPool) {
       const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
       if (!bundle) return res.status(404).json({ error: 'Not found' });
       res.json(bundle);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.delete('/projects/:projectId', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const result = await deleteProject(getPool, req.session.userId, projectId);
+      if (!result.ok) {
+        return res.status(result.status).json({ error: result.error });
+      }
+      res.status(204).end();
     } catch (e) {
       next(e);
     }
@@ -668,12 +685,33 @@ function createApiRouter(getPool) {
     }
   });
 
+  router.get('/projects/:projectId/related-reading', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
+      if (!bundle) return res.status(404).json({ error: 'Not found' });
+      const sources = await loadSourcesWithSections(getPool, projectId);
+      const result = await getRelatedReadingSuggestions({ project: bundle.project, sources });
+      if (!result.ok) {
+        return res.status(400).json({
+          error: result.message || 'Cannot suggest related reading',
+          code: result.code || 'BAD_REQUEST',
+        });
+      }
+      res.json(result);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.post('/projects/:projectId/sources', async (req, res, next) => {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const { citationText, notes, sectionIds } = req.body || {};
+      const { citationText, notes, sectionIds, doi } = req.body || {};
       if (!citationText || !String(citationText).trim()) return res.status(400).json({ error: 'citationText is required' });
+      const doiNorm = normalizeDoi(doi);
       const p = await getPool();
       const own = await p
         .request()
@@ -687,10 +725,11 @@ function createApiRouter(getPool) {
         .input('project_id', sql.Int, projectId)
         .input('citation_text', sql.NVarChar(sql.MAX), String(citationText).trim())
         .input('notes', sql.NVarChar(sql.MAX), notes != null ? String(notes) : null)
+        .input('doi', sql.NVarChar(500), doiNorm)
         .query(`
-          INSERT INTO sources (project_id, citation_text, notes, updated_at)
+          INSERT INTO sources (project_id, citation_text, notes, doi, updated_at)
           OUTPUT INSERTED.id
-          VALUES (@project_id, @citation_text, @notes, GETDATE())
+          VALUES (@project_id, @citation_text, @notes, @doi, GETDATE())
         `);
       const sourceId = ins.recordset[0].id;
 
@@ -716,7 +755,9 @@ function createApiRouter(getPool) {
       const row = await p
         .request()
         .input('id', sql.Int, sourceId)
-        .query(`SELECT id, project_id, citation_text, notes, sort_order, created_at, updated_at FROM sources WHERE id = @id`);
+        .query(
+          `SELECT id, project_id, citation_text, notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
+        );
       const out = row.recordset[0];
       const sec = await p
         .request()
@@ -756,6 +797,10 @@ function createApiRouter(getPool) {
         updates.push('notes = @notes');
         reqB.input('notes', sql.NVarChar(sql.MAX), body.notes != null ? String(body.notes) : null);
       }
+      if (body.doi !== undefined) {
+        updates.push('doi = @doi');
+        reqB.input('doi', sql.NVarChar(500), normalizeDoi(body.doi));
+      }
       if (body.sortOrder !== undefined) {
         updates.push('sort_order = @sort_order');
         reqB.input('sort_order', sql.Int, parseInt(body.sortOrder, 10));
@@ -792,7 +837,9 @@ function createApiRouter(getPool) {
       const row = await p
         .request()
         .input('id', sql.Int, sourceId)
-        .query(`SELECT id, project_id, citation_text, notes, sort_order, created_at, updated_at FROM sources WHERE id = @id`);
+        .query(
+          `SELECT id, project_id, citation_text, notes, doi, sort_order, created_at, updated_at FROM sources WHERE id = @id`
+        );
       const out = row.recordset[0];
       const sec = await p
         .request()

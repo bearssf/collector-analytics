@@ -251,7 +251,7 @@ app.get(
   asyncHandler(loadAppAccess),
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     res.render('app/dashboard', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -333,7 +333,7 @@ app.get(
       }
     }
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     const intervalLabel =
       cfg.mode === 'dual' ? (billingInterval === 'year' ? 'Yearly' : 'Monthly') : 'Member';
     res.render('app/billing-subscribe', {
@@ -421,7 +421,7 @@ app.get(
       return res.redirect(302, '/app/account?billing=pm_no_customer');
     }
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     res.render('app/billing-payment-method', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -438,7 +438,7 @@ app.get(
   asyncHandler(loadAppAccess),
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     const subQ = req.query.subscription;
     const billingQ = req.query.billing;
     let billingFlash = null;
@@ -539,7 +539,7 @@ app.get(
   asyncHandler(loadAppAccess),
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     const templateOptions = templateOptionsForForm();
     res.render('app/project-new', {
       user: req.session.user,
@@ -562,7 +562,7 @@ app.post(
   asyncHandler(loadAppAccess),
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
-    const currentProjectId = projects.length ? projects[0].id : null;
+    const currentProjectId = null;
     const templateOptions = templateOptionsForForm();
     const body = req.body || {};
     const result = await createProject(getPool, req.session.userId, body);

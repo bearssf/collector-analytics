@@ -16,11 +16,12 @@
       <% if (projects && projects.length) { %>
         <ul class="app-dashboard-list">
           <% projects.forEach(function(p) { %>
-            <li>
+            <li class="app-dashboard-item">
               <a href="/app/project/<%= p.id %>/anvil" class="app-dashboard-card">
                 <strong><%= p.name %></strong>
                 <span class="muted"><%= p.purpose %> · <%= p.citation_style %></span>
               </a>
+              <button type="button" class="app-dashboard-delete" data-project-id="<%= p.id %>" data-project-name="<%= encodeURIComponent(p.name) %>" title="Delete project">Delete</button>
             </li>
           <% }); %>
         </ul>
@@ -34,5 +35,6 @@
     </main>
     <%- include('../partials/app-insight-panel', { insightHint: 'Portfolio-level insights and reminders will appear here.' }) %>
   </div>
+  <script src="/js/dashboard.js"></script>
 </body>
 </html>
