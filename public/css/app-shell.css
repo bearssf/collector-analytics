@@ -711,10 +711,21 @@
   background: rgba(255, 255, 255, 0.02);
 }
 .project-other-sections-intro {
-  margin-bottom: 1.85rem;
+  margin-bottom: 0;
+}
+#project-other-sections-rows {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(47, 128, 237, 0.22);
 }
 .project-other-sections[hidden] {
   display: none !important;
+}
+.project-other-row .app-field > span {
+  color: var(--blue);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
 }
 .project-other-row {
   display: grid;
@@ -756,6 +767,11 @@
   border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.02);
+}
+.project-settings-other-sections #settings-other-rows {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(47, 128, 237, 0.22);
 }
 .project-settings-other-row {
   grid-template-columns: 1fr 6.5rem;
