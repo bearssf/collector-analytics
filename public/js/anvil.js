@@ -551,6 +551,297 @@
     return s || 'APA';
   }
 
+  var MS_TNR = '"Times New Roman", Times, serif';
+
+  var MANUSCRIPT_PROFILES = {
+    APA: {
+      body: {
+        fontFamily: MS_TNR,
+        fontSize: '12pt',
+        lineHeight: '2',
+        margin: '0 0 0.5em 0',
+        textAlign: 'left',
+      },
+      h1: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'center',
+        lineHeight: '2',
+        margin: '0.5em 0 0.5em 0',
+      },
+      h2: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h3: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h4: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      list: { paddingLeft: '2.5em' },
+    },
+    MLA: {
+      body: {
+        fontFamily: MS_TNR,
+        fontSize: '12pt',
+        lineHeight: '2',
+        margin: '0 0 0.5em 0',
+        textAlign: 'left',
+      },
+      h1: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'center',
+        lineHeight: '2',
+        margin: '0.5em 0 0.5em 0',
+      },
+      h2: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h3: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h4: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      list: { paddingLeft: '2.5em' },
+    },
+    CHICAGO: {
+      body: {
+        fontFamily: MS_TNR,
+        fontSize: '12pt',
+        lineHeight: '2',
+        margin: '0 0 0.5em 0',
+        textAlign: 'left',
+      },
+      h1: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'center',
+        lineHeight: '2',
+        margin: '0.5em 0 0.5em 0',
+      },
+      h2: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h3: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      h4: {
+        fontSize: '12pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '2',
+        margin: '0.75em 0 0.5em 0',
+      },
+      list: { paddingLeft: '2.5em' },
+    },
+    IEEE: {
+      body: {
+        fontFamily: MS_TNR,
+        fontSize: '10pt',
+        lineHeight: '1.15',
+        margin: '0 0 0.35em 0',
+        textAlign: 'left',
+      },
+      h1: {
+        fontSize: '10pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'center',
+        lineHeight: '1.15',
+        margin: '0.4em 0 0.3em 0',
+      },
+      h2: {
+        fontSize: '10pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '1.15',
+        margin: '0.5em 0 0.3em 0',
+      },
+      h3: {
+        fontSize: '10pt',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'left',
+        lineHeight: '1.15',
+        margin: '0.5em 0 0.3em 0',
+      },
+      h4: {
+        fontSize: '10pt',
+        fontWeight: 'bold',
+        fontStyle: 'normal',
+        textAlign: 'left',
+        lineHeight: '1.15',
+        margin: '0.5em 0 0.3em 0',
+      },
+      list: { paddingLeft: '2em' },
+    },
+  };
+
+  function resolveManuscriptProfileKey(styleKey) {
+    var st = String(styleKey || 'APA').toUpperCase();
+    if (st === 'CHICAGO' || st === 'TURABIAN') return 'CHICAGO';
+    if (st === 'MLA') return 'MLA';
+    if (st === 'IEEE') return 'IEEE';
+    return 'APA';
+  }
+
+  function normalizeCitationTextNodes(root) {
+    if (!root) return;
+    var walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    var n;
+    while ((n = walk.nextNode())) {
+      nodes.push(n);
+    }
+    nodes.forEach(function (textNode) {
+      var t = textNode.nodeValue;
+      if (!t) return;
+      var next = t.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\[\s*(\d{1,3})\s*\]/g, '[$1]');
+      next = next.replace(/\(([^)]*)\)/g, function (_m, inner) {
+        return '(' + inner.replace(/\s{2,}/g, ' ').trim() + ')';
+      });
+      if (next !== t) textNode.nodeValue = next;
+    });
+  }
+
+  function applyManuscriptStylesToDom(root, styleKey, lightPaper) {
+    var pkey = resolveManuscriptProfileKey(styleKey);
+    var prof = MANUSCRIPT_PROFILES[pkey] || MANUSCRIPT_PROFILES.APA;
+    var fg = lightPaper ? '#1a1d21' : '#ffffff';
+    var body = prof.body;
+    var listPad = prof.list && prof.list.paddingLeft ? prof.list.paddingLeft : '2.5em';
+
+    function hspec(tag) {
+      return prof[tag] || prof.h2;
+    }
+
+    root.querySelectorAll('p').forEach(function (el) {
+      el.style.fontFamily = body.fontFamily;
+      el.style.fontSize = body.fontSize;
+      el.style.lineHeight = body.lineHeight;
+      el.style.color = fg;
+      el.style.margin = body.margin;
+      el.style.textAlign = body.textAlign || 'left';
+    });
+    root.querySelectorAll('li').forEach(function (el) {
+      el.style.fontFamily = body.fontFamily;
+      el.style.fontSize = body.fontSize;
+      el.style.lineHeight = body.lineHeight;
+      el.style.color = fg;
+      el.style.margin = '0 0 0.25em 0';
+    });
+    ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(function (tag) {
+      var spec = hspec(tag);
+      root.querySelectorAll(tag).forEach(function (el) {
+        el.style.fontFamily = body.fontFamily;
+        el.style.fontSize = spec.fontSize;
+        el.style.fontWeight = spec.fontWeight || 'bold';
+        el.style.fontStyle = spec.fontStyle || 'normal';
+        el.style.textAlign = spec.textAlign || 'left';
+        el.style.lineHeight = spec.lineHeight || body.lineHeight;
+        el.style.color = fg;
+        el.style.margin = spec.margin || '0.75em 0 0.5em 0';
+      });
+    });
+    root.querySelectorAll('ol').forEach(function (el) {
+      el.style.paddingLeft = listPad;
+      el.style.margin = body.margin;
+      el.style.listStyleType = 'decimal';
+      el.style.listStylePosition = 'outside';
+    });
+    root.querySelectorAll('ul').forEach(function (el) {
+      el.style.paddingLeft = listPad;
+      el.style.margin = body.margin;
+      el.style.listStyleType = 'disc';
+      el.style.listStylePosition = 'outside';
+    });
+    root.querySelectorAll('blockquote').forEach(function (el) {
+      el.style.fontFamily = body.fontFamily;
+      el.style.fontSize = body.fontSize;
+      el.style.lineHeight = body.lineHeight;
+      el.style.color = fg;
+      el.style.margin = '0 0 0.5em 1.5em';
+      el.style.paddingLeft = '2em';
+    });
+  }
+
+  function runApplyManuscriptFormat() {
+    if (!quillEditor || !quillEditor.root) {
+      alert('Manuscript formatting requires the rich text editor.');
+      return;
+    }
+    var html = getEditorHtml();
+    if (htmlIsEffectivelyEmpty(html)) {
+      alert('Add some text first.');
+      return;
+    }
+    var wrap = document.getElementById('anvil-quill-wrap');
+    var lightPaper = wrap && wrap.classList.contains('anvil-quill-wrap--paper');
+    var style = projectCitationStyle();
+    var div = document.createElement('div');
+    div.innerHTML = quillEditor.root.innerHTML;
+    applyManuscriptStylesToDom(div, style, lightPaper);
+    normalizeCitationTextNodes(div);
+    var newHtml = div.innerHTML;
+    try {
+      var fullLen = quillEditor.getLength();
+      quillEditor.deleteText(0, fullLen, 'silent');
+      quillEditor.clipboard.dangerouslyPasteHTML(0, newHtml, 'user');
+    } catch (e) {
+      alert(e.message || 'Could not apply formatting.');
+      return;
+    }
+    scheduleSave();
+    setStatus('<span class="anvil-status-ok">Applied ' + escapeHtml(style) + ' manuscript style</span>');
+  }
+
   function extractYear(citationText) {
     const m = String(citationText || '').match(/\b(19\d{2}|20\d{2})\b/);
     return m ? m[1] : '';
@@ -791,7 +1082,9 @@
       mount.innerHTML =
         '<p class="anvil-citations-msg">No sources linked to <strong>' +
         escapeHtml(cur ? cur.title : 'this section') +
-        '</strong>. Link sources in the Crucible.</p>';
+        '</strong>. Link sources in the <a class="anvil-inline-link" href="/app/project/' +
+        Number(projectId) +
+        '/crucible">Crucible</a>.</p>';
       return;
     }
 
@@ -998,6 +1291,11 @@
       '<span class="anvil-export-label">Export</span>' +
       '<button type="button" class="anvil-export-btn" id="anvil-export-section-txt">This section (.txt)</button>' +
       '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">This section (.docx)</button>' +
+      '<span class="anvil-export-sep" aria-hidden="true">·</span>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-apply-manuscript" title="Fonts, spacing, headings, lists, and citation spacing cleanup">' +
+      'Apply ' +
+      escapeHtml(projectCitationStyle()) +
+      ' format</button>' +
       '</div>' +
       '<div id="anvil-error" class="anvil-error-banner" style="display:none" role="alert"></div>' +
       '</div>';
@@ -1023,6 +1321,12 @@
     }
 
     (function bindExportBar() {
+      var msBtn = document.getElementById('anvil-apply-manuscript');
+      if (msBtn) {
+        msBtn.addEventListener('click', function () {
+          runApplyManuscriptFormat();
+        });
+      }
       var txtBtn = document.getElementById('anvil-export-section-txt');
       var docxBtn = document.getElementById('anvil-export-section-docx');
       if (txtBtn) {
