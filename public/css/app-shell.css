@@ -358,7 +358,8 @@
 .app-sidebar-project-name {
   display: block;
   padding: 0 0.55rem 0.4rem;
-  font-size: 0.8rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
   color: rgba(255, 255, 255, 0.55);
 }
 .app-sidebar-footer {

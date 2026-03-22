@@ -46,13 +46,19 @@
   function applyPaperToEditor(on) {
     var wrap = document.getElementById('anvil-quill-wrap');
     var btn = document.getElementById('anvil-paper-toggle');
+    var hint = document.getElementById('anvil-paper-toggle-hint');
     if (wrap) wrap.classList.toggle('anvil-quill-wrap--paper', on);
     if (btn) {
       btn.setAttribute('aria-checked', on ? 'true' : 'false');
       btn.setAttribute(
         'aria-label',
-        on ? 'Writing area: light paper. Switch to dark background.' : 'Writing area: dark. Switch to white paper.'
+        on
+          ? 'Light mode on. Switch to dark mode writing area.'
+          : 'Dark mode on. Switch to light mode writing area.'
       );
+    }
+    if (hint) {
+      hint.textContent = on ? 'Dark mode' : 'Light mode';
     }
   }
 
@@ -298,6 +304,65 @@
     }
   }
 
+  /** Remove pasted inline colors so text inherits the dark or light editor theme. */
+  function stripInlineColorFromPasteNode(node) {
+    if (!node || node.nodeType !== 1) return;
+    var el = node;
+    if (el.tagName === 'FONT') {
+      el.removeAttribute('color');
+    }
+    if (el.style) {
+      el.style.removeProperty('color');
+    }
+  }
+
+  function deltaStripColorAttrs(delta) {
+    var Delta = typeof Quill !== 'undefined' ? Quill.import('delta') : null;
+    if (!Delta || !delta || !delta.ops) return delta;
+    var next = new Delta();
+    delta.ops.forEach(function (op) {
+      if (op.insert != null) {
+        if (typeof op.insert === 'string' && op.attributes) {
+          var a = Object.assign({}, op.attributes);
+          delete a.color;
+          delete a.background;
+          if (Object.keys(a).length === 0) {
+            next.insert(op.insert);
+          } else {
+            next.insert(op.insert, a);
+          }
+        } else {
+          next.insert(op.insert, op.attributes);
+        }
+      } else if (op.retain != null) {
+        var ra = op.attributes;
+        if (ra) {
+          var ra2 = Object.assign({}, ra);
+          delete ra2.color;
+          delete ra2.background;
+          if (Object.keys(ra2).length === 0) {
+            next.retain(op.retain);
+          } else {
+            next.retain(op.retain, ra2);
+          }
+        } else {
+          next.retain(op.retain);
+        }
+      } else if (op.delete) {
+        next.delete(op.delete);
+      }
+    });
+    return next;
+  }
+
+  function installQuillPasteColorNormalization(quill) {
+    if (!quill || !quill.clipboard) return;
+    quill.clipboard.addMatcher(Node.ELEMENT_NODE, function (node, delta) {
+      stripInlineColorFromPasteNode(node);
+      return deltaStripColorAttrs(delta);
+    });
+  }
+
   function mountEditor(initialHtml) {
     quillEditor = null;
     const wrap = document.getElementById('anvil-quill-wrap');
@@ -321,6 +386,7 @@
         },
         placeholder: 'Write your draft here…',
       });
+      installQuillPasteColorNormalization(quillEditor);
       setQuillHtml(htmlLoad);
       quillEditor.on('text-change', function () {
         scheduleSave();
@@ -921,7 +987,7 @@
       '<button type="button" class="anvil-paper-toggle" id="anvil-paper-toggle" role="switch" aria-checked="false" aria-label="Writing area: dark. Switch to white paper.">' +
       '<span class="anvil-paper-toggle__track" aria-hidden="true"><span class="anvil-paper-toggle__thumb"></span></span>' +
       '</button>' +
-      '<span class="anvil-paper-toggle__hint" id="anvil-paper-toggle-hint">White paper</span>' +
+      '<span class="anvil-paper-toggle__hint" id="anvil-paper-toggle-hint">Light mode</span>' +
       '</div>' +
       '</div>' +
       '<div class="anvil-editor-footer__right">' +
