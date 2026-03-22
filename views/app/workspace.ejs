@@ -3,7 +3,7 @@
 <head>
   <%- include('../partials/app-head', { title: phaseTitle }) %>
 </head>
-<body class="app-body app-body--workspace-shell">
+<body class="app-body app-body--workspace-shell<%= phaseSlug === 'anvil' ? ' app-body--anvil' : '' %>">
   <div class="app-grid">
     <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: phaseSlug, appAccess: appAccess }) %>
     <main class="app-canvas">
@@ -43,7 +43,11 @@
         </div>
       <% } %>
     </main>
-    <%- include('../partials/app-insight-panel', { insightHint: insightHint || 'Feedback and suggestions for this step will appear here.' }) %>
+    <% if (phaseSlug === 'anvil') { %>
+      <%- include('../partials/app-anvil-rail') %>
+    <% } else { %>
+      <%- include('../partials/app-insight-panel', { insightHint: insightHint || 'Feedback and suggestions for this step will appear here.' }) %>
+    <% } %>
   </div>
 </body>
 </html>

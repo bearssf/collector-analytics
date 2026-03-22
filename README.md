@@ -93,7 +93,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 
 - **Billing:** **Account** → subscribe via **`/billing/subscribe`** or **`/billing/checkout`**; **update payment method** on **`/billing/payment-method`** (SetupIntent + Payment Element when **`STRIPE_PUBLISHABLE_KEY`** is set); **auto-renew**; **monthly/yearly plan change** with **proration estimate** (dual prices; yearly → monthly only near renewal); **`GET /billing/portal`** for Stripe portal (invoices, etc.). **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
-- **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
+- **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`. Right column uses a **split rail** (feedback & suggestions · citations) — placeholders until [Anvil vision](docs/anvil-vision.md) phases 2+.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
 - **Home:** Marketing landing + sign-in; **Workspace** (`/app/dashboard`) when signed in.
 - **Header (signed out):** Email and password, Sign in, and **Create an account** below.

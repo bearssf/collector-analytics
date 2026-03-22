@@ -222,6 +222,46 @@
   line-height: 1.5;
   margin-bottom: 0.6rem;
 }
+
+/* Anvil: right rail = feedback (top) + citations (bottom), each scrolls independently */
+.app-body--workspace-shell .app-insight.app-anvil-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.app-anvil-rail__stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.app-anvil-rail__pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-anvil-rail__pane:first-child {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+.app-anvil-rail__pane .insight-h {
+  flex-shrink: 0;
+}
+.app-anvil-rail__scroll {
+  flex: 1;
+  min-height: 5rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.app-anvil-rail__placeholder-card {
+  margin-bottom: 0;
+}
+
 .app-trial-bar {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.55);
@@ -549,6 +589,10 @@
 /* The Anvil — section drafts */
 .anvil {
   max-width: 52rem;
+}
+.app-body--anvil .anvil {
+  max-width: none;
+  width: 100%;
 }
 .anvil-loading,
 .anvil-muted {

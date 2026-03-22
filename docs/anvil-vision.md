@@ -92,7 +92,7 @@ Work in this order so each phase **unlocks the next** without painting yourself 
 
 | Phase | Focus | Outcome | Depends on |
 |-------|--------|---------|------------|
-| **1** | **Anvil shell** | Anvil route uses a **dedicated layout**: nav (existing) \| center editor \| **right rail** split **top / bottom** (placeholders OK). Mobile: stack or drawer; desktop matches vision. | Current `workspace.ejs` + partials |
+| **1** | **Anvil shell** | *(Shipped.)* Anvil uses **`app-anvil-rail`**: app sidebar \| center (`#anvil-root`) \| right rail with **Feedback & suggestions** (top) + **Citations** (bottom), placeholders + independent scroll. `body.app-body--anvil` for editor width. | `views/partials/app-anvil-rail.ejs`, `workspace.ejs`, `app-shell.css` |
 | **2** | **Citations rail (read-only)** | **Bottom** of right rail lists sources **linked to the active section** (same data as Crucible: `GET /api/projects/:id/sources` + `sectionIds`). Reference-style strings; scrollable. | APIs today |
 | **3** | **Insert citation (plain text)** | User picks a source → **insert in-text snippet** at cursor in the **textarea** using project **`citationStyle`**. Keeps shipping value before a rich editor. | Phase 2, `citationStyle` on project |
 | **4** | **Rich editor + storage** | Choose stack (e.g. ProseMirror / TipTap / Quill). Decide **HTML vs Markdown** in `project_sections.body` (or new column) + **migration** from plain text. Enables formatting, lists, spacing UI “for free” from the component. | Phase 1–3 stable |
