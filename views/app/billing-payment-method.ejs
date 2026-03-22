@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: 'Update payment method' }) %>
+</head>
+<body class="app-body">
+  <div class="app-grid">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <h1>Update payment method</h1>
+      <p class="sub">Add a new card for your membership — processed by Stripe on this page.</p>
+
+      <div class="app-placeholder account-block billing-subscribe-card">
+        <p class="account-meta" style="margin-top:0">Card details stay with Stripe; we never store your card number.</p>
+        <form id="billing-pm-form" class="billing-subscribe-form">
+          <div id="billing-pm-payment"></div>
+          <p id="billing-pm-error" class="billing-subscribe-error" hidden></p>
+          <button type="submit" id="billing-pm-submit" class="app-btn-primary billing-subscribe-submit" disabled>
+            Save payment method
+          </button>
+        </form>
+        <p class="account-meta"><a href="/app/account" class="app-link-cta">← Back to Account</a></p>
+      </div>
+    </main>
+    <%- include('../partials/app-insight-panel', { insightHint: 'Your previous card may remain on file in Stripe until replaced.' }) %>
+  </div>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    window.__BILLING_PM__ = {
+      publishableKey: <%- JSON.stringify(stripePublishableKey) %>
+    };
+  </script>
+  <script src="/js/billing-payment-method.js" defer></script>
+</body>
+</html>

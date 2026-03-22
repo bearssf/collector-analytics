@@ -691,6 +691,9 @@
 .account-portal-actions {
   margin: 0.75rem 0 0;
 }
+.account-payment-method-link {
+  margin: 0.5rem 0 0;
+}
 
 .account-billing-maintain {
   margin: 0.85rem 0 0;
@@ -698,6 +701,42 @@
 }
 .account-billing-maintain .account-meta {
   margin-top: 0.5rem;
+}
+
+.account-h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.account-invoice-table-wrap {
+  overflow-x: auto;
+  max-width: 38rem;
+  margin: 0 0 0.35rem;
+}
+.account-invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.account-invoice-table th,
+.account-invoice-table td {
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.account-invoice-table th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.account-invoice-actions {
+  white-space: nowrap;
+}
+.account-invoice-actions .app-link-muted {
+  margin-left: 0.45rem;
 }
 
 .account-billing-summary {

@@ -80,6 +80,10 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 | POST | `/api/billing/subscription-intent` | Signed-in only. JSON body `{ "interval": "month" \| "year" }` when both prices are set. Returns `{ clientSecret }` for Stripe.js (on-site subscribe page). |
 | POST | `/api/billing/subscription/cancel-at-period-end` | Active or past-due member with a Stripe subscription: sets `cancel_at_period_end` via Stripe; DB updated from the returned subscription. |
 | POST | `/api/billing/subscription/resume` | Clears `cancel_at_period_end` (resume auto-renewal). Same eligibility as cancel-at-period-end. |
+| POST | `/api/billing/subscription/plan` | Dual price mode only. Body `{ "interval": "month" \| "year" }` — `subscriptions.update` with proration; DB synced from returned subscription. |
+| GET | `/api/billing/invoices` | JSON `{ invoices: [...] }` for the signed-in user’s Stripe customer (same shape as Account; empty if no customer). |
+| POST | `/api/billing/setup-intent` | Creates a Stripe SetupIntent; returns `{ clientSecret, setupIntentId }` for **Update payment method** (`STRIPE_PUBLISHABLE_KEY` required). |
+| POST | `/api/billing/setup-intent/complete` | Body `{ "setupIntentId" }` — sets default payment method on the customer and subscription after a succeeded SetupIntent. |
 
 **Purposes:** Dissertation, Academic Publication, Thesis, Essay, Report, Conference Document, Other. **Citation styles:** APA, MLA, Chicago, Turabian, IEEE.
 
@@ -87,7 +91,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 
 ## Features
 
-- **Billing:** **Account** → subscribe via **`/billing/subscribe`** (on-site when **`STRIPE_PUBLISHABLE_KEY`** is set) or **`/billing/checkout`** (hosted Checkout otherwise); **turn off / resume auto-renewal** on Account (`POST /api/billing/subscription/*`); **`GET /billing/portal`** opens Stripe **Customer Portal** for payment method and invoices. **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
+- **Billing:** **Account** → subscribe via **`/billing/subscribe`** or **`/billing/checkout`**; **update payment method** on **`/billing/payment-method`** (SetupIntent + Payment Element when **`STRIPE_PUBLISHABLE_KEY`** is set); **recent invoices**; **auto-renew**; **monthly/yearly plan change** (when dual prices are configured); **`GET /billing/portal`** for Stripe portal. **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
 - **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
@@ -104,13 +108,13 @@ Work to keep **subscription management on AcademiqForge** (API + your UI), simil
 
 1. **Subscription summary on Account** — **Status**, **Plan** (Monthly/Yearly when env price IDs match the stored `subscriptions.plan` prefix), **Next renewal** / **Trial ends** / period dates from the DB (`lib/billingAccountDisplay.js`). *(Shipped.)*
 2. **Cancel at period end / resume** — `POST /api/billing/subscription/cancel-at-period-end` and `/resume`; **`subscriptions.cancel_at_period_end`** synced from Stripe webhooks and subscription objects. *(Shipped.)*
-3. Invoice list — `invoices.list` + render links on Account.
-4. Update payment method — SetupIntent + Payment Element.
-5. Plan change (e.g. month ↔ year, proration) — `subscriptions.update` + UI.
+3. **Invoice list** — `invoices.list` (see `lib/billingInvoices.js`), **Account** table + **`GET /api/billing/invoices`**. *(Shipped.)*
+4. **Update payment method** — SetupIntent + Payment Element on **`/billing/payment-method`**; **`POST /api/billing/setup-intent`** + **`/complete`**; 3DS return **`GET /billing/payment-method/return`**. *(Shipped.)*
+5. **Plan change (month ↔ year, proration)** — `POST /api/billing/subscription/plan`; `subscriptions.update` with `create_prorations` (`lib/billingPlanChange.js`); Account buttons when dual prices + plan known from DB. *(Shipped.)*
 
 ## Backlog
 
-- **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`). **Backlog:** richer on-site billing (see **Billing maintenance track**); optional proration messaging beyond the portal.
+- **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`). On-site: subscription summary, auto-renew, invoices, payment method, and plan change (dual prices) per **Billing maintenance track**; portal for additional Stripe-hosted actions.
 - **Account / billing (post-payment UX):** After returning from payment (`?subscription=success`), subscription can show **pending** until webhooks update the row — usually seconds. **Backlog:** light polling or a **Refresh status** control on Account, and/or short copy that webhook confirmation is typically immediate but can occasionally lag.
 - **User management:** **Profile edit** and **password change** are on **Account** (`PATCH /api/me`, `POST /api/me/password`). **Email** change / verification — not started (would require a verified flow and Stripe sync if billing email must match).
 - **Account page (UX):** **Show/hide toggles** for password fields. *(Auto-renew / summary: **Billing maintenance** #1–2.)*

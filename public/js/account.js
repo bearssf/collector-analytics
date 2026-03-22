@@ -99,6 +99,19 @@
     return { res: res, data: data };
   }
 
+  async function postBillingJson(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    return { res: res, data: data };
+  }
+
   if (subActions && subMsg) {
     subActions.addEventListener('click', async function (e) {
       const btn = e.target.closest('[data-action]');
@@ -140,6 +153,42 @@
           showMsg(subMsg, 'Network error. Try again.', 'error');
           btn.disabled = false;
         }
+      }
+    });
+  }
+
+  const planSwitch = document.getElementById('account-plan-switch');
+  const planSwitchMsg = document.getElementById('account-plan-switch-msg');
+
+  if (planSwitch && planSwitchMsg) {
+    planSwitch.addEventListener('click', async function (e) {
+      const btn = e.target.closest('[data-action="switch-plan"]');
+      if (!btn || btn.disabled) return;
+      const interval = btn.getAttribute('data-interval');
+      if (interval !== 'month' && interval !== 'year') return;
+      const label = interval === 'year' ? 'yearly' : 'monthly';
+      if (
+        !window.confirm(
+          'Switch to ' +
+            label +
+            ' billing? Stripe will prorate the rest of this period (you may see a charge or credit on your next invoice).'
+        )
+      ) {
+        return;
+      }
+      showMsg(planSwitchMsg, '');
+      btn.disabled = true;
+      try {
+        const result = await postBillingJson('/api/billing/subscription/plan', { interval: interval });
+        if (!result.res.ok) {
+          showMsg(planSwitchMsg, result.data.error || 'Could not change plan.', 'error');
+          btn.disabled = false;
+          return;
+        }
+        window.location.reload();
+      } catch (err) {
+        showMsg(planSwitchMsg, 'Network error. Try again.', 'error');
+        btn.disabled = false;
       }
     });
   }

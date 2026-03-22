@@ -32,7 +32,9 @@ const {
   isStripeElementsBillingConfigured,
   billingPriceEnvHint,
 } = require('./lib/billingConfig');
-const { buildBillingSummaryLines } = require('./lib/billingAccountDisplay');
+const { buildBillingSummaryLines, resolvePlanInterval } = require('./lib/billingAccountDisplay');
+const { listInvoicesForCustomer } = require('./lib/billingInvoices');
+const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
 
 const app = express();
 
@@ -373,6 +375,58 @@ app.get(
 );
 
 app.get(
+  '/billing/payment-method/return',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (!stripe || !isStripeElementsBillingConfigured(stripe)) {
+      return res.redirect(302, '/app/account?pm=error');
+    }
+    const sid = req.query.setup_intent;
+    const redirectStatus = req.query.redirect_status;
+    if (!sid || redirectStatus !== 'succeeded') {
+      return res.redirect(302, '/app/account?pm=error');
+    }
+    try {
+      await applyPaymentMethodFromSetupIntent(stripe, getPool, req.session.userId, sid);
+      return res.redirect(302, '/app/account?pm=success');
+    } catch (e) {
+      console.error('Payment method return:', e.message || e);
+      return res.redirect(302, '/app/account?pm=error');
+    }
+  })
+);
+
+app.get(
+  '/billing/payment-method',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    if (!isStripeBillingConfigured(stripe)) {
+      return res.status(503).send(
+        `Billing is not configured. Set STRIPE_SECRET_KEY, PUBLIC_BASE_URL, and ${billingPriceEnvHint()} (see README).`
+      );
+    }
+    if (!isStripeElementsBillingConfigured(stripe)) {
+      return res.redirect(302, '/billing/portal');
+    }
+    await ensureSubscriptionRow(getPool, req.session.userId);
+    const subRow = await getSubscriptionRow(getPool, req.session.userId);
+    if (!subRow?.stripe_customer_id) {
+      return res.redirect(302, '/app/account?billing=pm_no_customer');
+    }
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    res.render('app/billing-payment-method', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId,
+      stripePublishableKey: getStripePublishableKey(),
+    });
+  })
+);
+
+app.get(
   '/app/account',
   requireAuth,
   asyncHandler(loadAppAccess),
@@ -405,6 +459,18 @@ app.get(
         text:
           'Could not open the billing portal. In the Stripe Dashboard, enable Customer Portal (Settings → Billing → Customer portal) and try again.',
       };
+    } else if (billingQ === 'pm_no_customer') {
+      billingFlash = {
+        kind: 'muted',
+        text: 'Add a subscription first so we have a Stripe customer to attach a card to.',
+      };
+    } else if (req.query.pm === 'success') {
+      billingFlash = { kind: 'ok', text: 'Payment method updated.' };
+    } else if (req.query.pm === 'error') {
+      billingFlash = {
+        kind: 'muted',
+        text: 'Could not update payment method. Try again or use Manage billing.',
+      };
     }
     const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
     const profileRow = await getUserProfileRow(getPool, req.session.userId);
@@ -431,6 +497,19 @@ app.get(
     if (!hasPublicBaseUrl) billingEnvMissing.push('PUBLIC_BASE_URL');
     if (priceCfg.mode === 'none') billingEnvMissing.push(billingPriceEnvHint());
     const billingSummary = buildBillingSummaryLines(subscriptionRow, priceCfg);
+    const currentPlanInterval = resolvePlanInterval(subscriptionRow, priceCfg);
+    let stripeInvoices = [];
+    if (stripe && stripeConfigured && subscriptionRow?.stripe_customer_id) {
+      try {
+        stripeInvoices = await listInvoicesForCustomer(
+          stripe,
+          subscriptionRow.stripe_customer_id,
+          20
+        );
+      } catch (e) {
+        console.error('Stripe invoices.list:', e.message || e);
+      }
+    }
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -439,6 +518,7 @@ app.get(
       billingFlash,
       subscriptionRow,
       billingSummary,
+      stripeInvoices,
       profile,
       universities: loadUniversities(),
       searchEngines: SEARCH_ENGINES,
@@ -447,6 +527,7 @@ app.get(
       stripeElementsConfigured,
       billingEnvMissing,
       billingPriceMode: priceCfg.mode,
+      currentPlanInterval,
     });
   })
 );

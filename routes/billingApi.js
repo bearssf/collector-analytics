@@ -10,6 +10,10 @@ const {
   resolvePriceIdFromRequest,
   createSubscriptionPaymentIntentClientSecret,
 } = require('../lib/billingElements');
+const { listInvoicesForCustomer } = require('../lib/billingInvoices');
+const { applyPaymentMethodFromSetupIntent } = require('../lib/billingPaymentMethod');
+const { resolvePlanInterval } = require('../lib/billingAccountDisplay');
+const { changeSubscriptionPlan } = require('../lib/billingPlanChange');
 
 /**
  * @param {() => Promise<import('mssql').ConnectionPool>} getPool
@@ -90,6 +94,73 @@ function createBillingApiRouter(getPool, stripe) {
     }
   });
 
+  router.post('/setup-intent', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeElementsBillingConfigured(stripe)) {
+        return res
+          .status(503)
+          .json({ error: 'On-site card updates require STRIPE_PUBLISHABLE_KEY (pk_...).' });
+      }
+      const row = await getSubscriptionRow(getPool, req.session.userId);
+      if (!row?.stripe_customer_id) {
+        return res.status(400).json({ error: 'No Stripe customer. Subscribe or use checkout first.' });
+      }
+      const setupIntent = await stripe.setupIntents.create({
+        customer: row.stripe_customer_id,
+        payment_method_types: ['card'],
+      });
+      if (!setupIntent.client_secret) {
+        return res.status(502).json({ error: 'Could not start card update.' });
+      }
+      return res.json({
+        clientSecret: setupIntent.client_secret,
+        setupIntentId: setupIntent.id,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/setup-intent/complete', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeElementsBillingConfigured(stripe)) {
+        return res.status(503).json({ error: 'Billing is not configured.' });
+      }
+      const setupIntentId = req.body?.setupIntentId;
+      if (!setupIntentId || typeof setupIntentId !== 'string') {
+        return res.status(400).json({ error: 'setupIntentId is required.' });
+      }
+      await applyPaymentMethodFromSetupIntent(stripe, getPool, req.session.userId, setupIntentId);
+      res.json({ ok: true });
+    } catch (e) {
+      if (
+        e.code === 'NO_CUSTOMER' ||
+        e.code === 'CUSTOMER_MISMATCH' ||
+        e.code === 'SETUP_NOT_SUCCEEDED' ||
+        e.code === 'NO_PAYMENT_METHOD'
+      ) {
+        return res.status(400).json({ error: e.message || 'Could not apply payment method.' });
+      }
+      next(e);
+    }
+  });
+
+  router.get('/invoices', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeBillingConfigured(stripe)) {
+        return res.status(503).json({ error: 'Billing is not configured.' });
+      }
+      const row = await getSubscriptionRow(getPool, req.session.userId);
+      if (!row?.stripe_customer_id) {
+        return res.json({ invoices: [] });
+      }
+      const invoices = await listInvoicesForCustomer(stripe, row.stripe_customer_id, 20);
+      res.json({ invoices });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.post('/subscription/resume', async (req, res, next) => {
     try {
       if (!stripe || !isStripeBillingConfigured(stripe)) {
@@ -110,6 +181,58 @@ function createBillingApiRouter(getPool, stripe) {
       await applyStripeSubscriptionObject(getPool, userId, sub);
       res.json({ ok: true });
     } catch (e) {
+      if (e.type && String(e.type).startsWith('Stripe')) {
+        return res.status(400).json({ error: e.message || 'Stripe could not update the subscription.' });
+      }
+      next(e);
+    }
+  });
+
+  router.post('/subscription/plan', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeBillingConfigured(stripe)) {
+        return res.status(503).json({ error: 'Billing is not configured.' });
+      }
+      const cfg = getStripePriceConfig();
+      if (cfg.mode !== 'dual') {
+        return res
+          .status(400)
+          .json({ error: 'Plan change requires monthly and yearly price IDs (dual mode).' });
+      }
+      const userId = req.session.userId;
+      const row = await getSubscriptionRow(getPool, userId);
+      if (!row?.stripe_subscription_id) {
+        return res.status(400).json({ error: 'No Stripe subscription on file.' });
+      }
+      const access = appAccessFromRow(row);
+      if (!access.paid && row.status !== 'past_due') {
+        return res.status(400).json({ error: 'Subscription cannot be changed in this state.' });
+      }
+      const interval = String(req.body?.interval || '').toLowerCase();
+      if (interval !== 'month' && interval !== 'year') {
+        return res.status(400).json({ error: 'Body must include interval: "month" or "year".' });
+      }
+      const newPriceId = interval === 'year' ? cfg.yearly : cfg.monthly;
+      if (!newPriceId) {
+        return res.status(400).json({ error: 'Price configuration is incomplete.' });
+      }
+      const current = resolvePlanInterval(row, cfg);
+      if (current !== 'month' && current !== 'year') {
+        return res.status(400).json({
+          error:
+            'Current plan could not be matched to monthly/yearly; use Manage billing or contact support.',
+        });
+      }
+      if (current === interval) {
+        return res.status(400).json({ error: 'You are already on this billing interval.' });
+      }
+      const sub = await changeSubscriptionPlan(stripe, row.stripe_subscription_id, newPriceId);
+      await applyStripeSubscriptionObject(getPool, userId, sub);
+      res.json({ ok: true });
+    } catch (e) {
+      if (e.code === 'NO_SUBSCRIPTION_ITEMS') {
+        return res.status(400).json({ error: e.message });
+      }
       if (e.type && String(e.type).startsWith('Stripe')) {
         return res.status(400).json({ error: e.message || 'Stripe could not update the subscription.' });
       }
