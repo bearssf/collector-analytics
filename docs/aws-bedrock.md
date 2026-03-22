@@ -28,17 +28,39 @@ Do **not** keep an old **`BEDROCK_MODEL_ID`** in the environment if that value w
 1. **Delete `BEDROCK_MODEL_ID`** in Render (or clear it) so only the inference profile is used.  
 2. Confirm the env key is exactly **`BEDROCK_INFERENCE_PROFILE_ARN`** (not `BEDROCK_INFERENCE_PROFILE` without `_ARN`).  
 3. Paste the **ARN or profile id** from **Inference profiles** with no extra spaces or quotes (or rely on the app’s quote-stripping after deploy).  
-4. **`AWS_REGION`** should match the region where you invoke (same as your Bedrock client region).
+4. **`AWS_REGION`** — see **Region vs inference profile ARN** below.
+
+### Region vs inference profile ARN (`AWS_REGION`)
+
+The Bedrock **Runtime** client uses **`AWS_REGION`** to choose the **regional API endpoint** (`bedrock-runtime.*.amazonaws.com`). That should match how AWS expects you to call that inference profile.
+
+- If your **inference profile ARN** contains `us-east-2`, set **`AWS_REGION=us-east-2`** (not `us-east-1`). A **mismatch** (e.g. client `us-east-1` + profile defined in `us-east-2`) is a common cause of odd errors or “invalid” identifiers.
+- **Do not remove `AWS_REGION`** — the AWS SDK needs it. **Align** it with the profile’s region from the ARN (unless AWS explicitly documents that profile as cross-region and gives a different invocation region).
+- “Model available in all commercial regions” refers to **model availability**, not a guarantee that any **client** region works with every **profile ARN** without matching.
+
+### Inference profile ARN vs profile ID (env vars)
+
+**You only need one identifier** passed to `InvokeModel` — **either** the full **ARN** **or** the shorter **Inference profile ID** from the console (same API parameter). Use either:
+
+- **`BEDROCK_INFERENCE_PROFILE_ARN`** — paste the **ARN** *or* the **profile id** (the name is historical; both work), or  
+- **`BEDROCK_INFERENCE_PROFILE_ID`** — optional second variable if you prefer to store **only** the profile id column separately.
+
+Precedence: **`BEDROCK_INFERENCE_PROFILE_ARN`** → **`BEDROCK_INFERENCE_PROFILE_ID`** → **`BEDROCK_MODEL_ID`**.
+
+### `BEDROCK_API_KEY_ID` / `BEDROCK_API_KEY_VALUE`
+
+This app’s Phase 7 code uses the **AWS SDK default credential chain** (**`AWS_ACCESS_KEY_ID`** / **`AWS_SECRET_ACCESS_KEY`** IAM keys, or an instance role). It **does not read** `BEDROCK_API_KEY_*`. Leaving those variables set **does not** change behavior (nothing in this repo consumes them). You can **remove** them to avoid confusion, or keep them for future use — they are **not** a conflict with IAM keys.
 
 ## What to configure
 
 | Variable | Where | Purpose |
 |----------|--------|---------|
-| `AWS_REGION` | `.env` locally; **Environment** on Render (or your host) | Region where you invoke Bedrock, e.g. `us-east-1`. |
+| `AWS_REGION` | `.env` locally; **Environment** on Render (or your host) | **Must match** the Bedrock region you invoke — typically the **region in your inference profile ARN** (e.g. `us-east-2` if the ARN says `us-east-2`). |
 | `AWS_ACCESS_KEY_ID` | Same | IAM user access key **or** omit if the process uses an **instance / task IAM role** with `bedrock:InvokeModel` (preferred in production). |
 | `AWS_SECRET_ACCESS_KEY` | Same | Secret for the key above; omit with IAM role. |
-| `BEDROCK_INFERENCE_PROFILE_ARN` | Same | **Preferred when AWS requires an inference profile** — full ARN or profile id from **Bedrock → Inference profiles** (see section above). Takes precedence over `BEDROCK_MODEL_ID`. |
-| `BEDROCK_MODEL_ID` | Same | Foundation model id **or** inference profile id/ARN if you do not set `BEDROCK_INFERENCE_PROFILE_ARN`. |
+| `BEDROCK_INFERENCE_PROFILE_ARN` | Same | **Preferred** — full **ARN** *or* **inference profile id** (same `InvokeModel` parameter). |
+| `BEDROCK_INFERENCE_PROFILE_ID` | Same | Optional — profile id only, if you do not use the row above. |
+| `BEDROCK_MODEL_ID` | Same | Foundation model id **or** inference profile id/ARN if profile vars are unset. |
 
 ### Bedrock-specific API keys (optional)
 
