@@ -2,8 +2,8 @@
 <% var projects = typeof projects !== 'undefined' && projects ? projects : []; %>
 <% function truncateProjectTitle(name) {
   var s = String(name == null ? '' : name);
-  if (s.length <= 30) return s;
-  return s.slice(0, 30) + '...';
+  if (s.length <= 25) return s;
+  return s.slice(0, 25) + '...';
 } %>
 <% var cur = typeof currentProjectId !== 'undefined' && currentProjectId != null ? currentProjectId : null; %>
 <% var effectivePid = cur != null ? String(cur) : (projects[0] ? String(projects[0].id) : ''); %>
