@@ -1,6 +1,89 @@
 {
+  "essay": {
+    "label": "Essay",
+    "sections": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Body", "slug": "body" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "journal-research-paper": {
+    "label": "Journal Submission/Research Paper",
+    "sections": [
+      { "title": "Abstract", "slug": "abstract" },
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Literature Review", "slug": "literature-review" },
+      { "title": "Methods", "slug": "methods" },
+      { "title": "Results", "slug": "results" },
+      { "title": "Discussion", "slug": "discussion" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "scientific-report": {
+    "label": "Scientific Report",
+    "sections": [
+      { "title": "Executive Summary", "slug": "executive-summary" },
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Methods", "slug": "methods" },
+      { "title": "Results", "slug": "results" },
+      { "title": "Discussion", "slug": "discussion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "conference-proceeding": {
+    "label": "Conference Proceeding",
+    "sections": [
+      { "title": "Abstract", "slug": "abstract" },
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Methods", "slug": "methods" },
+      { "title": "Results", "slug": "results" },
+      { "title": "Discussion", "slug": "discussion" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "dissertation": {
+    "label": "Dissertation",
+    "sections": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Literature Review", "slug": "literature-review" },
+      { "title": "Methodology", "slug": "methodology" },
+      { "title": "Findings", "slug": "findings" },
+      { "title": "Discussion", "slug": "discussion" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "thesis": {
+    "label": "Thesis",
+    "sections": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Literature Review", "slug": "literature-review" },
+      { "title": "Methodology", "slug": "methodology" },
+      { "title": "Results", "slug": "results" },
+      { "title": "Discussion", "slug": "discussion" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "persuasive-speech": {
+    "label": "Persuasive Speech",
+    "sections": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Main Points", "slug": "main-points" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
+  "other": {
+    "label": "Other",
+    "sections": []
+  },
   "standard-graduate": {
     "label": "Standard graduate (IMRaD-style)",
+    "deprecated": true,
     "sections": [
       { "title": "Introduction", "slug": "introduction" },
       { "title": "Literature Review", "slug": "literature-review" },
@@ -13,6 +96,7 @@
   },
   "literature-review-focused": {
     "label": "Literature review (survey)",
+    "deprecated": true,
     "sections": [
       { "title": "Introduction", "slug": "introduction" },
       { "title": "Thematic review", "slug": "thematic-review" },
@@ -24,6 +108,7 @@
   },
   "essay-short": {
     "label": "Short essay / report",
+    "deprecated": true,
     "sections": [
       { "title": "Introduction", "slug": "introduction" },
       { "title": "Body", "slug": "body" },

@@ -34,6 +34,7 @@
       <% } %>
       <% if (effectivePid) { %>
         <nav class="app-nav">
+          <a href="/app/project/<%= effectivePid %>/settings" class="<%= typeof workspaceSlug !== 'undefined' && workspaceSlug === 'settings' ? 'active' : '' %>">Project settings</a>
           <a href="/app/project/<%= effectivePid %>/anvil" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
           <a href="/app/project/<%= effectivePid %>/crucible" class="<%= slug === 'crucible' ? 'active' : '' %>">The Crucible</a>
           <% if (access.foundryUnlocked) { %>
@@ -48,8 +49,6 @@
   </div>
 
   <div style="margin-top:auto;padding-top:1rem;font-size:.78rem;color:rgba(255,255,255,.38);">
-    <a href="/product" style="color:rgba(255,255,255,.55);">Product</a>
-    <span style="margin:0 .35rem">·</span>
     <a href="/" style="color:rgba(255,255,255,.55);">Home</a>
   </div>
 </aside>

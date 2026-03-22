@@ -11,6 +11,7 @@ const {
   listProjects,
   getProjectBundle,
   createProject,
+  updateProjectSettings,
 } = require('../lib/projectService');
 
 function requireApiAuth(req, res, next) {
@@ -195,13 +196,27 @@ function createApiRouter(getPool) {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
       const body = req.body || {};
+
+      const hasMeta =
+        body.name !== undefined ||
+        body.purpose !== undefined ||
+        body.citationStyle !== undefined ||
+        body.purposeOther !== undefined ||
+        body.otherSections !== undefined ||
+        body.otherSectionsJson !== undefined;
+
+      if (hasMeta) {
+        const result = await updateProjectSettings(getPool, req.session.userId, projectId, body);
+        if (!result.ok) {
+          const payload = { error: result.error };
+          if (result.allowed) payload.allowed = result.allowed;
+          return res.status(result.status).json(payload);
+        }
+      }
+
       const updates = [];
       const p = await getPool();
       const reqB = p.request().input('id', sql.Int, projectId).input('user_id', sql.Int, req.session.userId);
-      if (body.name !== undefined) {
-        updates.push('name = @name');
-        reqB.input('name', sql.NVarChar(255), String(body.name).trim());
-      }
       if (body.status !== undefined) {
         updates.push('status = @status');
         reqB.input('status', sql.NVarChar(40), body.status);
@@ -220,11 +235,15 @@ function createApiRouter(getPool) {
         updates.push('publishing_published_at = @publishing_published_at');
         reqB.input('publishing_published_at', sql.DateTime2, body.publishing_published_at ? new Date(body.publishing_published_at) : null);
       }
-      if (updates.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
-      updates.push('updated_at = GETDATE()');
-      const sqlText = `UPDATE projects SET ${updates.join(', ')} WHERE id = @id AND user_id = @user_id`;
-      const r = await reqB.query(sqlText);
-      if (r.rowsAffected[0] === 0) return res.status(404).json({ error: 'Not found' });
+      if (updates.length > 0) {
+        updates.push('updated_at = GETDATE()');
+        const sqlText = `UPDATE projects SET ${updates.join(', ')} WHERE id = @id AND user_id = @user_id`;
+        const r = await reqB.query(sqlText);
+        if (r.rowsAffected[0] === 0) return res.status(404).json({ error: 'Not found' });
+      } else if (!hasMeta) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
       const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
       res.json(bundle);
     } catch (e) {
@@ -261,6 +280,10 @@ function createApiRouter(getPool) {
         updates.push('progress_percent = @progress_percent');
         const pp = parseInt(body.progressPercent, 10);
         reqB.input('progress_percent', sql.TinyInt, Math.min(100, Math.max(0, Number.isNaN(pp) ? 0 : pp)));
+      }
+      if (body.title !== undefined) {
+        updates.push('title = @title');
+        reqB.input('title', sql.NVarChar(255), String(body.title).trim());
       }
       if (body.body !== undefined) {
         updates.push('body = @body');

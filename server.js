@@ -17,6 +17,8 @@ const {
   getProjectBundle,
   createProject,
   loadTemplates,
+  templateOptionsForForm,
+  updateProjectSettings,
   PURPOSES,
   CITATION_STYLES,
 } = require('./lib/projectService');
@@ -536,8 +538,7 @@ app.get(
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = projects.length ? projects[0].id : null;
-    const tpl = loadTemplates();
-    const templateOptions = Object.keys(tpl).map((k) => ({ key: k, label: tpl[k].label }));
+    const templateOptions = templateOptionsForForm();
     res.render('app/project-new', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -559,8 +560,7 @@ app.post(
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = projects.length ? projects[0].id : null;
-    const tpl = loadTemplates();
-    const templateOptions = Object.keys(tpl).map((k) => ({ key: k, label: tpl[k].label }));
+    const templateOptions = templateOptionsForForm();
     const body = req.body || {};
     const result = await createProject(getPool, req.session.userId, body);
     if (!result.ok) {
@@ -576,12 +576,78 @@ app.post(
         form: {
           name: body.name || '',
           purpose: body.purpose || '',
+          purposeOther: body.purposeOther || '',
           citationStyle: body.citationStyle || '',
           templateKey: body.templateKey || '',
         },
       });
     }
     res.redirect(`/app/project/${result.bundle.project.id}/anvil`);
+  })
+);
+
+app.get(
+  '/app/project/:projectId/settings',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projectId = parseInt(req.params.projectId, 10);
+    if (Number.isNaN(projectId)) return res.status(404).send('Not found');
+    const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
+    if (!bundle) return res.status(404).send('Not found');
+    const projects = await listProjects(getPool, req.session.userId);
+    const tpl = loadTemplates();
+    const templateLabel = tpl[bundle.project.template_key]
+      ? tpl[bundle.project.template_key].label
+      : bundle.project.template_key;
+    res.render('app/project-settings', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId: projectId,
+      workspaceSlug: 'settings',
+      bundle,
+      templateLabel,
+      purposes: PURPOSES,
+      citationStyles: CITATION_STYLES,
+      error: null,
+      query: req.query || {},
+    });
+  })
+);
+
+app.post(
+  '/app/project/:projectId/settings',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    const projectId = parseInt(req.params.projectId, 10);
+    if (Number.isNaN(projectId)) return res.status(404).send('Not found');
+    const projects = await listProjects(getPool, req.session.userId);
+    const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
+    if (!bundle) return res.status(404).send('Not found');
+    const tpl = loadTemplates();
+    const templateLabel = tpl[bundle.project.template_key]
+      ? tpl[bundle.project.template_key].label
+      : bundle.project.template_key;
+    const body = req.body || {};
+    const result = await updateProjectSettings(getPool, req.session.userId, projectId, body);
+    if (!result.ok) {
+      return res.render('app/project-settings', {
+        user: req.session.user,
+        appAccess: res.locals.appAccess,
+        projects,
+        currentProjectId: projectId,
+        workspaceSlug: 'settings',
+        bundle,
+        templateLabel,
+        purposes: PURPOSES,
+        citationStyles: CITATION_STYLES,
+        error: result.error,
+        query: {},
+      });
+    }
+    res.redirect(`/app/project/${projectId}/settings?saved=1`);
   })
 );
 

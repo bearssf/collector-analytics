@@ -58,7 +58,7 @@ Successful payment sets `subscriptions.status` to **`active`** (unlocks The Foun
 
 ## Data model & REST API
 
-On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `current_period_end`, **`cancel_at_period_end`**, trial / status), **`projects`**, **`project_sections`** (including optional **`body`** draft text per section), **`sources`**, **`source_sections`**. Templates for new projects live in `data/project-templates.json`.
+On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `current_period_end`, **`cancel_at_period_end`**, trial / status), **`projects`** (optional **`purpose_other`** when purpose is Other), **`project_sections`** (including optional **`body`** draft text per section, **`progress_percent`** for section weights on custom “Other” templates), **`sources`**, **`source_sections`**. Templates for new projects live in `data/project-templates.json` (non-deprecated keys are listed in the Forge UI).
 
 **Session:** Sign in with the same browser session cookie. From JavaScript, call APIs with `fetch(url, { credentials: 'same-origin' })`.
 
@@ -69,10 +69,10 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 | POST | `/api/me/password` | `currentPassword`, `newPassword`, `confirmPassword` |
 | GET | `/api/templates` | Available `templateKey` values + labels |
 | GET | `/api/projects` | List projects for the signed-in user |
-| POST | `/api/projects` | Body: `name`, `purpose`, `citationStyle`, `templateKey` — creates project + sections |
+| POST | `/api/projects` | Body: `name`, `purpose`, `citationStyle`, `templateKey`; optional `purposeOther` (when purpose is Other); for `templateKey` **`other`**, `otherSectionTitle` / `otherSectionPercent` arrays (1–15 rows, **100%** total). |
 | GET | `/api/projects/:id` | Project + sections + `sourceCount` |
-| PATCH | `/api/projects/:id` | Partial update (name, status, publishing\* fields) |
-| PATCH | `/api/projects/:id/sections/:sectionId` | `status`, `progressPercent`, `body` (draft text, `NVARCHAR(MAX)`) |
+| PATCH | `/api/projects/:id` | `name`, `purpose`, `citationStyle`, `purposeOther`; `otherSections` or `otherSectionsJson` for **`other`** template (section `id`, `title`, `progressPercent`); plus `status`, publishing\* fields. **`template_key`** is not changeable. |
+| PATCH | `/api/projects/:id/sections/:sectionId` | `status`, `progressPercent`, `title`, `body` (draft text, `NVARCHAR(MAX)`) |
 | GET | `/api/projects/:id/sources` | Sources with `sectionIds` |
 | POST | `/api/projects/:id/sources` | `citationText`, `notes`, optional `sectionIds[]` |
 | PATCH | `/api/sources/:id` | Update source and/or replace `sectionIds` |

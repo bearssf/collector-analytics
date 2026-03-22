@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: 'Project settings' }) %>
+</head>
+<body class="app-body app-body--account-page">
+  <div class="app-grid app-grid--account">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: typeof workspaceSlug !== 'undefined' ? workspaceSlug : '', appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <h1>Project settings</h1>
+      <p class="sub">Update project details. The section template cannot be changed after creation.</p>
+
+      <% if (typeof query !== 'undefined' && query && query.saved) { %>
+        <div class="account-flash account-flash--ok" role="status">Saved.</div>
+      <% } %>
+      <% if (error) { %>
+        <div class="app-form-error" role="alert"><%= error %></div>
+      <% } %>
+
+      <% var proj = bundle.project; %>
+      <% var isOtherTemplate = proj.template_key === 'other'; %>
+
+      <form id="project-settings-form" class="app-form-stack project-settings-form" method="post" action="/app/project/<%= bundle.project.id %>/settings">
+        <label class="app-field">
+          <span>Project name</span>
+          <input type="text" name="name" required maxlength="255" value="<%= proj.name %>" autocomplete="off" />
+        </label>
+        <label class="app-field">
+          <span>Purpose</span>
+          <select id="settings-purpose" name="purpose" required>
+            <% purposes.forEach(function(p) { %>
+              <option value="<%= p %>" <%= proj.purpose === p ? 'selected' : '' %>><%= p %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label class="app-field project-purpose-other-wrap" id="settings-purpose-other-wrap" <%= proj.purpose === 'Other' ? '' : 'hidden' %>>
+          <span>Describe purpose <span class="account-optional">(optional)</span></span>
+          <input type="text" name="purposeOther" maxlength="500" value="<%= proj.purpose_other || '' %>" placeholder="Brief description when purpose is Other" autocomplete="off" />
+        </label>
+        <label class="app-field">
+          <span>Citation style</span>
+          <select name="citationStyle" required>
+            <% citationStyles.forEach(function(c) { %>
+              <option value="<%= c %>" <%= proj.citation_style === c ? 'selected' : '' %>><%= c %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label class="app-field">
+          <span>Template</span>
+          <input type="text" readonly value="<%= templateLabel %>" class="project-settings-template-readonly" aria-readonly="true" />
+        </label>
+
+        <% if (isOtherTemplate) { %>
+          <div class="project-settings-other-sections">
+            <p class="account-meta">Section names and weights (percentages must total 100%). The number of sections is fixed.</p>
+            <div id="settings-other-rows">
+              <% bundle.sections.forEach(function (sec) { %>
+                <div class="project-other-row project-settings-other-row" data-section-id="<%= sec.id %>">
+                  <label class="app-field project-other-row-title">
+                    <span>Section name</span>
+                    <input type="text" class="js-section-title" maxlength="255" required value="<%= sec.title %>" autocomplete="off" />
+                  </label>
+                  <label class="app-field project-other-row-pct">
+                    <span>% of whole</span>
+                    <input type="number" class="js-section-pct" min="0" max="100" step="1" required value="<%= sec.progress_percent %>" />
+                  </label>
+                </div>
+              <% }); %>
+            </div>
+            <p class="project-other-sections-sum" id="settings-other-sum" aria-live="polite"></p>
+          </div>
+          <input type="hidden" name="otherSectionsJson" id="otherSectionsJson" value="" />
+        <% } %>
+
+        <div class="app-form-actions">
+          <button type="submit" class="app-btn-primary">Save changes</button>
+          <a href="/app/project/<%= bundle.project.id %>/anvil" class="app-link-muted">Back to workspace</a>
+        </div>
+      </form>
+    </main>
+  </div>
+  <% if (isOtherTemplate) { %>
+    <script src="/js/project-settings.js" defer></script>
+  <% } %>
+</body>
+</html>

@@ -3,9 +3,9 @@
 <head>
   <%- include('../partials/app-head', { title: 'Forge a new project' }) %>
 </head>
-<body class="app-body">
-  <div class="app-grid">
-    <%- include('../partials/app-sidebar', { user: user, navActive: 'dashboard', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
+<body class="app-body app-body--account-page">
+  <div class="app-grid app-grid--account">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
       <h1>Forge a new project</h1>
       <p class="sub">Name your work, pick a purpose and citation style, and choose a section template.</p>
@@ -14,19 +14,23 @@
         <div class="app-form-error" role="alert"><%= error %></div>
       <% } %>
 
-      <form class="app-form-stack" method="post" action="/app/projects">
+      <form id="project-new-form" class="app-form-stack project-new-form" method="post" action="/app/projects">
         <label class="app-field">
           <span>Project name</span>
-          <input type="text" name="name" required maxlength="255" value="<%= form.name || '' %>" placeholder="e.g. Dissertation chapter 3" autocomplete="off" />
+          <input type="text" name="name" required maxlength="255" value="<%= form.name || '' %>" placeholder="e.g. Role of Critical Thinking in Intercultural Relationship Development" autocomplete="off" />
         </label>
         <label class="app-field">
           <span>Purpose</span>
-          <select name="purpose" required>
+          <select id="project-purpose" name="purpose" required>
             <option value="" disabled <%= !form.purpose ? 'selected' : '' %>>Select…</option>
             <% purposes.forEach(function(p) { %>
               <option value="<%= p %>" <%= form.purpose === p ? 'selected' : '' %>><%= p %></option>
             <% }); %>
           </select>
+        </label>
+        <label class="app-field project-purpose-other-wrap" id="project-purpose-other-wrap" hidden>
+          <span>Describe purpose <span class="account-optional">(optional)</span></span>
+          <input type="text" name="purposeOther" maxlength="500" value="<%= form.purposeOther || '' %>" placeholder="Brief description when purpose is Other" autocomplete="off" />
         </label>
         <label class="app-field">
           <span>Citation style</span>
@@ -39,20 +43,28 @@
         </label>
         <label class="app-field">
           <span>Template</span>
-          <select name="templateKey" required>
+          <select id="project-template-key" name="templateKey" required>
             <option value="" disabled <%= !form.templateKey ? 'selected' : '' %>>Select…</option>
             <% templateOptions.forEach(function(t) { %>
               <option value="<%= t.key %>" <%= form.templateKey === t.key ? 'selected' : '' %>><%= t.label %></option>
             <% }); %>
           </select>
         </label>
+
+        <div id="project-other-sections" class="project-other-sections" hidden>
+          <p class="account-meta">Add section names and the percentage each represents of the whole (must total 100%). Up to 15 sections.</p>
+          <div id="project-other-sections-rows"></div>
+          <p class="project-other-sections-sum" id="project-other-sum" aria-live="polite"></p>
+          <button type="button" class="app-btn-primary project-other-add" id="project-other-add">Add section</button>
+        </div>
+
         <div class="app-form-actions">
           <button type="submit" class="app-btn-primary">Create project</button>
           <a href="/app/dashboard" class="app-link-muted">Cancel</a>
         </div>
       </form>
     </main>
-    <%- include('../partials/app-insight-panel', { insightHint: 'After creation you land in The Anvil for this project.' }) %>
   </div>
+  <script src="/js/project-new.js" defer></script>
 </body>
 </html>

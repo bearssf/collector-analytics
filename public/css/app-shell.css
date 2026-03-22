@@ -685,6 +685,76 @@
 .account-meta--subscription-notice {
   margin-top: 0.75rem;
 }
+
+.project-new-form,
+.project-settings-form {
+  max-width: 40rem;
+}
+.project-purpose-other-wrap[hidden] {
+  display: none !important;
+}
+.project-other-sections {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+.project-other-sections[hidden] {
+  display: none !important;
+}
+.project-other-row {
+  display: grid;
+  grid-template-columns: 1fr 6.5rem auto;
+  gap: 0.75rem 0.65rem;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+.project-other-row .project-other-remove {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 8px;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+.project-other-row .project-other-remove:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.project-other-sections-sum {
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+.project-other-add {
+  margin-top: 0.35rem;
+}
+.project-settings-template-readonly {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+.project-settings-other-sections {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+.project-settings-other-row {
+  grid-template-columns: 1fr 6.5rem;
+}
+@media (max-width: 520px) {
+  .project-other-row {
+    grid-template-columns: 1fr;
+  }
+  .project-other-row .project-other-remove {
+    justify-self: start;
+  }
+}
 .account-status {
   margin: 0;
   font-size: 0.95rem;
