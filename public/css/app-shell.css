@@ -692,6 +692,54 @@
   margin: 0.75rem 0 0;
 }
 
+.account-billing-maintain {
+  margin: 0.85rem 0 0;
+  max-width: 28rem;
+}
+.account-billing-maintain .account-meta {
+  margin-top: 0.5rem;
+}
+
+.account-billing-summary {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  max-width: 28rem;
+}
+.account-billing-summary-row {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.9rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.account-billing-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.account-billing-summary-row:first-child {
+  padding-top: 0;
+}
+.account-billing-summary dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+.account-billing-summary dd {
+  margin: 0;
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .account-billing-summary-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
 .account-signed-in {
   margin: 0 0 1rem;
 }

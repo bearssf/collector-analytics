@@ -82,4 +82,65 @@
       }
     });
   }
+
+  const subActions = document.getElementById('account-subscription-actions');
+  const subMsg = document.getElementById('account-subscription-msg');
+
+  async function postBilling(url) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: '{}',
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    return { res: res, data: data };
+  }
+
+  if (subActions && subMsg) {
+    subActions.addEventListener('click', async function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn || btn.disabled) return;
+      const action = btn.getAttribute('data-action');
+      showMsg(subMsg, '');
+      if (action === 'cancel-at-period-end') {
+        if (
+          !window.confirm(
+            'Turn off auto-renewal? You keep access until the end of your current billing period.'
+          )
+        ) {
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const result = await postBilling('/api/billing/subscription/cancel-at-period-end');
+          if (!result.res.ok) {
+            showMsg(subMsg, result.data.error || 'Could not update subscription.', 'error');
+            btn.disabled = false;
+            return;
+          }
+          window.location.reload();
+        } catch (err) {
+          showMsg(subMsg, 'Network error. Try again.', 'error');
+          btn.disabled = false;
+        }
+      } else if (action === 'resume-subscription') {
+        btn.disabled = true;
+        try {
+          const result = await postBilling('/api/billing/subscription/resume');
+          if (!result.res.ok) {
+            showMsg(subMsg, result.data.error || 'Could not update subscription.', 'error');
+            btn.disabled = false;
+            return;
+          }
+          window.location.reload();
+        } catch (err) {
+          showMsg(subMsg, 'Network error. Try again.', 'error');
+          btn.disabled = false;
+        }
+      }
+    });
+  }
 })();

@@ -93,24 +93,46 @@
         </form>
 
         <h2 class="account-h2">Subscription</h2>
+        <% if (typeof billingSummary !== 'undefined' && billingSummary.lines && billingSummary.lines.length) { %>
+          <dl class="account-billing-summary" aria-label="Subscription details">
+            <% billingSummary.lines.forEach(function (row) { %>
+              <div class="account-billing-summary-row">
+                <dt><%= row.label %></dt>
+                <dd><%= row.value %></dd>
+              </div>
+            <% }); %>
+          </dl>
+        <% } %>
         <% if (appAccess.paid) { %>
           <p class="account-status account-status--paid">You have an <strong>active</strong> membership. The Foundry and member features are unlocked.</p>
-          <% if (subscriptionRow && subscriptionRow.current_period_end) { %>
-            <p class="account-meta">Current period ends <%= new Date(subscriptionRow.current_period_end).toLocaleDateString(undefined, { dateStyle: 'medium' }) %>.</p>
-          <% } %>
         <% } else if (subscriptionRow && subscriptionRow.status === 'past_due') { %>
-          <p class="account-status">Your last payment failed (<strong>past due</strong>). Update your payment method in Stripe (email from Stripe) or retry checkout when billing is configured.</p>
+          <p class="account-status">Your last payment failed (<strong>past due</strong>). Use <strong>Manage billing</strong> below or the Stripe emails you receive to update your payment method.</p>
         <% } else if (appAccess.trialing && appAccess.trialEndsLabel) { %>
-          <p class="account-status">Free trial active — ends <strong><%= appAccess.trialEndsLabel %></strong>. Upgrade to unlock The Foundry.</p>
+          <p class="account-status">Free trial active. Upgrade to unlock <strong>The Foundry</strong>.</p>
         <% } else { %>
           <p class="account-status">No active paid subscription.</p>
+        <% } %>
+
+        <% var showSubMaintain = stripeConfigured && subscriptionRow && subscriptionRow.stripe_subscription_id && (appAccess.paid || subscriptionRow.status === 'past_due'); %>
+        <% var capEnd = subscriptionRow && (subscriptionRow.cancel_at_period_end === true || subscriptionRow.cancel_at_period_end === 1); %>
+        <% if (showSubMaintain) { %>
+          <div class="account-billing-maintain" id="account-subscription-actions">
+            <% if (capEnd) { %>
+              <button type="button" class="app-btn-primary" data-action="resume-subscription">Resume auto-renewal</button>
+              <p class="account-meta">Restores renewal after the date above. You can turn auto-renew off again anytime.</p>
+            <% } else { %>
+              <button type="button" class="app-btn-primary account-btn-yearly" data-action="cancel-at-period-end">Turn off auto-renewal</button>
+              <p class="account-meta">You keep access until the end of the current billing period; the subscription won’t renew after that.</p>
+            <% } %>
+            <div id="account-subscription-msg" class="account-form-msg" hidden></div>
+          </div>
         <% } %>
 
         <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
           <p class="account-portal-actions">
             <a class="app-btn-primary account-btn-portal" href="/billing/portal">Manage billing</a>
           </p>
-          <p class="account-meta">Payment method, invoices, and cancel at period end — opens Stripe’s secure Customer Portal.</p>
+          <p class="account-meta">Payment method and invoices in Stripe’s portal. Auto-renew can be changed here or in the portal.</p>
         <% } %>
 
         <% if (!appAccess.paid) { %>

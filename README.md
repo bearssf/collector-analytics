@@ -58,7 +58,7 @@ Successful payment sets `subscriptions.status` to **`active`** (unlocks The Foun
 
 ## Data model & REST API
 
-On startup the app creates (if missing): **`subscriptions`** (trial / future Stripe fields), **`projects`**, **`project_sections`** (including optional **`body`** draft text per section), **`sources`**, **`source_sections`**. Templates for new projects live in `data/project-templates.json`.
+On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `current_period_end`, **`cancel_at_period_end`**, trial / status), **`projects`**, **`project_sections`** (including optional **`body`** draft text per section), **`sources`**, **`source_sections`**. Templates for new projects live in `data/project-templates.json`.
 
 **Session:** Sign in with the same browser session cookie. From JavaScript, call APIs with `fetch(url, { credentials: 'same-origin' })`.
 
@@ -78,6 +78,8 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 | PATCH | `/api/sources/:id` | Update source and/or replace `sectionIds` |
 | DELETE | `/api/sources/:id` | Remove source |
 | POST | `/api/billing/subscription-intent` | Signed-in only. JSON body `{ "interval": "month" \| "year" }` when both prices are set. Returns `{ clientSecret }` for Stripe.js (on-site subscribe page). |
+| POST | `/api/billing/subscription/cancel-at-period-end` | Active or past-due member with a Stripe subscription: sets `cancel_at_period_end` via Stripe; DB updated from the returned subscription. |
+| POST | `/api/billing/subscription/resume` | Clears `cancel_at_period_end` (resume auto-renewal). Same eligibility as cancel-at-period-end. |
 
 **Purposes:** Dissertation, Academic Publication, Thesis, Essay, Report, Conference Document, Other. **Citation styles:** APA, MLA, Chicago, Turabian, IEEE.
 
@@ -85,7 +87,7 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 
 ## Features
 
-- **Billing:** **Account** → subscribe via **`/billing/subscribe`** (on-site when **`STRIPE_PUBLISHABLE_KEY`** is set) or **`/billing/checkout`** (hosted Checkout otherwise); **`GET /billing/portal`** opens Stripe **Customer Portal** for payment method / invoices / cancel at period end when a Stripe customer exists. **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
+- **Billing:** **Account** → subscribe via **`/billing/subscribe`** (on-site when **`STRIPE_PUBLISHABLE_KEY`** is set) or **`/billing/checkout`** (hosted Checkout otherwise); **turn off / resume auto-renewal** on Account (`POST /api/billing/subscription/*`); **`GET /billing/portal`** opens Stripe **Customer Portal** for payment method and invoices. **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
 - **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
@@ -96,12 +98,22 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 - **Registration:** Title (Mr., Mrs., Ms., Miss, Mx., Dr.), first/last name, email, password + confirmation; optional university (datalist of US institutions + free text), research focus, preferred search engine (preset list including “Other/University Specific”).
 - Passwords hashed with **bcrypt**. On first connection, the app ensures a `users` table and profile columns exist in your database.
 
+## Billing maintenance track (on-site)
+
+Work to keep **subscription management on AcademiqForge** (API + your UI), similar to on-site subscribe vs hosted Checkout. Parts:
+
+1. **Subscription summary on Account** — **Status**, **Plan** (Monthly/Yearly when env price IDs match the stored `subscriptions.plan` prefix), **Next renewal** / **Trial ends** / period dates from the DB (`lib/billingAccountDisplay.js`). *(Shipped.)*
+2. **Cancel at period end / resume** — `POST /api/billing/subscription/cancel-at-period-end` and `/resume`; **`subscriptions.cancel_at_period_end`** synced from Stripe webhooks and subscription objects. *(Shipped.)*
+3. Invoice list — `invoices.list` + render links on Account.
+4. Update payment method — SetupIntent + Payment Element.
+5. Plan change (e.g. month ↔ year, proration) — `subscriptions.update` + UI.
+
 ## Backlog
 
-- **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`). **Backlog:** richer in-app messaging (e.g. renewal date, cancel-at-period-end state) without opening Stripe; optional proration / plan-change UX beyond the portal.
+- **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`). **Backlog:** richer on-site billing (see **Billing maintenance track**); optional proration messaging beyond the portal.
 - **Account / billing (post-payment UX):** After returning from payment (`?subscription=success`), subscription can show **pending** until webhooks update the row — usually seconds. **Backlog:** light polling or a **Refresh status** control on Account, and/or short copy that webhook confirmation is typically immediate but can occasionally lag.
 - **User management:** **Profile edit** and **password change** are on **Account** (`PATCH /api/me`, `POST /api/me/password`). **Email** change / verification — not started (would require a verified flow and Stripe sync if billing email must match).
-- **Account page (UX):** Clearer **subscription / period end date** (renewal date) presentation; **auto-renewal on/off** (or cancel-at-period-end) wired to Stripe (`cancel_at_period_end` / Customer Portal / subscription update); **show/hide toggles** for password fields (instead of always-visible inputs).
+- **Account page (UX):** **Show/hide toggles** for password fields. *(Auto-renew / summary: **Billing maintenance** #1–2.)*
 - **Workspace layout (app shell):** Keep the **left sidebar** and **right insight / feedback column** visually **anchored** (fixed or sticky), with **only the middle canvas** **scrollable** so navigation and context stay on screen during long content (Anvil, Crucible, Account, etc.).
 
 ## Repository

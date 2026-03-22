@@ -32,6 +32,7 @@ const {
   isStripeElementsBillingConfigured,
   billingPriceEnvHint,
 } = require('./lib/billingConfig');
+const { buildBillingSummaryLines } = require('./lib/billingAccountDisplay');
 
 const app = express();
 
@@ -429,6 +430,7 @@ app.get(
     if (!hasStripeSecret) billingEnvMissing.push('STRIPE_SECRET_KEY');
     if (!hasPublicBaseUrl) billingEnvMissing.push('PUBLIC_BASE_URL');
     if (priceCfg.mode === 'none') billingEnvMissing.push(billingPriceEnvHint());
+    const billingSummary = buildBillingSummaryLines(subscriptionRow, priceCfg);
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -436,6 +438,7 @@ app.get(
       currentProjectId,
       billingFlash,
       subscriptionRow,
+      billingSummary,
       profile,
       universities: loadUniversities(),
       searchEngines: SEARCH_ENGINES,

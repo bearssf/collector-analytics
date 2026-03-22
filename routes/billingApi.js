@@ -1,6 +1,11 @@
 const express = require('express');
-const { isStripeElementsBillingConfigured, getStripePriceConfig } = require('../lib/billingConfig');
+const {
+  isStripeBillingConfigured,
+  isStripeElementsBillingConfigured,
+  getStripePriceConfig,
+} = require('../lib/billingConfig');
 const { getSubscriptionRow, appAccessFromRow } = require('../lib/subscriptions');
+const { applyStripeSubscriptionObject } = require('../lib/billingStripe');
 const {
   resolvePriceIdFromRequest,
   createSubscriptionPaymentIntentClientSecret,
@@ -53,6 +58,60 @@ function createBillingApiRouter(getPool, stripe) {
       if (e && e.code === 'STRIPE_NO_CLIENT_SECRET') {
         console.error(e.message);
         return res.status(502).json({ error: 'Could not start payment. Try again or contact support.' });
+      }
+      next(e);
+    }
+  });
+
+  router.post('/subscription/cancel-at-period-end', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeBillingConfigured(stripe)) {
+        return res.status(503).json({ error: 'Billing is not configured.' });
+      }
+      const userId = req.session.userId;
+      const row = await getSubscriptionRow(getPool, userId);
+      if (!row?.stripe_subscription_id) {
+        return res.status(400).json({ error: 'No Stripe subscription on file.' });
+      }
+      const access = appAccessFromRow(row);
+      if (!access.paid && row.status !== 'past_due') {
+        return res.status(400).json({ error: 'Subscription cannot be changed in this state.' });
+      }
+      const sub = await stripe.subscriptions.update(row.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+      await applyStripeSubscriptionObject(getPool, userId, sub);
+      res.json({ ok: true });
+    } catch (e) {
+      if (e.type && String(e.type).startsWith('Stripe')) {
+        return res.status(400).json({ error: e.message || 'Stripe could not update the subscription.' });
+      }
+      next(e);
+    }
+  });
+
+  router.post('/subscription/resume', async (req, res, next) => {
+    try {
+      if (!stripe || !isStripeBillingConfigured(stripe)) {
+        return res.status(503).json({ error: 'Billing is not configured.' });
+      }
+      const userId = req.session.userId;
+      const row = await getSubscriptionRow(getPool, userId);
+      if (!row?.stripe_subscription_id) {
+        return res.status(400).json({ error: 'No Stripe subscription on file.' });
+      }
+      const access = appAccessFromRow(row);
+      if (!access.paid && row.status !== 'past_due') {
+        return res.status(400).json({ error: 'Subscription cannot be changed in this state.' });
+      }
+      const sub = await stripe.subscriptions.update(row.stripe_subscription_id, {
+        cancel_at_period_end: false,
+      });
+      await applyStripeSubscriptionObject(getPool, userId, sub);
+      res.json({ ok: true });
+    } catch (e) {
+      if (e.type && String(e.type).startsWith('Stripe')) {
+        return res.status(400).json({ error: e.message || 'Stripe could not update the subscription.' });
       }
       next(e);
     }
