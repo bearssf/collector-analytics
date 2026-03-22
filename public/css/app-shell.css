@@ -1667,6 +1667,39 @@
   border-color: rgba(0, 0, 0, 0.15);
 }
 
+/* Manuscript mode: override Quill’s .ql-editor line-height / font + Word paste Arial on <span> */
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor {
+  line-height: 2 !important;
+  font-family: 'Times New Roman', Times, serif !important;
+  font-size: 12pt !important;
+}
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor p,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor li {
+  line-height: 2 !important;
+  font-family: 'Times New Roman', Times, serif !important;
+  font-size: 12pt !important;
+}
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor ul,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor ol {
+  font-family: 'Times New Roman', Times, serif !important;
+}
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor span,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor strong,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor em,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor u,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor s,
+.anvil-quill-wrap.anvil-quill-manuscript .ql-editor a {
+  font-family: 'Times New Roman', Times, serif !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+.anvil-quill-wrap.anvil-quill-manuscript[data-ms-profile='ieee'] .ql-editor,
+.anvil-quill-wrap.anvil-quill-manuscript[data-ms-profile='ieee'] .ql-editor p,
+.anvil-quill-wrap.anvil-quill-manuscript[data-ms-profile='ieee'] .ql-editor li {
+  line-height: 1.15 !important;
+  font-size: 10pt !important;
+}
+
 .anvil-textarea {
   width: 100%;
   min-height: 14rem;

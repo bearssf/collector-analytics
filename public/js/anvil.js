@@ -751,7 +751,135 @@
     });
   }
 
+  /** Word / paste: strip inline font + line-height so manuscript styles win (Quill + span Arial). */
+  function stripWordPasteOverrides(root) {
+    root.querySelectorAll('font').forEach(function (f) {
+      var span = document.createElement('span');
+      while (f.firstChild) span.appendChild(f.firstChild);
+      f.parentNode.replaceChild(span, f);
+    });
+    root.querySelectorAll('[style]').forEach(function (el) {
+      var st = el.style;
+      st.removeProperty('font-family');
+      st.removeProperty('font-size');
+      st.removeProperty('line-height');
+      st.removeProperty('letter-spacing');
+      st.removeProperty('font');
+      st.removeProperty('mso-bidi-font-size');
+      st.removeProperty('mso-bidi-font-family');
+      st.removeProperty('mso-fareast-font-family');
+      var attr = el.getAttribute('style');
+      if (attr && /mso-/i.test(attr)) {
+        var cleaned = attr
+          .split(';')
+          .map(function (p) {
+            return p.trim();
+          })
+          .filter(function (p) {
+            return p && !/^mso-/i.test(p);
+          })
+          .join('; ')
+          .trim();
+        if (cleaned) el.setAttribute('style', cleaned);
+        else el.removeAttribute('style');
+      } else if (!attr || !String(attr).trim()) {
+        el.removeAttribute('style');
+      }
+    });
+    root.querySelectorAll('[class]').forEach(function (el) {
+      var c = el.getAttribute('class');
+      if (c && /Mso\w/i.test(c)) el.removeAttribute('class');
+    });
+  }
+
+  function isPseudoBulletParagraphText(trimmed) {
+    if (!trimmed) return false;
+    if (/^\d+[.)]\s+/.test(trimmed)) return true;
+    if (/^[\u00A7\u2022\u25E6\u2043\u2023\u25AA\u00B7\u25CF]{1,3}\s/.test(trimmed)) return true;
+    if (/^[\*\-\u2013\u2014]\s+/.test(trimmed)) return true;
+    return false;
+  }
+
+  function isNumberedPseudoBullet(trimmed) {
+    return /^\d+[.)]\s+/.test(trimmed);
+  }
+
+  /** Turn consecutive ¶ starting with § / • / 1. into real ul/ol so list styling applies. */
+  function convertPseudoBulletParagraphs(root) {
+    var guard = 0;
+    while (guard++ < 200) {
+      var ps = Array.from(root.querySelectorAll('p')).filter(function (p) {
+        return p.parentNode && root.contains(p);
+      });
+      var found = false;
+      for (var i = 0; i < ps.length; i++) {
+        var p = ps[i];
+        var trimmed = (p.textContent || '').replace(/^\s+/, '');
+        if (!isPseudoBulletParagraphText(trimmed)) continue;
+        var parent = p.parentNode;
+        var useOl = isNumberedPseudoBullet(trimmed);
+        var group = [p];
+        var j = i + 1;
+        while (j < ps.length) {
+          var pj = ps[j];
+          if (pj.parentNode !== parent) break;
+          var tj = (pj.textContent || '').replace(/^\s+/, '');
+          if (!isPseudoBulletParagraphText(tj)) break;
+          if (isNumberedPseudoBullet(tj) !== useOl) break;
+          group.push(pj);
+          j++;
+        }
+        var listEl = document.createElement(useOl ? 'ol' : 'ul');
+        for (var k = 0; k < group.length; k++) {
+          var li = document.createElement('li');
+          li.innerHTML = stripBulletFromParagraphHtml(group[k].innerHTML, useOl);
+          listEl.appendChild(li);
+        }
+        parent.insertBefore(listEl, group[0]);
+        group.forEach(function (node) {
+          if (node.parentNode) node.parentNode.removeChild(node);
+        });
+        found = true;
+        break;
+      }
+      if (!found) break;
+    }
+  }
+
+  function stripBulletFromParagraphHtml(inner, numbered) {
+    var d = document.createElement('div');
+    d.innerHTML = inner || '';
+    function walk(node) {
+      if (node.nodeType === 3) {
+        var t = node.nodeValue;
+        var next = t;
+        if (numbered) next = next.replace(/^\s*\d+[.)]\s+/, '');
+        else {
+          next = next
+            .replace(/^\s+/, '')
+            .replace(/^[\u00A7\u2022\u25E6\u2043\u2023\u25AA\u00B7\u25CF]{1,3}\s*/, '')
+            .replace(/^[\*\-\u2013\u2014]\s+/, '');
+        }
+        node.nodeValue = next;
+        return true;
+      }
+      for (var c = 0; c < node.childNodes.length; c++) {
+        if (walk(node.childNodes[c])) return true;
+      }
+      return false;
+    }
+    walk(d);
+    return d.innerHTML;
+  }
+
+  function setStyleImportant(el, prop, value) {
+    el.style.setProperty(prop, value, 'important');
+  }
+
   function applyManuscriptStylesToDom(root, styleKey, lightPaper) {
+    stripWordPasteOverrides(root);
+    convertPseudoBulletParagraphs(root);
+
     var pkey = resolveManuscriptProfileKey(styleKey);
     var prof = MANUSCRIPT_PROFILES[pkey] || MANUSCRIPT_PROFILES.APA;
     var fg = lightPaper ? '#1a1d21' : '#ffffff';
@@ -763,52 +891,61 @@
     }
 
     root.querySelectorAll('p').forEach(function (el) {
-      el.style.fontFamily = body.fontFamily;
-      el.style.fontSize = body.fontSize;
-      el.style.lineHeight = body.lineHeight;
-      el.style.color = fg;
-      el.style.margin = body.margin;
-      el.style.textAlign = body.textAlign || 'left';
+      setStyleImportant(el, 'font-family', body.fontFamily);
+      setStyleImportant(el, 'font-size', body.fontSize);
+      setStyleImportant(el, 'line-height', body.lineHeight);
+      setStyleImportant(el, 'color', fg);
+      el.style.setProperty('margin', body.margin, 'important');
+      setStyleImportant(el, 'text-align', body.textAlign || 'left');
     });
     root.querySelectorAll('li').forEach(function (el) {
-      el.style.fontFamily = body.fontFamily;
-      el.style.fontSize = body.fontSize;
-      el.style.lineHeight = body.lineHeight;
-      el.style.color = fg;
-      el.style.margin = '0 0 0.25em 0';
+      setStyleImportant(el, 'font-family', body.fontFamily);
+      setStyleImportant(el, 'font-size', body.fontSize);
+      setStyleImportant(el, 'line-height', body.lineHeight);
+      setStyleImportant(el, 'color', fg);
+      el.style.setProperty('margin', '0 0 0.25em 0', 'important');
     });
     ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(function (tag) {
       var spec = hspec(tag);
       root.querySelectorAll(tag).forEach(function (el) {
-        el.style.fontFamily = body.fontFamily;
-        el.style.fontSize = spec.fontSize;
-        el.style.fontWeight = spec.fontWeight || 'bold';
-        el.style.fontStyle = spec.fontStyle || 'normal';
-        el.style.textAlign = spec.textAlign || 'left';
-        el.style.lineHeight = spec.lineHeight || body.lineHeight;
-        el.style.color = fg;
-        el.style.margin = spec.margin || '0.75em 0 0.5em 0';
+        setStyleImportant(el, 'font-family', body.fontFamily);
+        setStyleImportant(el, 'font-size', spec.fontSize);
+        setStyleImportant(el, 'font-weight', spec.fontWeight || 'bold');
+        setStyleImportant(el, 'font-style', spec.fontStyle || 'normal');
+        setStyleImportant(el, 'text-align', spec.textAlign || 'left');
+        setStyleImportant(el, 'line-height', spec.lineHeight || body.lineHeight);
+        setStyleImportant(el, 'color', fg);
+        el.style.setProperty('margin', spec.margin || '0.75em 0 0.5em 0', 'important');
       });
     });
     root.querySelectorAll('ol').forEach(function (el) {
-      el.style.paddingLeft = listPad;
-      el.style.margin = body.margin;
-      el.style.listStyleType = 'decimal';
-      el.style.listStylePosition = 'outside';
+      el.style.setProperty('padding-left', listPad, 'important');
+      el.style.setProperty('margin', body.margin, 'important');
+      setStyleImportant(el, 'list-style-type', 'decimal');
+      setStyleImportant(el, 'list-style-position', 'outside');
     });
     root.querySelectorAll('ul').forEach(function (el) {
-      el.style.paddingLeft = listPad;
-      el.style.margin = body.margin;
-      el.style.listStyleType = 'disc';
-      el.style.listStylePosition = 'outside';
+      el.style.setProperty('padding-left', listPad, 'important');
+      el.style.setProperty('margin', body.margin, 'important');
+      setStyleImportant(el, 'list-style-type', 'disc');
+      setStyleImportant(el, 'list-style-position', 'outside');
     });
     root.querySelectorAll('blockquote').forEach(function (el) {
-      el.style.fontFamily = body.fontFamily;
-      el.style.fontSize = body.fontSize;
-      el.style.lineHeight = body.lineHeight;
-      el.style.color = fg;
-      el.style.margin = '0 0 0.5em 1.5em';
-      el.style.paddingLeft = '2em';
+      setStyleImportant(el, 'font-family', body.fontFamily);
+      setStyleImportant(el, 'font-size', body.fontSize);
+      setStyleImportant(el, 'line-height', body.lineHeight);
+      setStyleImportant(el, 'color', fg);
+      el.style.setProperty('margin', '0 0 0.5em 1.5em', 'important');
+      setStyleImportant(el, 'padding-left', '2em');
+    });
+
+    var inlineSel =
+      'p span, p strong, p em, p b, p i, p u, p s, p a, li span, li strong, li em, li b, li i, li u, li s, li a';
+    root.querySelectorAll(inlineSel).forEach(function (el) {
+      setStyleImportant(el, 'font-family', body.fontFamily);
+      setStyleImportant(el, 'font-size', body.fontSize);
+      setStyleImportant(el, 'line-height', body.lineHeight);
+      setStyleImportant(el, 'color', fg);
     });
   }
 
@@ -857,6 +994,15 @@
     } catch (e) {
       alert(e.message || 'Could not apply formatting.');
       return;
+    }
+    var pk = resolveManuscriptProfileKey(style);
+    var profMs = MANUSCRIPT_PROFILES[pk] || MANUSCRIPT_PROFILES.APA;
+    if (wrap) {
+      wrap.classList.add('anvil-quill-manuscript');
+      wrap.setAttribute('data-ms-profile', pk.toLowerCase());
+      quillEditor.root.style.setProperty('font-family', profMs.body.fontFamily, 'important');
+      quillEditor.root.style.setProperty('line-height', profMs.body.lineHeight, 'important');
+      quillEditor.root.style.setProperty('font-size', profMs.body.fontSize, 'important');
     }
     scheduleSave();
     setStatus('<span class="anvil-status-ok">Applied ' + escapeHtml(style) + ' manuscript style</span>');
