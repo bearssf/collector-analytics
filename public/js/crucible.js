@@ -583,13 +583,13 @@
       '</textarea>';
     h += '<div class="crucible-research-notes-footer">';
     h +=
-      '<button type="button" class="app-btn-primary crucible-save-notes" data-source-id="' +
-      id +
-      '">Save notes</button>';
-    h +=
       '<span class="crucible-notes-saved-hint" hidden data-for-source="' +
       id +
       '">Saved</span>';
+    h +=
+      '<button type="button" class="app-btn-primary crucible-save-notes" data-source-id="' +
+      id +
+      '">Save notes</button>';
     h += '</div></div>';
     return h;
   }
