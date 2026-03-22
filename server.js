@@ -548,6 +548,7 @@ app.get(
       purposes: PURPOSES,
       citationStyles: CITATION_STYLES,
       error: null,
+      errorNotice: false,
       form: {},
     });
   })
@@ -573,6 +574,7 @@ app.post(
         purposes: PURPOSES,
         citationStyles: CITATION_STYLES,
         error: result.error,
+        errorNotice: !!result.errorNotice,
         form: {
           name: body.name || '',
           purpose: body.purpose || '',

@@ -291,6 +291,16 @@
   margin-bottom: 1rem;
   max-width: 32rem;
 }
+.app-form-notice {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(47, 128, 237, 0.12);
+  border: 1px solid rgba(47, 128, 237, 0.38);
+  color: rgba(200, 220, 255, 0.96);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+  max-width: 32rem;
+}
 .app-form-stack {
   max-width: 26rem;
   display: flex;
@@ -699,6 +709,9 @@
   border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.02);
+}
+.project-other-sections-intro {
+  margin-bottom: 1.1rem;
 }
 .project-other-sections[hidden] {
   display: none !important;

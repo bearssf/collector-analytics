@@ -11,7 +11,7 @@
       <p class="sub">Name your work, pick a purpose and citation style, and choose a section template.</p>
 
       <% if (error) { %>
-        <div class="app-form-error" role="alert"><%= error %></div>
+        <div class="<%= typeof errorNotice !== 'undefined' && errorNotice ? 'app-form-notice' : 'app-form-error' %>" role="alert"><%= error %></div>
       <% } %>
 
       <form id="project-new-form" class="app-form-stack project-new-form" method="post" action="/app/projects">
@@ -52,7 +52,7 @@
         </label>
 
         <div id="project-other-sections" class="project-other-sections" hidden>
-          <p class="account-meta">Add section names and the percentage each represents of the whole (must total 100%). Up to 15 sections.</p>
+          <p class="account-meta project-other-sections-intro">Please add the section names for your document. Also, please enter the percentage of the entire document that each section represents. You can add up to 15 sections and they must total 100%.</p>
           <div id="project-other-sections-rows"></div>
           <p class="project-other-sections-sum" id="project-other-sum" aria-live="polite"></p>
           <button type="button" class="app-btn-primary project-other-add" id="project-other-add">Add section</button>

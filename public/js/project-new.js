@@ -109,7 +109,9 @@
         }
         if (rowsEl.children.length < 1 || rowsEl.children.length > 15) {
           e.preventDefault();
-          alert('Add between 1 and 15 sections.');
+          alert(
+            "Since you're building a custom template, please enter the sections for your document (1–15 sections)."
+          );
           return;
         }
       }
