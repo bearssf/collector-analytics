@@ -1036,6 +1036,58 @@
 .anvil-feedback-mount {
   min-height: 2rem;
 }
+
+/* Phase 8: score strip (Weak / Moderate / Improving / Strong per category) */
+.anvil-score-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.5rem;
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+}
+@media (min-width: 520px) {
+  .app-anvil-rail .anvil-score-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.anvil-score-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.anvil-score-pill__cat {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+}
+.anvil-score-pill__val {
+  font-weight: 700;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+.anvil-score-pill__val--na {
+  color: rgba(255, 255, 255, 0.35);
+}
+.anvil-score-pill__val--strong {
+  color: rgba(140, 220, 170, 0.95);
+}
+.anvil-score-pill__val--weak {
+  color: rgba(255, 160, 140, 0.95);
+}
+.anvil-score-pill__val--moderate {
+  color: rgba(255, 210, 140, 0.95);
+}
+.anvil-score-pill__val--improving {
+  color: rgba(160, 200, 255, 0.95);
+}
+
 .anvil-ai-review-hint {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;

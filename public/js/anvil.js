@@ -394,6 +394,74 @@
     return m[String(cat || '').toLowerCase()] || String(cat || '');
   }
 
+  var SCORE_CATEGORIES = ['logic', 'evidence', 'citations', 'format'];
+  var SCORE_RECENT_MS = 20 * 60 * 1000;
+
+  function sectionUpdatedMs(sec) {
+    if (!sec) return null;
+    var raw = sec.updated_at != null ? sec.updated_at : sec.updatedAt;
+    if (raw == null) return null;
+    var d = new Date(raw);
+    var t = d.getTime();
+    return Number.isNaN(t) ? null : t;
+  }
+
+  function countSuggestionsByCategory(suggestions) {
+    var out = {};
+    SCORE_CATEGORIES.forEach(function (c) {
+      out[c] = { open: 0, resolved: 0 };
+    });
+    (suggestions || []).forEach(function (s) {
+      var c = String(s.category || '').toLowerCase();
+      if (!out[c]) return;
+      var st = String(s.status || 'open').toLowerCase();
+      if (st === 'open') out[c].open++;
+      else if (st === 'applied' || st === 'ignored') out[c].resolved++;
+    });
+    return out;
+  }
+
+  /** Bands from anvil-vision.md: Weak / Moderate / Improving / Strong (+ — when no data in category). */
+  function bandForCategory(o, r, secMs) {
+    var t = o + r;
+    if (t === 0) return { label: '—', key: 'na' };
+    if (o === 0) return { label: 'Strong', key: 'strong' };
+    if (o > r) return { label: 'Weak', key: 'weak' };
+    var fracOpen = o / t;
+    var gap = Math.abs(o - r);
+    var tieThresh = Math.max(1, Math.floor(t * 0.2));
+    var roughlyEqual = gap <= tieThresh;
+    if (roughlyEqual) return { label: 'Moderate', key: 'moderate' };
+    var recent = secMs != null && Date.now() - secMs < SCORE_RECENT_MS;
+    if (recent && fracOpen > 0.25 && o <= r) return { label: 'Improving', key: 'improving' };
+    return { label: 'Moderate', key: 'moderate' };
+  }
+
+  function renderScoreStrip(suggestions) {
+    var el = document.getElementById('anvil-score-strip');
+    if (!el) return;
+    if (!bundle || !(bundle.sections && bundle.sections.length) || selectedId == null) {
+      el.innerHTML = '';
+      el.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    el.removeAttribute('aria-hidden');
+    var sec = sectionById(selectedId);
+    var secMs = sectionUpdatedMs(sec);
+    var counts = countSuggestionsByCategory(suggestions);
+    var html = '';
+    SCORE_CATEGORIES.forEach(function (cat) {
+      var c = counts[cat];
+      var band = bandForCategory(c.open, c.resolved, secMs);
+      var cls = 'anvil-score-pill__val--' + (band.key === 'na' ? 'na' : band.key);
+      html += '<div class="anvil-score-pill">';
+      html += '<span class="anvil-score-pill__cat">' + escapeHtml(categoryLabel(cat)) + '</span>';
+      html += '<span class="anvil-score-pill__val ' + cls + '">' + escapeHtml(band.label) + '</span>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  }
+
   async function renderFeedbackRail() {
     const mount = document.getElementById('anvil-feedback-mount');
     if (!mount) return;
@@ -401,10 +469,12 @@
     if (!bundle || !(bundle.sections && bundle.sections.length)) {
       mount.innerHTML =
         '<p class="anvil-feedback-msg">Feedback appears when this project has outline sections.</p>';
+      renderScoreStrip([]);
       return;
     }
     if (selectedId == null) {
       mount.innerHTML = '<p class="anvil-feedback-msg">Select a section to see suggestions.</p>';
+      renderScoreStrip([]);
       return;
     }
 
@@ -412,6 +482,7 @@
     try {
       const data = await api('/projects/' + projectId + '/sections/' + selectedId + '/suggestions', 'GET');
       const list = (data && data.suggestions) || [];
+      renderScoreStrip(list);
       if (!list.length) {
         mount.innerHTML =
           '<p class="anvil-feedback-msg">No suggestions yet. When Bedrock is configured, suggestions can appear after you pause typing.</p>';
@@ -451,6 +522,7 @@
       html += '</ul>';
       mount.innerHTML = html;
     } catch (e) {
+      renderScoreStrip([]);
       mount.innerHTML =
         '<p class="anvil-feedback-msg anvil-feedback-msg--error" role="alert">' + escapeHtml(e.message) + '</p>';
     }

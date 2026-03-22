@@ -1,11 +1,12 @@
 <%#
-  Anvil-only right column: feedback & suggestions (top), citations (bottom).
-  Feedback: public/js/anvil.js (GET/PATCH suggestions). Citations: GET /api/projects/:id/sources.
+  Anvil-only right column: score strip + feedback & suggestions (top), citations (bottom).
+  anvil.js: GET/PATCH suggestions, score strip. Citations: GET /api/projects/:id/sources.
 %>
 <aside class="app-insight app-anvil-rail" aria-label="Writing feedback and citations">
   <div class="app-anvil-rail__stack">
     <section class="app-anvil-rail__pane" aria-labelledby="anvil-rail-feedback-h">
       <div id="anvil-rail-feedback-h" class="insight-h">Feedback & suggestions</div>
+      <div id="anvil-score-strip" class="anvil-score-strip" aria-label="Scores by feedback category" role="region"></div>
       <div id="anvil-feedback-pane" class="app-anvil-rail__scroll">
         <p id="anvil-ai-review-hint" class="anvil-ai-review-hint" role="status" aria-live="polite" hidden></p>
         <div id="anvil-feedback-mount" class="anvil-feedback-mount" aria-live="polite">
