@@ -45,6 +45,17 @@
       { "title": "References", "slug": "references" }
     ]
   },
+  "literature-review": {
+    "label": "Literature Review",
+    "sections": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Thematic Review", "slug": "thematic-review" },
+      { "title": "Critical Synthesis", "slug": "critical-synthesis" },
+      { "title": "Research Gap", "slug": "research-gap" },
+      { "title": "Conclusion", "slug": "conclusion" },
+      { "title": "References", "slug": "references" }
+    ]
+  },
   "persuasive-speech": {
     "label": "Persuasive Speech",
     "sections": [
