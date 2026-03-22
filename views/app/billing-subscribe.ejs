@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/app-head', { title: 'Subscribe' }) %>
+</head>
+<body class="app-body">
+  <div class="app-grid">
+    <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
+    <main class="app-canvas">
+      <h1>Complete membership</h1>
+      <p class="sub"><%= intervalLabel %> plan — secure payment on AcademiqForge.</p>
+
+      <div class="app-placeholder account-block billing-subscribe-card">
+        <p class="account-meta" style="margin-top:0">Card details are collected by Stripe and never touch our servers.</p>
+        <form id="billing-subscribe-form" class="billing-subscribe-form">
+          <div id="billing-subscribe-payment"></div>
+          <p id="billing-subscribe-error" class="billing-subscribe-error" hidden></p>
+          <button type="submit" id="billing-subscribe-submit" class="app-btn-primary billing-subscribe-submit" disabled>
+            Pay and subscribe
+          </button>
+        </form>
+        <p class="account-meta"><a href="/app/account" class="app-link-cta">← Back to Account</a></p>
+      </div>
+    </main>
+    <%- include('../partials/app-insight-panel', { insightHint: 'After payment, member access usually activates within seconds.' }) %>
+  </div>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    window.__BILLING_SUBSCRIBE__ = {
+      publishableKey: <%- JSON.stringify(stripePublishableKey) %>,
+      interval: <%- JSON.stringify(billingInterval) %>,
+      priceMode: <%- JSON.stringify(billingPriceMode) %>
+    };
+  </script>
+  <script src="/js/billing-subscribe.js" defer></script>
+</body>
+</html>

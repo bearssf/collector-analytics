@@ -669,3 +669,23 @@
 .account-btn-yearly:hover {
   filter: brightness(1.12);
 }
+
+.billing-subscribe-card {
+  max-width: 32rem;
+}
+.billing-subscribe-form {
+  margin-top: 1rem;
+}
+#billing-subscribe-payment {
+  margin-bottom: 1rem;
+}
+.billing-subscribe-error {
+  color: rgba(255, 140, 120, 0.95);
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+}
+.billing-subscribe-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.25rem;
+}

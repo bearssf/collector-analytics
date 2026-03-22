@@ -19,21 +19,25 @@ Store database credentials only in environment variables or your host’s secret
 
 ## Stripe (subscriptions)
 
-Used for **Upgrade to member** on **Account** (`/billing/checkout`) and **`subscriptions`** rows (`status`, Stripe IDs, `current_period_end`).
+Used for **Upgrade to member** on **Account** and **`subscriptions`** rows (`status`, Stripe IDs, `current_period_end`).
 
 1. In the [Stripe Dashboard](https://dashboard.stripe.com), create a **Product** and recurring **Prices** (e.g. monthly + yearly). Copy each Price ID (`price_...`).
 2. Add API keys and webhook secret to your environment (see `.env.example`):
    - **`STRIPE_SECRET_KEY`** — Secret key (`sk_test_...` or `sk_live_...`).
+   - **`STRIPE_PUBLISHABLE_KEY`** — Publishable key only (`pk_test_...` / `pk_live_...`, **not** the secret `sk_...`). When set (with the variables below), **Account** sends users to **`/billing/subscribe`** so they pay **on your site** via Stripe [Payment Element](https://stripe.com/docs/payments/payment-element) (card data still stays with Stripe). If omitted or invalid, **Account** uses hosted **Stripe Checkout** at **`/billing/checkout`** (redirect to `stripe.com`). The value must start with **`pk_`** (quotes around the value in Render are OK). Aliases also read: **`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`**, **`VITE_STRIPE_PUBLISHABLE_KEY`**, **`STRIPE_PUBLIC_KEY`**.
    - **Pricing (pick one style):**
-     - **Two options on Account:** **`STRIPE_PRICE_MONTHLY`** and **`STRIPE_PRICE_YEARLY`** — both required; users choose Monthly or Yearly before Checkout.
+     - **Two options on Account:** **`STRIPE_PRICE_MONTHLY`** and **`STRIPE_PRICE_YEARLY`** — both required; users choose Monthly or Yearly.
      - **Single option:** **`STRIPE_PRICE_ID`** only — one “Upgrade to member” button (backward compatible).
-   - **`PUBLIC_BASE_URL`** — Public origin of this app **with no trailing slash**, e.g. `https://your-app.onrender.com`. Used for Checkout success/cancel URLs.
+   - **`PUBLIC_BASE_URL`** — Public origin of this app **with no trailing slash**, e.g. `https://your-app.onrender.com`. Used for return URLs after payment and for Checkout when the publishable key is not set.
 3. **Webhooks:** Add endpoint **`POST /webhooks/stripe`**. For production, use your real `PUBLIC_BASE_URL` + `/webhooks/stripe`. Subscribe to at least:
-   - `checkout.session.completed`
+   - `checkout.session.completed` (hosted Checkout only)
+   - `customer.subscription.created` (on-site subscribe flow — syncs incomplete → active)
    - `customer.subscription.updated`
    - `customer.subscription.deleted`  
    Copy the **Signing secret** into **`STRIPE_WEBHOOK_SECRET`**.
 4. **Local testing:** Install [Stripe CLI](https://stripe.com/docs/stripe-cli), run `stripe listen --forward-to localhost:3000/webhooks/stripe`, and paste the CLI webhook secret into **`STRIPE_WEBHOOK_SECRET`** for that session.
+
+**Troubleshooting on-site billing:** After deploy, check Render **Logs** on boot: you should see `Stripe: on-site billing enabled` when **`STRIPE_PUBLISHABLE_KEY`** is recognized. If you see `hosted Checkout only`, the publishable key was not loaded (wrong name, wrong service, or value not starting with `pk_`). On **Account**, use **View page source** and look for `<!-- billing: subscribe-on-site -->` vs `checkout-redirect`.
 
 Successful payment sets `subscriptions.status` to **`active`** (unlocks The Foundry). Canceled / unpaid subscriptions map to **`canceled`** (or **`past_due`** when applicable).
 
@@ -70,6 +74,7 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 | POST | `/api/projects/:id/sources` | `citationText`, `notes`, optional `sectionIds[]` |
 | PATCH | `/api/sources/:id` | Update source and/or replace `sectionIds` |
 | DELETE | `/api/sources/:id` | Remove source |
+| POST | `/api/billing/subscription-intent` | Signed-in only. JSON body `{ "interval": "month" \| "year" }` when both prices are set. Returns `{ clientSecret }` for Stripe.js (on-site subscribe page). |
 
 **Purposes:** Dissertation, Academic Publication, Thesis, Essay, Report, Conference Document, Other. **Citation styles:** APA, MLA, Chicago, Turabian, IEEE.
 
@@ -77,7 +82,7 @@ On startup the app creates (if missing): **`subscriptions`** (trial / future Str
 
 ## Features
 
-- **Billing:** **Account** → Checkout (`/billing/checkout`, optional `?interval=month|year` when both prices are set); **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
+- **Billing:** **Account** → **`/billing/subscribe`** (on-site payment when **`STRIPE_PUBLISHABLE_KEY`** is set) or **`/billing/checkout`** (hosted Stripe Checkout otherwise); optional `?interval=month|year` when both prices are set. **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
 - **The Anvil** (`/app/project/:id/anvil`): per-section draft editor with autosave; drafts persist in `project_sections.body`.
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.

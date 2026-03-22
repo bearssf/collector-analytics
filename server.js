@@ -21,10 +21,13 @@ const {
   CITATION_STYLES,
 } = require('./lib/projectService');
 const createApiRouter = require('./routes/api');
+const createBillingApiRouter = require('./routes/billingApi');
 const { handleStripeWebhook } = require('./lib/billingStripe');
 const {
   getStripePriceConfig,
+  getStripePublishableKey,
   isStripeBillingConfigured,
+  isStripeElementsBillingConfigured,
   billingPriceEnvHint,
 } = require('./lib/billingConfig');
 
@@ -144,6 +147,7 @@ async function getPool() {
 }
 
 app.use('/api', createApiRouter(getPool));
+app.use('/api/billing', createBillingApiRouter(getPool, stripe));
 
 async function ensureUsersTable() {
   const p = await getPool();
@@ -298,6 +302,55 @@ app.get(
 );
 
 app.get(
+  '/billing/subscribe',
+  requireAuth,
+  asyncHandler(loadAppAccess),
+  asyncHandler(async (req, res) => {
+    if (!isStripeBillingConfigured(stripe)) {
+      return res.status(503).send(
+        `Billing is not configured. Set STRIPE_SECRET_KEY, PUBLIC_BASE_URL, and ${billingPriceEnvHint()} (see README).`
+      );
+    }
+    if (!isStripeElementsBillingConfigured(stripe)) {
+      const cfg = getStripePriceConfig();
+      if (cfg.mode === 'dual') {
+        const interval = String(req.query.interval || 'month').toLowerCase();
+        const q =
+          interval === 'year' ? 'year' : interval === 'month' ? 'month' : 'month';
+        return res.redirect(302, `/billing/checkout?interval=${encodeURIComponent(q)}`);
+      }
+      return res.redirect(302, '/billing/checkout');
+    }
+    if (res.locals.appAccess && res.locals.appAccess.paid) {
+      return res.redirect('/app/account');
+    }
+    const cfg = getStripePriceConfig();
+    let billingInterval = 'month';
+    if (cfg.mode === 'dual') {
+      const interval = String(req.query.interval || 'month').toLowerCase();
+      if (interval === 'year') billingInterval = 'year';
+      else if (interval !== 'month') {
+        return res.status(400).send('Invalid interval. Use ?interval=month or ?interval=year');
+      }
+    }
+    const projects = await listProjects(getPool, req.session.userId);
+    const currentProjectId = projects.length ? projects[0].id : null;
+    const intervalLabel =
+      cfg.mode === 'dual' ? (billingInterval === 'year' ? 'Yearly' : 'Monthly') : 'Member';
+    res.render('app/billing-subscribe', {
+      user: req.session.user,
+      appAccess: res.locals.appAccess,
+      projects,
+      currentProjectId,
+      stripePublishableKey: getStripePublishableKey(),
+      billingInterval,
+      billingPriceMode: cfg.mode,
+      intervalLabel,
+    });
+  })
+);
+
+app.get(
   '/app/account',
   requireAuth,
   asyncHandler(loadAppAccess),
@@ -309,7 +362,7 @@ app.get(
     if (subQ === 'success') {
       billingFlash = {
         kind: 'ok',
-        text: 'Thanks — checkout completed. Member access activates when Stripe confirms payment (usually seconds).',
+        text: 'Thanks — payment submitted. Member access activates when Stripe confirms (usually seconds).',
       };
     } else if (subQ === 'canceled') {
       billingFlash = { kind: 'muted', text: 'Checkout was canceled. No charges were made.' };
@@ -319,6 +372,7 @@ app.get(
     const hasStripeSecret = !!process.env.STRIPE_SECRET_KEY;
     const hasPublicBaseUrl = !!process.env.PUBLIC_BASE_URL;
     const stripeConfigured = isStripeBillingConfigured(stripe);
+    const stripeElementsConfigured = isStripeElementsBillingConfigured(stripe);
     const billingEnvMissing = [];
     if (!hasStripeSecret) billingEnvMissing.push('STRIPE_SECRET_KEY');
     if (!hasPublicBaseUrl) billingEnvMissing.push('PUBLIC_BASE_URL');
@@ -331,6 +385,7 @@ app.get(
       billingFlash,
       subscriptionRow,
       stripeConfigured,
+      stripeElementsConfigured,
       billingEnvMissing,
       billingPriceMode: priceCfg.mode,
     });
@@ -613,6 +668,22 @@ async function start() {
     console.warn(
       'Session store: MemoryStore (not durable across restarts / multiple instances). Set REDIS_URL for production.'
     );
+  }
+
+  if (stripe) {
+    if (isStripeElementsBillingConfigured(stripe)) {
+      console.log('Stripe: on-site billing enabled (Account → /billing/subscribe).');
+    } else if (isStripeBillingConfigured(stripe)) {
+      console.log(
+        'Stripe: hosted Checkout only. Add STRIPE_PUBLISHABLE_KEY (pk_...) to enable on-site payment on Account.'
+      );
+      const rawPk = (process.env.STRIPE_PUBLISHABLE_KEY || '').trim();
+      if (rawPk.startsWith('sk_')) {
+        console.warn(
+          'Stripe: STRIPE_PUBLISHABLE_KEY looks like a secret key (sk_). Use the publishable key (pk_) from Developers → API keys.'
+        );
+      }
+    }
   }
 
   app.listen(PORT, () => {

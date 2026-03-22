@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- billing: <%= typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured ? 'subscribe-on-site' : 'checkout-redirect' %> -->
+  <!-- deploy: git <%= process.env.RENDER_GIT_COMMIT || 'unknown' %> -->
   <%- include('../partials/app-head', { title: 'Account' }) %>
 </head>
 <body class="app-body">
@@ -36,13 +38,27 @@
           <% if (stripeConfigured) { %>
             <% if (billingPriceMode === 'dual') { %>
               <div class="account-billing-choices">
-                <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
-                <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+                <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                  <a class="app-btn-primary" href="/billing/subscribe?interval=month">Monthly</a>
+                  <a class="app-btn-primary account-btn-yearly" href="/billing/subscribe?interval=year">Yearly</a>
+                <% } else { %>
+                  <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
+                  <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+                <% } %>
               </div>
-              <p class="account-meta">Choose billing interval — secure checkout via Stripe. You’ll return here when finished.</p>
+              <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                <p class="account-meta">Choose a plan — you’ll enter card details on the next page (processed by Stripe; we never store your card).</p>
+              <% } else { %>
+                <p class="account-meta">Choose billing interval — secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead of redirecting to Stripe.</p>
+              <% } %>
             <% } else { %>
-              <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
-              <p class="account-meta">Secure checkout via Stripe. You’ll return here when finished.</p>
+              <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/subscribe">Upgrade to member</a></p>
+                <p class="account-meta">Pay on the next page — card details stay with Stripe.</p>
+              <% } else { %>
+                <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
+                <p class="account-meta">Secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead.</p>
+              <% } %>
             <% } %>
           <% } else { %>
             <p class="account-meta">Online billing isn’t active on this deploy yet — set <strong>STRIPE_SECRET_KEY</strong>, <strong>PUBLIC_BASE_URL</strong>, and either <strong>STRIPE_PRICE_MONTHLY</strong> + <strong>STRIPE_PRICE_YEARLY</strong> or a single <strong>STRIPE_PRICE_ID</strong>, then redeploy.</p>
