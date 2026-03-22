@@ -5,8 +5,8 @@
   <!-- deploy: git <%= process.env.RENDER_GIT_COMMIT || 'unknown' %> -->
   <%- include('../partials/app-head', { title: 'Account' }) %>
 </head>
-<body class="app-body">
-  <div class="app-grid">
+<body class="app-body app-body--account-page">
+  <div class="app-grid app-grid--account">
     <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
       <h1>Account</h1>
@@ -16,182 +16,196 @@
         <div class="account-flash account-flash--<%= billingFlash.kind %>"><%= billingFlash.text %></div>
       <% } %>
 
+      <% var showSubMaintain = stripeConfigured && subscriptionRow && subscriptionRow.stripe_subscription_id && (appAccess.paid || subscriptionRow.status === 'past_due'); %>
+      <% var capEnd = subscriptionRow && (subscriptionRow.cancel_at_period_end === true || subscriptionRow.cancel_at_period_end === 1); %>
+      <% var showYearlyMonthlyWindowNotice = showSubMaintain && typeof billingPriceMode !== 'undefined' && billingPriceMode === 'dual' && currentPlanInterval === 'year' && typeof within30DaysOfRenewal !== 'undefined' && !within30DaysOfRenewal; %>
+
       <div class="app-placeholder account-block">
-        <p class="account-signed-in"><strong>Signed in as</strong> <%= user.email %></p>
+        <div class="account-layout">
+          <div class="account-layout__profile">
+            <p class="account-signed-in"><strong>Signed in as</strong> <%= user.email %></p>
 
-        <h2 class="account-h2">Profile</h2>
-        <p class="account-meta account-meta--profile">Update your details below. Email is your sign-in identity and can’t be changed here.</p>
-        <form id="account-profile-form" class="app-form-stack account-form" autocomplete="off">
-          <% var _titles = typeof allowedTitles !== 'undefined' && allowedTitles.length ? allowedTitles : ['Mr.', 'Mrs.', 'Ms.', 'Miss', 'Mx.', 'Dr.']; %>
-          <label class="app-field">
-            <span>Title</span>
-            <select name="title" required>
-              <option value="" disabled <%= !profile.title ? 'selected' : '' %>>Select…</option>
-              <% _titles.forEach(function (t) { %>
-                <option value="<%= t %>" <%= profile.title === t ? 'selected' : '' %>><%= t %></option>
-              <% }); %>
-            </select>
-          </label>
-          <label class="app-field">
-            <span>First name</span>
-            <input type="text" name="firstName" required maxlength="100" value="<%= profile.firstName || '' %>" />
-          </label>
-          <label class="app-field">
-            <span>Last name</span>
-            <input type="text" name="lastName" required maxlength="100" value="<%= profile.lastName || '' %>" />
-          </label>
-          <label class="app-field">
-            <span>Email</span>
-            <input type="email" value="<%= profile.email || user.email %>" readonly aria-readonly="true" />
-          </label>
-          <label class="app-field">
-            <span>University <span class="account-optional">(optional)</span></span>
-            <input type="text" name="university" list="account-university-list" maxlength="255" placeholder="Type or choose from list" value="<%= profile.university || '' %>" />
-            <datalist id="account-university-list">
-              <% (typeof universities !== 'undefined' ? universities : []).forEach(function (u) { %>
-                <option value="<%= u %>"></option>
-              <% }); %>
-            </datalist>
-          </label>
-          <label class="app-field">
-            <span>Research focus <span class="account-optional">(optional)</span></span>
-            <textarea name="researchFocus" rows="3" maxlength="8000" placeholder="Short description"><%= profile.researchFocus || '' %></textarea>
-          </label>
-          <label class="app-field">
-            <span>Preferred search engine <span class="account-optional">(optional)</span></span>
-            <select name="preferredSearchEngine">
-              <option value="" <%= !profile.preferredSearchEngine ? 'selected' : '' %>>Select…</option>
-              <% (typeof searchEngines !== 'undefined' ? searchEngines : []).forEach(function (s) { %>
-                <option value="<%= s %>" <%= profile.preferredSearchEngine === s ? 'selected' : '' %>><%= s %></option>
-              <% }); %>
-            </select>
-          </label>
-          <div id="account-profile-msg" class="account-form-msg" hidden></div>
-          <div class="app-form-actions">
-            <button type="submit" class="app-btn-primary">Save profile</button>
-          </div>
-        </form>
-
-        <h2 class="account-h2">Password</h2>
-        <form id="account-password-form" class="app-form-stack account-form" autocomplete="off">
-          <label class="app-field">
-            <span>Current password</span>
-            <input type="password" name="currentPassword" required autocomplete="current-password" />
-          </label>
-          <label class="app-field">
-            <span>New password</span>
-            <input type="password" name="newPassword" required minlength="8" autocomplete="new-password" />
-          </label>
-          <label class="app-field">
-            <span>Confirm new password</span>
-            <input type="password" name="confirmPassword" required minlength="8" autocomplete="new-password" />
-          </label>
-          <div id="account-password-msg" class="account-form-msg" hidden></div>
-          <div class="app-form-actions">
-            <button type="submit" class="app-btn-primary">Update password</button>
-          </div>
-        </form>
-
-        <h2 class="account-h2">Subscription</h2>
-        <% if (typeof billingSummary !== 'undefined' && billingSummary.lines && billingSummary.lines.length) { %>
-          <dl class="account-billing-summary" aria-label="Subscription details">
-            <% billingSummary.lines.forEach(function (row) { %>
-              <div class="account-billing-summary-row">
-                <dt><%= row.label %></dt>
-                <dd><%= row.value %></dd>
+            <h2 class="account-h2">Profile</h2>
+            <p class="account-meta account-meta--profile">Update your details below. Email is your sign-in identity and can’t be changed here.</p>
+            <form id="account-profile-form" class="app-form-stack account-form" autocomplete="off">
+              <% var _titles = typeof allowedTitles !== 'undefined' && allowedTitles.length ? allowedTitles : ['Mr.', 'Mrs.', 'Ms.', 'Miss', 'Mx.', 'Dr.']; %>
+              <label class="app-field">
+                <span>Title</span>
+                <select name="title" required>
+                  <option value="" disabled <%= !profile.title ? 'selected' : '' %>>Select…</option>
+                  <% _titles.forEach(function (t) { %>
+                    <option value="<%= t %>" <%= profile.title === t ? 'selected' : '' %>><%= t %></option>
+                  <% }); %>
+                </select>
+              </label>
+              <label class="app-field">
+                <span>First name</span>
+                <input type="text" name="firstName" required maxlength="100" value="<%= profile.firstName || '' %>" />
+              </label>
+              <label class="app-field">
+                <span>Last name</span>
+                <input type="text" name="lastName" required maxlength="100" value="<%= profile.lastName || '' %>" />
+              </label>
+              <label class="app-field">
+                <span>Email</span>
+                <input type="email" value="<%= profile.email || user.email %>" readonly aria-readonly="true" />
+              </label>
+              <label class="app-field">
+                <span>University <span class="account-optional">(optional)</span></span>
+                <input type="text" name="university" list="account-university-list" maxlength="255" placeholder="Type or choose from list" value="<%= profile.university || '' %>" />
+                <datalist id="account-university-list">
+                  <% (typeof universities !== 'undefined' ? universities : []).forEach(function (u) { %>
+                    <option value="<%= u %>"></option>
+                  <% }); %>
+                </datalist>
+              </label>
+              <label class="app-field">
+                <span>Research focus <span class="account-optional">(optional)</span></span>
+                <textarea name="researchFocus" rows="3" maxlength="8000" placeholder="Short description"><%= profile.researchFocus || '' %></textarea>
+              </label>
+              <label class="app-field">
+                <span>Preferred search engine <span class="account-optional">(optional)</span></span>
+                <select name="preferredSearchEngine">
+                  <option value="" <%= !profile.preferredSearchEngine ? 'selected' : '' %>>Select…</option>
+                  <% (typeof searchEngines !== 'undefined' ? searchEngines : []).forEach(function (s) { %>
+                    <option value="<%= s %>" <%= profile.preferredSearchEngine === s ? 'selected' : '' %>><%= s %></option>
+                  <% }); %>
+                </select>
+              </label>
+              <div id="account-profile-msg" class="account-form-msg" hidden></div>
+              <div class="app-form-actions">
+                <button type="submit" class="app-btn-primary">Save profile</button>
               </div>
-            <% }); %>
-          </dl>
-        <% } %>
-        <% if (appAccess.paid) { %>
-          <p class="account-status account-status--paid">You have an <strong>active</strong> membership. The Foundry and member features are unlocked.</p>
-        <% } else if (subscriptionRow && subscriptionRow.status === 'past_due') { %>
-          <p class="account-status">Your last payment failed (<strong>past due</strong>). Use <strong>Manage billing</strong> below or the Stripe emails you receive to update your payment method.</p>
-        <% } else if (appAccess.trialing && appAccess.trialEndsLabel) { %>
-          <p class="account-status">Free trial active. Upgrade to unlock <strong>The Foundry</strong>.</p>
-        <% } else { %>
-          <p class="account-status">No active paid subscription.</p>
-        <% } %>
-
-        <% var showSubMaintain = stripeConfigured && subscriptionRow && subscriptionRow.stripe_subscription_id && (appAccess.paid || subscriptionRow.status === 'past_due'); %>
-        <% var capEnd = subscriptionRow && (subscriptionRow.cancel_at_period_end === true || subscriptionRow.cancel_at_period_end === 1); %>
-        <% if (showSubMaintain) { %>
-          <div class="account-billing-maintain" id="account-subscription-actions">
-            <% if (capEnd) { %>
-              <button type="button" class="app-btn-primary" data-action="resume-subscription">Resume auto-renewal</button>
-              <p class="account-meta">Restores renewal after the date above. You can turn auto-renew off again anytime.</p>
-            <% } else { %>
-              <button type="button" class="app-btn-primary account-btn-yearly" data-action="cancel-at-period-end">Turn off auto-renewal</button>
-              <p class="account-meta">You keep access until the end of the current billing period; the subscription won’t renew after that.</p>
-            <% } %>
-            <div id="account-subscription-msg" class="account-form-msg" hidden></div>
+            </form>
           </div>
-        <% } %>
 
-        <% if (showSubMaintain && typeof billingPriceMode !== 'undefined' && billingPriceMode === 'dual' && (currentPlanInterval === 'month' || currentPlanInterval === 'year')) { %>
-          <div class="account-plan-switch" id="account-plan-switch">
-            <% if (currentPlanInterval === 'month') { %>
-              <button type="button" class="app-btn-primary account-btn-yearly" data-action="switch-plan" data-interval="year">Switch to yearly billing</button>
-              <p id="account-plan-preview-estimate" class="account-meta account-plan-preview-estimate" hidden></p>
-              <p class="account-meta">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
-            <% } else if (typeof within30DaysOfRenewal !== 'undefined' && within30DaysOfRenewal) { %>
-              <button type="button" class="app-btn-primary" data-action="switch-plan" data-interval="month">Switch to monthly billing</button>
-              <p class="account-meta">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
-            <% } else { %>
-              <p class="account-meta">Switching to monthly billing is available within 30 days of your renewal<% if (typeof renewalDateLabel !== 'undefined' && renewalDateLabel) { %> (next renewal: <%= renewalDateLabel %>)<% } %>.</p>
-            <% } %>
-            <div id="account-plan-switch-msg" class="account-form-msg" hidden></div>
-          </div>
-        <% } %>
+          <div class="account-layout__aside">
+            <section class="account-rail-section">
+              <h2 class="account-h2">Password</h2>
+              <form id="account-password-form" class="app-form-stack account-form" autocomplete="off">
+                <label class="app-field">
+                  <span>Current password</span>
+                  <input type="password" name="currentPassword" required autocomplete="current-password" />
+                </label>
+                <label class="app-field">
+                  <span>New password</span>
+                  <input type="password" name="newPassword" required minlength="8" autocomplete="new-password" />
+                </label>
+                <label class="app-field">
+                  <span>Confirm new password</span>
+                  <input type="password" name="confirmPassword" required minlength="8" autocomplete="new-password" />
+                </label>
+                <div id="account-password-msg" class="account-form-msg" hidden></div>
+                <div class="app-form-actions">
+                  <button type="submit" class="app-btn-primary">Update password</button>
+                </div>
+              </form>
+            </section>
 
-        <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
-          <p class="account-portal-actions">
-            <a class="app-btn-primary account-btn-portal" href="/billing/portal">Manage billing</a>
-          </p>
-          <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-            <p class="account-payment-method-link">
-              <a href="/billing/payment-method" class="app-link-cta">Update payment method on this site</a>
-            </p>
-          <% } %>
-          <p class="account-meta">Payment method: use the link above (on this site) or the portal. Auto-renew can be changed here or in the portal.</p>
-        <% } %>
+            <hr class="account-section-rule" aria-hidden="true" />
 
-        <% if (!appAccess.paid) { %>
-          <% if (stripeConfigured) { %>
-            <% if (billingPriceMode === 'dual') { %>
-              <div class="account-billing-choices">
+            <section class="account-rail-section">
+              <h2 class="account-h2">Subscription</h2>
+              <% if (typeof billingSummary !== 'undefined' && billingSummary.lines && billingSummary.lines.length) { %>
+                <dl class="account-billing-summary" aria-label="Subscription details">
+                  <% billingSummary.lines.forEach(function (row) { %>
+                    <div class="account-billing-summary-row">
+                      <dt><%= row.label %></dt>
+                      <dd><%= row.value %></dd>
+                    </div>
+                  <% }); %>
+                </dl>
+              <% } %>
+              <% if (appAccess.paid) { %>
+                <p class="account-status account-status--paid">You have an <strong>active</strong> membership. The Foundry and member features are unlocked.</p>
+              <% } else if (subscriptionRow && subscriptionRow.status === 'past_due') { %>
+                <p class="account-status">Your last payment failed (<strong>past due</strong>). Use <strong>Update Card on File</strong> below or the Stripe emails you receive to update your payment method.</p>
+              <% } else if (appAccess.trialing && appAccess.trialEndsLabel) { %>
+                <p class="account-status">Free trial active. Upgrade to unlock <strong>The Foundry</strong>.</p>
+              <% } else { %>
+                <p class="account-status">No active paid subscription.</p>
+              <% } %>
+
+              <% if (showYearlyMonthlyWindowNotice) { %>
+                <p class="account-meta account-meta--subscription-notice">Switching to monthly billing is available within 30 days of your renewal<% if (typeof renewalDateLabel !== 'undefined' && renewalDateLabel) { %> (next renewal: <%= renewalDateLabel %>)<% } %>.</p>
+              <% } %>
+
+              <% if (showSubMaintain) { %>
+                <div class="account-billing-maintain" id="account-subscription-actions">
+                  <% if (capEnd) { %>
+                    <button type="button" class="app-btn-primary" data-action="resume-subscription">Resume auto-renewal</button>
+                    <p class="account-meta">Restores renewal after the date above. You can turn auto-renew off again anytime.</p>
+                  <% } else { %>
+                    <button type="button" class="app-btn-primary account-btn-yearly" data-action="cancel-at-period-end">Turn off auto-renewal</button>
+                    <p class="account-meta">You keep access until the end of the current billing period; the subscription won’t renew after that.</p>
+                  <% } %>
+                  <div id="account-subscription-msg" class="account-form-msg" hidden></div>
+                </div>
+              <% } %>
+
+              <% if (showSubMaintain && typeof billingPriceMode !== 'undefined' && billingPriceMode === 'dual' && (currentPlanInterval === 'month' || (currentPlanInterval === 'year' && typeof within30DaysOfRenewal !== 'undefined' && within30DaysOfRenewal))) { %>
+                <div class="account-plan-switch" id="account-plan-switch">
+                  <% if (currentPlanInterval === 'month') { %>
+                    <button type="button" class="app-btn-primary account-btn-yearly" data-action="switch-plan" data-interval="year">Switch to yearly billing</button>
+                    <p id="account-plan-preview-estimate" class="account-meta account-plan-preview-estimate" hidden></p>
+                    <p class="account-meta">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
+                  <% } else { %>
+                    <button type="button" class="app-btn-primary" data-action="switch-plan" data-interval="month">Switch to monthly billing</button>
+                    <p class="account-meta">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
+                  <% } %>
+                  <div id="account-plan-switch-msg" class="account-form-msg" hidden></div>
+                </div>
+              <% } %>
+
+              <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
+                <p class="account-portal-actions">
+                  <a class="app-btn-primary account-btn-portal" href="/billing/portal">Update Card on File</a>
+                </p>
                 <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-                  <a class="app-btn-primary" href="/billing/subscribe?interval=month">Monthly</a>
-                  <a class="app-btn-primary account-btn-yearly" href="/billing/subscribe?interval=year">Yearly</a>
-                <% } else { %>
-                  <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
-                  <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+                  <p class="account-payment-method-link">
+                    <a href="/billing/payment-method" class="app-link-cta">Update payment method on this site</a>
+                  </p>
                 <% } %>
-              </div>
-              <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-                <p class="account-meta">Choose a plan — you’ll enter card details on the next page (processed by Stripe; we never store your card).</p>
-              <% } else { %>
-                <p class="account-meta">Choose billing interval — secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead of redirecting to Stripe.</p>
               <% } %>
-            <% } else { %>
-              <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-                <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/subscribe">Upgrade to member</a></p>
-                <p class="account-meta">Pay on the next page — card details stay with Stripe.</p>
-              <% } else { %>
-                <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
-                <p class="account-meta">Secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead.</p>
+
+              <% if (!appAccess.paid) { %>
+                <% if (stripeConfigured) { %>
+                  <% if (billingPriceMode === 'dual') { %>
+                    <div class="account-billing-choices">
+                      <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                        <a class="app-btn-primary" href="/billing/subscribe?interval=month">Monthly</a>
+                        <a class="app-btn-primary account-btn-yearly" href="/billing/subscribe?interval=year">Yearly</a>
+                      <% } else { %>
+                        <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
+                        <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+                      <% } %>
+                    </div>
+                    <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                      <p class="account-meta">Choose a plan — you’ll enter card details on the next page (processed by Stripe; we never store your card).</p>
+                    <% } else { %>
+                      <p class="account-meta">Choose billing interval — secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead of redirecting to Stripe.</p>
+                    <% } %>
+                  <% } else { %>
+                    <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
+                      <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/subscribe">Upgrade to member</a></p>
+                      <p class="account-meta">Pay on the next page — card details stay with Stripe.</p>
+                    <% } else { %>
+                      <p style="margin:.75rem 0 0"><a class="app-btn-primary" href="/billing/checkout">Upgrade to member</a></p>
+                      <p class="account-meta">Secure checkout via Stripe. Add <strong>STRIPE_PUBLISHABLE_KEY</strong> to pay on this site instead.</p>
+                    <% } %>
+                  <% } %>
+                <% } else { %>
+                  <p class="account-meta">Online billing isn’t active on this deploy yet — set <strong>STRIPE_SECRET_KEY</strong>, <strong>PUBLIC_BASE_URL</strong>, and either <strong>STRIPE_PRICE_MONTHLY</strong> + <strong>STRIPE_PRICE_YEARLY</strong> or a single <strong>STRIPE_PRICE_ID</strong>, then redeploy.</p>
+                  <% if (typeof billingEnvMissing !== 'undefined' && billingEnvMissing.length) { %>
+                    <p class="account-meta account-meta--warn">Missing from process env: <%= billingEnvMissing.join(', ') %></p>
+                  <% } %>
+                <% } %>
               <% } %>
-            <% } %>
-          <% } else { %>
-            <p class="account-meta">Online billing isn’t active on this deploy yet — set <strong>STRIPE_SECRET_KEY</strong>, <strong>PUBLIC_BASE_URL</strong>, and either <strong>STRIPE_PRICE_MONTHLY</strong> + <strong>STRIPE_PRICE_YEARLY</strong> or a single <strong>STRIPE_PRICE_ID</strong>, then redeploy.</p>
-            <% if (typeof billingEnvMissing !== 'undefined' && billingEnvMissing.length) { %>
-              <p class="account-meta account-meta--warn">Missing from process env: <%= billingEnvMissing.join(', ') %></p>
-            <% } %>
-          <% } %>
-        <% } %>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
-    <%- include('../partials/app-insight-panel', { insightHint: 'Account alerts (renewal, payment issues) will surface here.' }) %>
   </div>
   <script src="/js/account.js" defer></script>
 </body>

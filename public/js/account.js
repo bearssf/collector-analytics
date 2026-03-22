@@ -172,18 +172,18 @@
         });
         if (!result.res.ok || result.data.amountDueFormatted == null) {
           planPreviewEstimate.textContent =
-            'We couldn’t load an estimate. Stripe will show the exact prorated amount on your next invoice after you switch.';
+            'We couldn’t load an estimate. Stripe will show the exact amount when you confirm the switch.';
           return;
         }
         var due = result.data.amountDueFormatted;
         planPreviewEstimate.textContent =
-          'Estimated amount due on your next invoice for this switch: ' +
+          'Estimated charge today if you switch: ' +
             due +
-            '. Taxes may still apply; Stripe sets the final total.';
+            ' (collected now, not on your next renewal). Taxes may still apply; Stripe sets the final total.';
         planPreviewEstimate.setAttribute('data-amount-due-formatted', due);
       } catch (err) {
         planPreviewEstimate.textContent =
-          'We couldn’t load an estimate. Stripe will show the exact prorated amount on your next invoice after you switch.';
+          'We couldn’t load an estimate. Stripe will show the exact amount when you confirm the switch.';
       }
     })();
   }
@@ -199,14 +199,14 @@
       if (interval === 'year' && planPreviewEstimate) {
         var est = planPreviewEstimate.getAttribute('data-amount-due-formatted');
         if (est) {
-          estimateHint = ' Estimated amount due on next invoice: ' + est + ' (see details on Account).';
+          estimateHint = ' Estimated charge today (if you proceed): ' + est + '.';
         }
       }
       if (
         !window.confirm(
           'Switch to ' +
             label +
-            ' billing? Stripe will prorate the rest of this period (you may see a charge or credit on your next invoice).' +
+            ' billing? Proration is usually charged right away (not deferred to your next renewal).' +
             estimateHint
         )
       ) {
