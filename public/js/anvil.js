@@ -1822,18 +1822,16 @@
       '<div class="anvil-export-bar">' +
       '<div class="anvil-export-bar__row">' +
       '<span class="anvil-export-label">Export</span>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-section-txt">This section (.txt)</button>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">This section (.docx)</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-section-txt">Current Section (Text File)</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">Current Section (Word)</button>' +
       '<span class="anvil-export-sep" aria-hidden="true">·</span>' +
       '<button type="button" class="anvil-export-btn" id="anvil-apply-manuscript" title="Fonts, spacing, headings, lists, and citation spacing cleanup">' +
       'Apply ' +
       escapeHtml(projectCitationStyle()) +
       ' format</button>' +
-      '</div>' +
-      '<div class="anvil-export-bar__row">' +
-      '<span class="anvil-export-sublabel">Whole project</span>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-project-txt">All sections (.txt)</button>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-project-docx">All sections (.docx)</button>' +
+      '<span class="anvil-export-sep" aria-hidden="true">·</span>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-project-txt">All Sections (Text File)</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-project-docx">All Sections (Word)</button>' +
       '</div>' +
       '</div>' +
       '<div id="anvil-error" class="anvil-error-banner" style="display:none" role="alert"></div>' +
