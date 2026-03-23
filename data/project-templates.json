@@ -73,6 +73,7 @@
   },
   "conference-proceeding": {
     "label": "Conference Proceeding",
+    "deprecated": true,
     "sections": [
       {
         "title": "Abstract",

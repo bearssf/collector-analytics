@@ -287,7 +287,9 @@ function createApiRouter(getPool) {
 
   router.get('/templates', (req, res) => {
     const tpl = loadTemplates();
-    const templates = Object.keys(tpl).map((k) => ({ key: k, label: tpl[k].label }));
+    const templates = Object.keys(tpl)
+      .filter((k) => !tpl[k].deprecated)
+      .map((k) => ({ key: k, label: tpl[k].label }));
     res.json({ templates });
   });
 
