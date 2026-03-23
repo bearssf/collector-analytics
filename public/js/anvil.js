@@ -80,9 +80,28 @@
     return t.length > 0 && t.charAt(0) === '{' && /"ops"\s*:\s*\[/.test(t);
   }
 
+  function isAnvilMsHtmlJson(s) {
+    var t = String(s || '').trim();
+    if (t.length === 0 || t.charAt(0) !== '{') return false;
+    try {
+      var o = JSON.parse(t);
+      return !!(o && o._anvil === 'mshtml' && o.html != null);
+    } catch (e) {
+      return false;
+    }
+  }
+
   function storageIsEffectivelyEmpty(s) {
     if (s == null || !String(s).trim()) return true;
     var t = String(s).trim();
+    if (isAnvilMsHtmlJson(t)) {
+      try {
+        var mo = JSON.parse(t);
+        return htmlIsEffectivelyEmpty(String(mo.html || ''));
+      } catch (e) {
+        return true;
+      }
+    }
     if (isQuillDeltaJson(t)) {
       try {
         var o = JSON.parse(t);
@@ -127,6 +146,12 @@
   }
 
   function deltaJsonToHtml(jsonStr) {
+    try {
+      var parsed = JSON.parse(jsonStr);
+      if (parsed && parsed._anvil === 'mshtml' && parsed.html != null) {
+        return String(parsed.html);
+      }
+    } catch (e) {}
     var Delta = Quill.import('delta');
     var q = getExportQuill();
     if (!q) return '';
@@ -138,6 +163,14 @@
   function sectionBodyToHtml(raw) {
     if (raw == null || !String(raw).trim()) return '';
     var s = String(raw).trim();
+    if (isAnvilMsHtmlJson(s)) {
+      try {
+        var ms = JSON.parse(s);
+        return bodyToHtml(String(ms.html || ''));
+      } catch (e) {
+        return '';
+      }
+    }
     if (isQuillDeltaJson(s)) {
       try {
         return deltaJsonToHtml(s);
@@ -150,6 +183,15 @@
 
   function getEditorBodyForSave() {
     if (quillEditor) {
+      if (shouldSaveManuscriptHtml()) {
+        var pk = currentManuscriptProfileKeyForSave();
+        return JSON.stringify({
+          _anvil: 'mshtml',
+          v: 1,
+          profile: pk,
+          html: getEditorHtml(),
+        });
+      }
       return JSON.stringify(quillEditor.getContents());
     }
     var ta = document.getElementById('anvil-body');
@@ -166,15 +208,40 @@
       setQuillHtml('');
       return;
     }
+    if (s.charAt(0) === '{') {
+      try {
+        var mobj = JSON.parse(s);
+        if (mobj && mobj._anvil === 'mshtml' && mobj.html != null) {
+          var pk = mobj.profile || 'APA';
+          var fullMs = quillEditor.getLength();
+          quillEditor.deleteText(0, fullMs, 'silent');
+          quillEditor.clipboard.dangerouslyPasteHTML(0, normalizeQuillLoadHtml(String(mobj.html)), 'silent');
+          var wrapMs = document.getElementById('anvil-quill-wrap');
+          writeManuscriptPref(selectedId, { enabled: true, profile: pk });
+          applyManuscriptChrome(wrapMs, quillEditor, pk);
+          return;
+        }
+        if (mobj && mobj.ops) {
+          var DeltaJson = Quill.import('delta');
+          quillEditor.setContents(new DeltaJson(mobj), 'silent');
+          restoreManuscriptPrefAfterDeltaLoad();
+          return;
+        }
+      } catch (eMs) {
+        /* fall through */
+      }
+    }
     if (isQuillDeltaJson(s)) {
       try {
         var Delta = Quill.import('delta');
         quillEditor.setContents(new Delta(JSON.parse(s)), 'silent');
+        restoreManuscriptPrefAfterDeltaLoad();
         return;
       } catch (e) {
         /* fall through to HTML */
       }
     }
+    writeManuscriptPref(selectedId, null);
     setQuillHtml(bodyToHtml(s));
   }
 
@@ -927,6 +994,65 @@
     return 'APA';
   }
 
+  var MANUSCRIPT_PREF_PREFIX = 'af.anvil.ms.';
+  function manuscriptPrefStorageKey(sid) {
+    return MANUSCRIPT_PREF_PREFIX + projectId + '.' + sid;
+  }
+  function readManuscriptPref(sectionId) {
+    if (sectionId == null) return null;
+    try {
+      var raw = localStorage.getItem(manuscriptPrefStorageKey(sectionId));
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+  function writeManuscriptPref(sectionId, data) {
+    if (sectionId == null) return;
+    try {
+      if (data == null) localStorage.removeItem(manuscriptPrefStorageKey(sectionId));
+      else localStorage.setItem(manuscriptPrefStorageKey(sectionId), JSON.stringify(data));
+    } catch (e) {}
+  }
+  function currentManuscriptProfileKeyForSave() {
+    var pref = selectedId != null ? readManuscriptPref(selectedId) : null;
+    if (pref && pref.profile) return resolveManuscriptProfileKey(pref.profile);
+    var wrap = document.getElementById('anvil-quill-wrap');
+    var ds = wrap && wrap.getAttribute('data-ms-profile');
+    if (ds) return resolveManuscriptProfileKey(ds.toUpperCase());
+    return resolveManuscriptProfileKey(projectCitationStyle());
+  }
+  function shouldSaveManuscriptHtml() {
+    var wrap = document.getElementById('anvil-quill-wrap');
+    if (wrap && wrap.classList.contains('anvil-quill-manuscript')) return true;
+    if (selectedId != null) {
+      var pref = readManuscriptPref(selectedId);
+      if (pref && pref.enabled) return true;
+    }
+    return false;
+  }
+  function applyManuscriptChrome(wrap, quill, profileKeyRaw) {
+    if (!quill || !quill.root) return;
+    var pk = resolveManuscriptProfileKey(profileKeyRaw || projectCitationStyle());
+    var profMs = MANUSCRIPT_PROFILES[pk] || MANUSCRIPT_PROFILES.APA;
+    if (wrap) {
+      wrap.classList.add('anvil-quill-manuscript');
+      wrap.setAttribute('data-ms-profile', pk.toLowerCase());
+    }
+    quill.root.style.setProperty('font-family', profMs.body.fontFamily, 'important');
+    quill.root.style.setProperty('line-height', profMs.body.lineHeight, 'important');
+    quill.root.style.setProperty('font-size', profMs.body.fontSize, 'important');
+  }
+  function restoreManuscriptPrefAfterDeltaLoad() {
+    if (selectedId == null || !quillEditor) return;
+    var pref = readManuscriptPref(selectedId);
+    if (!pref || !pref.enabled) return;
+    var wrap = document.getElementById('anvil-quill-wrap');
+    applyManuscriptChrome(wrap, quillEditor, pref.profile);
+    applyManuscriptStylesToDom(quillEditor.root, projectCitationStyle(), readPaperPreference());
+  }
+
   function normalizeCitationTextNodes(root) {
     if (!root) return;
     var walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -1220,13 +1346,9 @@
       return;
     }
     var pk = resolveManuscriptProfileKey(style);
-    var profMs = MANUSCRIPT_PROFILES[pk] || MANUSCRIPT_PROFILES.APA;
-    if (wrap) {
-      wrap.classList.add('anvil-quill-manuscript');
-      wrap.setAttribute('data-ms-profile', pk.toLowerCase());
-      quillEditor.root.style.setProperty('font-family', profMs.body.fontFamily, 'important');
-      quillEditor.root.style.setProperty('line-height', profMs.body.lineHeight, 'important');
-      quillEditor.root.style.setProperty('font-size', profMs.body.fontSize, 'important');
+    applyManuscriptChrome(wrap, quillEditor, pk);
+    if (selectedId != null) {
+      writeManuscriptPref(selectedId, { enabled: true, profile: pk });
     }
     scheduleSave();
     setStatus('<span class="anvil-status-ok">Applied ' + escapeHtml(style) + ' manuscript style</span>');
