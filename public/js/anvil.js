@@ -30,6 +30,9 @@
   let feedbackPreviewSnapshotHtml = '';
   let feedbackPreviewSuggestionId = null;
   var anvilCitationBlotRegistered = false;
+  /** Last fetched suggestions for the current section (used for Evidence actions). */
+  var lastFeedbackSuggestions = [];
+  var evidenceResolveSuggestionId = null;
 
   const PAPER_PREF_KEY = 'af.anvil.paper';
 
@@ -1548,6 +1551,8 @@
       }
       refreshAnvilCitationsInEditor();
       renderCitationsRail();
+      renderFeedbackRail();
+      renderResearchPlanRail();
       updateProgressBar();
     } catch (e) {
       /* ignore */
@@ -1685,17 +1690,142 @@
     el.innerHTML = html;
   }
 
+  function isEvidenceSuggestion(sug) {
+    return String(sug && sug.category ? sug.category : '').toLowerCase() === 'evidence';
+  }
+
+  function getEditorPlainForKeywords() {
+    return htmlToPlainLinesClient(getEditorHtml()).join('\n\n').trim();
+  }
+
+  function getPassageExcerptForResearch() {
+    var plain = getEditorPlainForKeywords();
+    if (plain.length <= 600) return plain;
+    return plain.slice(-600);
+  }
+
+  function extractKeywordsFromPlain(plain) {
+    var stop = {
+      that: 1,
+      this: 1,
+      with: 1,
+      from: 1,
+      have: 1,
+      were: 1,
+      been: 1,
+      their: 1,
+      would: 1,
+      there: 1,
+      could: 1,
+      other: 1,
+      which: 1,
+      these: 1,
+      those: 1,
+      about: 1,
+      into: 1,
+      than: 1,
+      then: 1,
+      them: 1,
+      some: 1,
+      what: 1,
+      when: 1,
+      where: 1,
+      while: 1,
+      will: 1,
+      your: 1,
+    };
+    var words = String(plain || '')
+      .toLowerCase()
+      .match(/[a-z]{4,}/g);
+    if (!words) return '';
+    var uniq = {};
+    var out = [];
+    for (var i = 0; i < words.length && out.length < 8; i++) {
+      var w = words[i];
+      if (stop[w]) continue;
+      if (uniq[w]) continue;
+      uniq[w] = 1;
+      out.push(w);
+    }
+    return out.join(', ');
+  }
+
+  async function renderResearchPlanRail() {
+    var mount = document.getElementById('anvil-research-plan-mount');
+    if (!mount) return;
+    if (!bundle || !projectId) {
+      mount.innerHTML =
+        '<p class="anvil-research-plan-empty">Research plan items appear when you add Evidence feedback here.</p>';
+      return;
+    }
+    mount.innerHTML = '<p class="anvil-research-plan-placeholder">Loading…</p>';
+    try {
+      var data = await api('/projects/' + projectId + '/research-plan', 'GET');
+      var items = (data && data.items) || [];
+      if (!items.length) {
+        mount.innerHTML =
+          '<p class="anvil-research-plan-empty">Opportunities you add from <strong>Evidence</strong> feedback appear here.</p>';
+        return;
+      }
+      var html = '<ul class="anvil-research-plan-list">';
+      items.forEach(function (it) {
+        var secTitle = it.sectionTitle != null ? String(it.sectionTitle) : 'Section';
+        var sugId = it.suggestionId != null ? Number(it.suggestionId) : '';
+        var link =
+          '/app/project/' +
+          projectId +
+          '/anvil?section=' +
+          Number(it.sectionId) +
+          (sugId !== '' ? '#anvil-suggestion-' + sugId : '');
+        var ex = it.passageExcerpt != null ? String(it.passageExcerpt) : '';
+        html += '<li class="anvil-research-plan-card">';
+        html += '<div class="anvil-research-plan-card__sec">' + escapeHtml(secTitle) + '</div>';
+        if (ex) {
+          var shortEx = ex.length > 240 ? ex.slice(0, 240) + '…' : ex;
+          html += '<div class="anvil-research-plan-card__excerpt">' + escapeHtml(shortEx) + '</div>';
+        }
+        html +=
+          '<div class="anvil-research-plan-card__body">' + escapeHtml(it.suggestionBody != null ? it.suggestionBody : '') + '</div>';
+        if (it.keywords) {
+          html +=
+            '<div class="anvil-research-plan-card__kw"><span class="anvil-research-plan-card__kw-label">Keywords:</span> ' +
+            escapeHtml(it.keywords) +
+            '</div>';
+        }
+        html +=
+          '<a class="anvil-research-plan-card__link" href="' +
+          escapeHtml(link) +
+          '">Open in Anvil</a>';
+        html += '</li>';
+      });
+      html += '</ul>';
+      mount.innerHTML = html;
+    } catch (e) {
+      mount.innerHTML =
+        '<p class="anvil-feedback-msg anvil-feedback-msg--error" role="alert">' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  function setFeedbackApplyOverlay(show) {
+    var el = document.getElementById('anvil-feedback-apply-overlay');
+    if (!el) return;
+    el.hidden = !show;
+    el.setAttribute('aria-hidden', show ? 'false' : 'true');
+  }
+
   async function renderFeedbackRail() {
     const mount = document.getElementById('anvil-feedback-mount');
     if (!mount) return;
 
     if (!bundle || !(bundle.sections && bundle.sections.length)) {
+      lastFeedbackSuggestions = [];
       mount.innerHTML =
         '<p class="anvil-feedback-msg">Feedback appears when this project has outline sections.</p>';
       renderScoreStrip([]);
       return;
     }
     if (selectedId == null) {
+      lastFeedbackSuggestions = [];
       mount.innerHTML = '<p class="anvil-feedback-msg">Select a section to see suggestions.</p>';
       renderScoreStrip([]);
       return;
@@ -1705,6 +1835,7 @@
     try {
       const data = await api('/projects/' + projectId + '/sections/' + selectedId + '/suggestions', 'GET');
       const list = (data && data.suggestions) || [];
+      lastFeedbackSuggestions = list.slice();
       renderScoreStrip(list);
       if (!list.length) {
         mount.innerHTML =
@@ -1715,7 +1846,14 @@
       list.forEach(function (sug) {
         const st = String(sug.status || 'open').toLowerCase();
         const isOpen = st === 'open';
-        html += '<li class="anvil-feedback-card" data-suggestion-id="' + Number(sug.id) + '">';
+        const sid = Number(sug.id);
+        const evidence = isEvidenceSuggestion(sug);
+        html +=
+          '<li class="anvil-feedback-card" id="anvil-suggestion-' +
+          sid +
+          '" data-suggestion-id="' +
+          sid +
+          '">';
         html += '<div class="anvil-feedback-card-head">';
         html += '<span class="anvil-feedback-cat">' + escapeHtml(categoryLabel(sug.category)) + '</span>';
         if (
@@ -1735,22 +1873,40 @@
         html += '</div>';
         html += '<div class="anvil-feedback-body">' + escapeHtml(sug.body) + '</div>';
         if (isOpen) {
-          html += '<div class="anvil-feedback-actions">';
-          html +=
-            '<button type="button" class="anvil-feedback-apply" data-suggestion-id="' +
-            Number(sug.id) +
-            '">Apply</button>';
-          html +=
-            '<button type="button" class="anvil-feedback-ignore" data-suggestion-id="' +
-            Number(sug.id) +
-            '">Ignore</button>';
-          html += '</div>';
+          if (evidence) {
+            html += '<div class="anvil-feedback-actions anvil-feedback-actions--evidence">';
+            html +=
+              '<button type="button" class="anvil-feedback-add-research" data-suggestion-id="' +
+              sid +
+              '">Add to Research Plan</button>';
+            html +=
+              '<button type="button" class="anvil-feedback-resolve-cite" data-suggestion-id="' +
+              sid +
+              '">Resolve with Citation</button>';
+            html +=
+              '<button type="button" class="anvil-feedback-ignore" data-suggestion-id="' +
+              sid +
+              '">Ignore</button>';
+            html += '</div>';
+          } else {
+            html += '<div class="anvil-feedback-actions">';
+            html +=
+              '<button type="button" class="anvil-feedback-apply" data-suggestion-id="' +
+              sid +
+              '">Apply</button>';
+            html +=
+              '<button type="button" class="anvil-feedback-ignore" data-suggestion-id="' +
+              sid +
+              '">Ignore</button>';
+            html += '</div>';
+          }
         }
         html += '</li>';
       });
       html += '</ul>';
       mount.innerHTML = html;
     } catch (e) {
+      lastFeedbackSuggestions = [];
       renderScoreStrip([]);
       mount.innerHTML =
         '<p class="anvil-feedback-msg anvil-feedback-msg--error" role="alert">' + escapeHtml(e.message) + '</p>';
@@ -1913,11 +2069,15 @@
       );
       if (data) bundle = data;
       if (!opts.keepalive) {
-        setStatus(
-          '<span class="anvil-status-ok">Saved' +
-            (reason ? ' · ' + escapeHtml(reason) : '') +
-            '</span>'
-        );
+        if (opts.statusOkHtml) {
+          setStatus(opts.statusOkHtml);
+        } else {
+          setStatus(
+            '<span class="anvil-status-ok">Saved' +
+              (reason ? ' · ' + escapeHtml(reason) : '') +
+              '</span>'
+          );
+        }
         updateProgressBar();
       }
       return true;
@@ -1975,7 +2135,9 @@
     feedbackPreviewSuggestionId = null;
     hideFeedbackPreviewBar();
     try {
-      var saved = await saveDraft('kept suggestion edit');
+      var saved = await saveDraft('', {
+        statusOkHtml: '<span class="anvil-status-ok">Applied and Saved</span>',
+      });
       if (!saved) return;
       await api('/projects/' + projectId + '/suggestions/' + sid, 'PATCH', { status: 'applied' });
       await renderFeedbackRail();
@@ -1983,6 +2145,75 @@
     } catch (e) {
       setError(e.message || 'Could not update suggestion.');
     }
+  }
+
+  async function addToResearchPlan(sid) {
+    if (selectedId == null) return;
+    var sug = lastFeedbackSuggestions.find(function (s) {
+      return Number(s.id) === Number(sid);
+    });
+    if (!sug || !isEvidenceSuggestion(sug)) return;
+    try {
+      await api('/projects/' + projectId + '/research-plan', 'POST', {
+        suggestionId: sid,
+        sectionId: selectedId,
+        passageExcerpt: getPassageExcerptForResearch(),
+        keywords: extractKeywordsFromPlain(getEditorPlainForKeywords()),
+      });
+      await renderResearchPlanRail();
+      setStatus('<span class="anvil-status-ok">Added to Research Plan</span>');
+    } catch (e) {
+      var m = e && e.message ? String(e.message) : 'Could not add to research plan.';
+      alert(m);
+    }
+  }
+
+  function openEvidenceResolveDialog(sid) {
+    if (selectedId == null) return;
+    var sug = lastFeedbackSuggestions.find(function (s) {
+      return Number(s.id) === Number(sid);
+    });
+    if (!sug || !isEvidenceSuggestion(sug)) return;
+    var linked = linkedSourcesSortedForSection(selectedId);
+    var mount = document.getElementById('anvil-evidence-resolve-sources');
+    var dialog = document.getElementById('anvil-evidence-resolve-dialog');
+    if (!mount || !dialog) return;
+    if (!linked.length) {
+      alert('No sources linked to this section. Add sources in the Crucible, then link them to this section.');
+      return;
+    }
+    evidenceResolveSuggestionId = sid;
+    var html = '';
+    linked.forEach(function (src) {
+      html += '<button type="button" class="anvil-evidence-resolve-pick" data-source-id="' + Number(src.id) + '">';
+      html += escapeHtml(src.citation_text != null ? String(src.citation_text) : 'Source');
+      html += '</button>';
+    });
+    mount.innerHTML = html;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    }
+  }
+
+  async function resolveEvidenceWithCitation(suggestionId, sourceId) {
+    var src = (anvilSources || []).find(function (s) {
+      return Number(s.id) === Number(sourceId);
+    });
+    if (!src) {
+      alert('Source not found. Try refreshing the page.');
+      return;
+    }
+    var dialog = document.getElementById('anvil-evidence-resolve-dialog');
+    var ieeeIdx = ieeeIndexForSourceInSection(sourceId);
+    var snippet = buildInTextCitation(src.citation_text, projectCitationStyle(), ieeeIdx);
+    insertCitation(snippet, sourceId);
+    await api('/projects/' + projectId + '/suggestions/' + suggestionId, 'PATCH', { status: 'applied' });
+    if (dialog && typeof dialog.close === 'function') dialog.close();
+    evidenceResolveSuggestionId = null;
+    await renderFeedbackRail();
+    await renderResearchPlanRail();
+    scheduleSave();
+    setStatus('<span class="anvil-status-ok">Citation inserted · feedback resolved</span>');
   }
 
   async function applyFeedbackSuggestion(sid) {
@@ -1993,9 +2224,10 @@
     if (selectedId == null) return;
     if (feedbackPreviewActive) {
       if (!window.confirm('Replace the current preview with this suggestion?')) return;
-      endFeedbackPreviewUndo();
+      endFeedbackPreviewUndo({ quiet: true });
     }
     var snapshot = getEditorHtml();
+    setFeedbackApplyOverlay(true);
     try {
       var data = await api(
         '/projects/' +
@@ -2020,6 +2252,8 @@
       await renderFeedbackRail();
     } catch (e) {
       alert(e.message || 'Could not apply suggestion.');
+    } finally {
+      setFeedbackApplyOverlay(false);
     }
   }
 
@@ -2147,6 +2381,7 @@
         '<div class="anvil-panel"><p class="anvil-muted">No sections in this project. Add sections via your project template or create a new project.</p></div>';
       renderCitationsRail();
       renderFeedbackRail();
+      renderResearchPlanRail();
       return;
     }
 
@@ -2340,6 +2575,7 @@
 
     renderCitationsRail();
     renderFeedbackRail();
+    renderResearchPlanRail();
   }
 
   async function load() {
@@ -2373,6 +2609,7 @@
         '</p></div>';
       renderCitationsRail();
       renderFeedbackRail();
+      renderResearchPlanRail();
       return;
     }
 
@@ -2386,6 +2623,18 @@
     }
 
     render();
+    renderResearchPlanRail();
+    requestAnimationFrame(function () {
+      try {
+        var h = window.location.hash;
+        if (h && /^#anvil-suggestion-\d+$/.test(h)) {
+          var el = document.querySelector(h);
+          if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      } catch (e2) {
+        /* ignore */
+      }
+    });
   }
 
   document.addEventListener(
@@ -2459,13 +2708,29 @@
     const pane = document.getElementById('anvil-feedback-pane');
     if (!pane) return;
     pane.addEventListener('click', function (e) {
+      const addRp = e.target.closest('.anvil-feedback-add-research');
+      const resolveCite = e.target.closest('.anvil-feedback-resolve-cite');
       const apply = e.target.closest('.anvil-feedback-apply');
       const ignore = e.target.closest('.anvil-feedback-ignore');
-      if (!apply && !ignore) return;
-      const btn = apply || ignore;
+      if (!addRp && !resolveCite && !apply && !ignore) return;
+      const btn = addRp || resolveCite || apply || ignore;
       const sid = parseInt(btn.getAttribute('data-suggestion-id'), 10);
       if (Number.isNaN(sid)) return;
       e.preventDefault();
+      if (addRp || resolveCite) {
+        btn.disabled = true;
+        (async function () {
+          try {
+            if (addRp) await addToResearchPlan(sid);
+            else openEvidenceResolveDialog(sid);
+          } catch (err) {
+            alert(err.message || 'Could not complete action.');
+          } finally {
+            btn.disabled = false;
+          }
+        })();
+        return;
+      }
       btn.disabled = true;
       (async function () {
         try {
@@ -2489,6 +2754,41 @@
         }
       })();
     });
+  })();
+
+  (function bindEvidenceResolveDialog() {
+    var cancel = document.getElementById('anvil-evidence-resolve-cancel');
+    var sources = document.getElementById('anvil-evidence-resolve-sources');
+    var dialog = document.getElementById('anvil-evidence-resolve-dialog');
+    if (dialog) {
+      dialog.addEventListener('close', function () {
+        evidenceResolveSuggestionId = null;
+      });
+    }
+    if (cancel && dialog) {
+      cancel.addEventListener('click', function () {
+        if (dialog.open) dialog.close();
+      });
+    }
+    if (sources) {
+      sources.addEventListener('click', function (e) {
+        var b = e.target.closest('.anvil-evidence-resolve-pick');
+        if (!b || evidenceResolveSuggestionId == null) return;
+        var srcId = parseInt(b.getAttribute('data-source-id'), 10);
+        if (Number.isNaN(srcId)) return;
+        var sugId = evidenceResolveSuggestionId;
+        b.disabled = true;
+        (async function () {
+          try {
+            await resolveEvidenceWithCitation(sugId, srcId);
+          } catch (err) {
+            alert(err.message || 'Could not resolve.');
+          } finally {
+            b.disabled = false;
+          }
+        })();
+      });
+    }
   })();
 
   (function bindCitationInsert() {

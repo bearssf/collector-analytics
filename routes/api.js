@@ -55,6 +55,22 @@ function mapSuggestionRow(r) {
   });
 }
 
+function mapResearchPlanRow(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    suggestionId: r.suggestion_id,
+    sectionId: r.section_id,
+    sectionTitle: r.section_title,
+    suggestionBody: r.suggestion_body,
+    passageExcerpt: r.passage_excerpt,
+    keywords: r.keywords,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
 function requireApiAuth(req, res, next) {
   if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
   next();
@@ -778,6 +794,105 @@ function createApiRouter(getPool) {
            FROM anvil_suggestions WHERE id = @id`
         );
       res.json({ suggestion: mapSuggestionRow(row.recordset[0]) });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.get('/projects/:projectId/research-plan', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const p = await getPool();
+      const own = await p
+        .request()
+        .input('id', sql.Int, projectId)
+        .input('user_id', sql.Int, req.session.userId)
+        .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+      if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
+
+      const rows = await p.request().input('project_id', sql.Int, projectId).query(
+        `SELECT id, project_id, suggestion_id, section_id, section_title, suggestion_body, passage_excerpt, keywords, created_at, updated_at
+         FROM research_plan_items WHERE project_id = @project_id ORDER BY created_at DESC`
+      );
+      res.json({ items: rows.recordset.map(mapResearchPlanRow).filter(Boolean) });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/research-plan', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const body = req.body || {};
+      const suggestionId = parseInt(body.suggestionId, 10);
+      const sectionId = parseInt(body.sectionId, 10);
+      if (Number.isNaN(suggestionId) || Number.isNaN(sectionId)) {
+        return res.status(400).json({ error: 'suggestionId and sectionId are required' });
+      }
+      const passageExcerpt = body.passageExcerpt != null ? String(body.passageExcerpt).slice(0, 20000) : null;
+      const keywords = body.keywords != null ? String(body.keywords).slice(0, 500) : null;
+
+      const p = await getPool();
+      const sugRow = await p
+        .request()
+        .input('sid', sql.Int, suggestionId)
+        .input('pid', sql.Int, projectId)
+        .input('sec', sql.Int, sectionId)
+        .input('uid', sql.Int, req.session.userId)
+        .query(
+          `SELECT s.id, s.category, s.body, s.section_id FROM anvil_suggestions s
+           INNER JOIN projects pr ON pr.id = s.project_id AND pr.user_id = @uid
+           WHERE s.id = @sid AND s.project_id = @pid AND s.section_id = @sec`
+        );
+      const sug = sugRow.recordset[0];
+      if (!sug) return res.status(404).json({ error: 'Suggestion not found' });
+      if (String(sug.category || '').toLowerCase() !== 'evidence') {
+        return res.status(400).json({ error: 'Only Evidence suggestions can be added to the research plan' });
+      }
+
+      const suggestionBody = String(sug.body || '').trim();
+      if (!suggestionBody) return res.status(400).json({ error: 'Invalid suggestion' });
+
+      const secRow = await p
+        .request()
+        .input('section_id', sql.Int, sectionId)
+        .input('project_id', sql.Int, projectId)
+        .query(`SELECT title FROM project_sections WHERE id = @section_id AND project_id = @project_id`);
+      const secTitle = secRow.recordset[0] ? secRow.recordset[0].title : null;
+
+      try {
+        const ins = await p
+          .request()
+          .input('project_id', sql.Int, projectId)
+          .input('suggestion_id', sql.Int, suggestionId)
+          .input('section_id', sql.Int, sectionId)
+          .input('section_title', sql.NVarChar(255), secTitle != null ? String(secTitle).slice(0, 255) : null)
+          .input('suggestion_body', sql.NVarChar(sql.MAX), suggestionBody)
+          .input('passage_excerpt', sql.NVarChar(sql.MAX), passageExcerpt)
+          .input('keywords', sql.NVarChar(500), keywords)
+          .query(`
+            INSERT INTO research_plan_items (project_id, suggestion_id, section_id, section_title, suggestion_body, passage_excerpt, keywords, updated_at)
+            OUTPUT INSERTED.id
+            VALUES (@project_id, @suggestion_id, @section_id, @section_title, @suggestion_body, @passage_excerpt, @keywords, GETDATE())
+          `);
+        const newId = ins.recordset[0].id;
+        const row = await p
+          .request()
+          .input('id', sql.Int, newId)
+          .query(
+            `SELECT id, project_id, suggestion_id, section_id, section_title, suggestion_body, passage_excerpt, keywords, created_at, updated_at
+             FROM research_plan_items WHERE id = @id`
+          );
+        res.status(201).json({ item: mapResearchPlanRow(row.recordset[0]) });
+      } catch (err) {
+        const num = err && (err.number || (err.originalError && err.originalError.number));
+        if (num === 2627) {
+          return res.status(409).json({ error: 'This suggestion is already on your research plan' });
+        }
+        throw err;
+      }
     } catch (e) {
       next(e);
     }

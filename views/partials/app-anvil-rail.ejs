@@ -1,6 +1,6 @@
 <%#
-  Anvil-only right column: score strip + feedback & suggestions (top), citations (bottom).
-  anvil.js: GET/PATCH suggestions, score strip. Citations: GET /api/projects/:id/sources.
+  Anvil-only right column: feedback & suggestions, research plan (Evidence), citations (Crucible sources).
+  anvil.js: suggestions, research plan API, citations.
 %>
 <aside class="app-insight app-anvil-rail" aria-label="Writing feedback and citations">
   <div class="app-anvil-rail__stack">
@@ -14,6 +14,14 @@
         </div>
       </div>
     </section>
+    <section class="app-anvil-rail__pane" aria-labelledby="anvil-rail-research-h">
+      <div id="anvil-rail-research-h" class="insight-h">Research Plan</div>
+      <div id="anvil-research-plan-pane" class="app-anvil-rail__scroll">
+        <div id="anvil-research-plan-mount" class="anvil-research-plan-mount" aria-live="polite">
+          <p class="anvil-research-plan-placeholder">Loading…</p>
+        </div>
+      </div>
+    </section>
     <section class="app-anvil-rail__pane" aria-labelledby="anvil-rail-citations-h">
       <div id="anvil-rail-citations-h" class="insight-h">Citations</div>
       <div id="anvil-citations-pane" class="app-anvil-rail__scroll">
@@ -22,5 +30,24 @@
         </div>
       </div>
     </section>
+  </div>
+  <dialog id="anvil-evidence-resolve-dialog" class="anvil-evidence-resolve-dialog">
+    <div class="anvil-evidence-resolve-dialog__inner">
+      <h3 class="anvil-evidence-resolve-dialog__title">Resolve with citation</h3>
+      <p class="anvil-evidence-resolve-dialog__hint">
+        Pick a source linked to this section. We’ll insert the in-text citation and mark this feedback resolved.
+      </p>
+      <div id="anvil-evidence-resolve-sources" class="anvil-evidence-resolve-sources"></div>
+      <div class="anvil-evidence-resolve-dialog__actions">
+        <button type="button" class="anvil-evidence-resolve-dialog__cancel" id="anvil-evidence-resolve-cancel">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+  <div id="anvil-feedback-apply-overlay" class="anvil-feedback-apply-overlay" hidden aria-hidden="true">
+    <div class="anvil-feedback-apply-overlay__card" role="status">
+      <span class="anvil-feedback-apply-overlay__spinner" aria-hidden="true"></span>
+      <p class="anvil-feedback-apply-overlay__title">Applying suggestion…</p>
+      <p class="anvil-feedback-apply-overlay__sub">This may take a few seconds. Please don’t close the tab.</p>
+    </div>
   </div>
 </aside>
