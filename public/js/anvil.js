@@ -1604,18 +1604,32 @@
     if (!mount) return;
 
     const rid = referencesSectionId();
-    const buildBar = rid
+    const onReferences =
+      rid != null &&
+      selectedId != null &&
+      Number(selectedId) === Number(rid);
+
+    const buildBar = onReferences
       ? '<div class="anvil-citations-build">' +
-        '<p class="anvil-citations-build-row">' +
+        '<p class="anvil-citations-build-hint">Fills this section with linked Crucible sources that appear in your draft, formatted to your project citation style.</p>' +
+        '<p class="anvil-citations-build-actions">' +
         '<button type="button" class="anvil-citations-build-btn" id="anvil-build-references">Build References section</button>' +
         '</p>' +
-        '<p class="anvil-citations-build-hint">Fills the References section with linked Crucible sources that appear in your draft, formatted to your project citation style (AWS Bedrock).</p>' +
         '</div>'
       : '';
 
+    if (onReferences) {
+      const err = anvilSourcesError
+        ? '<p class="anvil-citations-msg anvil-citations-msg--error" role="alert">' +
+          escapeHtml(anvilSourcesError) +
+          '</p>'
+        : '';
+      mount.innerHTML = buildBar + err;
+      return;
+    }
+
     if (anvilSourcesError) {
       mount.innerHTML =
-        buildBar +
         '<p class="anvil-citations-msg anvil-citations-msg--error" role="alert">' +
         escapeHtml(anvilSourcesError) +
         '</p>';
@@ -1624,14 +1638,12 @@
 
     if (!bundle || !(bundle.sections && bundle.sections.length)) {
       mount.innerHTML =
-        buildBar +
         '<p class="anvil-citations-msg">Sources for this section will appear here when the project has outline sections.</p>';
       return;
     }
 
     if (selectedId == null) {
-      mount.innerHTML =
-        buildBar + '<p class="anvil-citations-msg">Select a section to see linked sources.</p>';
+      mount.innerHTML = '<p class="anvil-citations-msg">Select a section to see linked sources.</p>';
       return;
     }
 
@@ -1644,7 +1656,6 @@
     if (!linked.length) {
       const cur = sectionById(selectedId);
       mount.innerHTML =
-        buildBar +
         '<p class="anvil-citations-msg">No sources linked to <strong>' +
         escapeHtml(cur ? cur.title : 'this section') +
         '</strong>. Link sources in the <a class="anvil-inline-link" href="/app/project/' +
@@ -1655,7 +1666,6 @@
 
     const style = projectCitationStyle();
     let html =
-      buildBar +
       '<p class="anvil-citations-style-hint">In-text format: <strong>' +
       escapeHtml(style) +
       '</strong> (from project settings)</p>';

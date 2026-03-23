@@ -37,6 +37,7 @@ const { getRelatedReadingSuggestions } = require('../lib/relatedArticles');
 const { normalizeTags, replaceSourceTags } = require('../lib/sourceTags');
 const { findReferencesSection, findCitedLinkedSources } = require('../lib/citedSources');
 const { formatReferenceListHtml } = require('../lib/bedrockReferences');
+const { referenceSectionHeadingHtml } = require('../lib/referenceHeading');
 
 function mapSuggestionRow(r) {
   if (!r) return null;
@@ -480,6 +481,7 @@ function createApiRouter(getPool) {
       if (!html || !String(html).trim()) {
         return res.status(502).json({ error: 'Model returned an empty reference list.' });
       }
+      const fullBody = referenceSectionHeadingHtml(cs) + String(html).trim();
       const p = await getPool();
       const own = await p
         .request()
@@ -494,7 +496,7 @@ function createApiRouter(getPool) {
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
       await p
         .request()
-        .input('body', sql.NVarChar(sql.MAX), html)
+        .input('body', sql.NVarChar(sql.MAX), fullBody)
         .input('sid', sql.Int, refSection.id)
         .query(`UPDATE project_sections SET body = @body, updated_at = GETDATE() WHERE id = @sid`);
       const out = await getProjectBundle(getPool, projectId, req.session.userId);
