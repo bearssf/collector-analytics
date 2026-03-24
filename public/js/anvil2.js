@@ -107,8 +107,14 @@
     renderFeedbackRail();
   }
 
+  function itemHasReplacement(it) {
+    if (!it || it.suggestion == null) return false;
+    return String(it.suggestion).trim() !== '';
+  }
+
   function applyFeedbackRow(row) {
-    if (!quill || !row || row.status !== 'active' || !row.item.isActionable) return;
+    if (!quill || !row || row.status !== 'active') return;
+    if (!row.item.isActionable && !itemHasReplacement(row.item)) return;
     var plain = getPlain(quill);
     var m = findAnchor(plain, row.item);
     if (!m) {
@@ -118,6 +124,12 @@
     }
     var sug = row.item.suggestion != null ? String(row.item.suggestion) : '';
     var len = m.end - m.start;
+    var docLen = quill.getLength();
+    if (m.start < 0 || m.start + len > docLen) {
+      row.status = 'conflicted';
+      renderFeedbackRail();
+      return;
+    }
     quill.deleteText(m.start, len);
     quill.insertText(m.start, sug);
     row.status = 'applied';
@@ -189,7 +201,8 @@
           escapeHtml(it.anchorText) +
           '</p>';
       }
-      if (st === 'active' && it.isActionable && it.suggestion != null) {
+      var canShowSuggestion = st === 'active' && itemHasReplacement(it);
+      if (canShowSuggestion) {
         html +=
           '<p class="anvil2-feedback-suggestion"><span class="anvil2-feedback-k">→</span> ' +
           escapeHtml(String(it.suggestion)) +
@@ -200,7 +213,8 @@
           '<p class="anvil2-feedback-conflict">This suggestion no longer matches the text. Edit the draft or wait for a new review.</p>';
       }
       html += '<div class="anvil2-feedback-actions">';
-      if (st === 'active' && it.isActionable) {
+      var canApply = st === 'active' && (it.isActionable || itemHasReplacement(it));
+      if (canApply) {
         html +=
           '<button type="button" class="app-btn-primary anvil2-apply" data-fid="' +
           escapeHtml(String(it.id)) +
@@ -361,9 +375,12 @@
     });
   }
 
-  root.addEventListener('click', function (e) {
+  /** Feedback buttons live in the right rail (#anvil2-feedback-mount), outside #anvil2-root — delegate on document. */
+  document.addEventListener('click', function (e) {
+    if (!document.getElementById('anvil2-root')) return;
     var ap = e.target.closest('.anvil2-apply');
     if (ap) {
+      e.preventDefault();
       var fid = ap.getAttribute('data-fid');
       var row = feedbackRows.find(function (r) {
         return String(r.item.id) === String(fid);
@@ -371,8 +388,9 @@
       if (row) applyFeedbackRow(row);
       return;
     }
-    var dis = e.target.closest('[data-dismiss]');
+    var dis = e.target.closest('.anvil2-dismiss');
     if (dis) {
+      e.preventDefault();
       dismissRow(dis.getAttribute('data-dismiss'));
     }
   });
