@@ -51,6 +51,16 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 const PORT = process.env.PORT || 3000;
 
+/** Anvil2 (beta) — idle delay before first Bedrock review; character threshold for follow-up reviews (see docs/anvil2.md). */
+const ANVIL2_INITIAL_IDLE_MS = Math.max(
+  0,
+  parseInt(process.env.ANVIL2_INITIAL_IDLE_MS || '1800', 10) || 1800
+);
+const ANVIL2_INCREMENTAL_CHARS = Math.max(
+  1,
+  parseInt(process.env.ANVIL2_INCREMENTAL_CHARS || '40', 10) || 40
+);
+
 const dbConfig = {
   server: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '1433', 10),
@@ -798,6 +808,8 @@ app.get(
       insightHint: phase.insight,
       anvilSections,
       anvilSectionId,
+      anvil2InitialIdleMs: ANVIL2_INITIAL_IDLE_MS,
+      anvil2IncrementalChars: ANVIL2_INCREMENTAL_CHARS,
     });
   })
 );

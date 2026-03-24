@@ -328,6 +328,19 @@
   width: 100%;
   max-width: 52rem;
 }
+.anvil2-analyze-banner {
+  margin-bottom: 0.65rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(120, 160, 255, 0.12);
+  border: 1px solid rgba(120, 160, 255, 0.28);
+  border-radius: 10px;
+}
+.anvil2-analyze-banner[hidden] {
+  display: none !important;
+}
 .anvil2-toolbar {
   margin-bottom: 0.75rem;
 }

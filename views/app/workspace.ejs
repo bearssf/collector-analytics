@@ -37,7 +37,13 @@
       <% } else if (phaseSlug === 'anvil') { %>
         <div id="anvil-root" class="anvil" data-project-id="<%= projectId %>"></div>
       <% } else if (phaseSlug === 'anvil2') { %>
-        <div id="anvil2-root" class="anvil anvil2" data-project-id="<%= projectId %>"></div>
+        <div
+          id="anvil2-root"
+          class="anvil anvil2"
+          data-project-id="<%= projectId %>"
+          data-initial-idle-ms="<%= typeof anvil2InitialIdleMs !== 'undefined' ? anvil2InitialIdleMs : 1800 %>"
+          data-incremental-chars="<%= typeof anvil2IncrementalChars !== 'undefined' ? anvil2IncrementalChars : 40 %>"
+        ></div>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder">
           <p style="margin:0 0 .5rem"><strong>Coming soon.</strong> The Framework workspace isn’t wired up yet—we’ll revisit the right experience for outline and evidence here.</p>

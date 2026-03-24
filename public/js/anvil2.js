@@ -1,6 +1,6 @@
 /**
  * Anvil2 (beta) — structured anchor-based feedback (see docs/ai-feedback-system-spec.md).
- * Uses POST /api/.../review-structured (no persistence to anvil_suggestions).
+ * POST /api/.../review-structured (no persistence to anvil_suggestions).
  */
 (function () {
   var root = document.getElementById('anvil2-root');
@@ -9,15 +9,30 @@
   var projectId = parseInt(root.dataset.projectId, 10);
   if (Number.isNaN(projectId)) return;
 
+  var initialIdleMs = parseInt(root.dataset.initialIdleMs || '1800', 10);
+  if (Number.isNaN(initialIdleMs) || initialIdleMs < 0) initialIdleMs = 1800;
+  var incrementalChars = parseInt(root.dataset.incrementalChars || '40', 10);
+  if (Number.isNaN(incrementalChars) || incrementalChars < 1) incrementalChars = 40;
+
   var bundle = null;
   var selectedId = null;
   var quill = null;
-  var debounceTimer = null;
-  var reviewTimer = null;
+  var initialTimer = null;
   var lastReviewAt = 0;
   var lastPlainSent = '';
   var MIN_REVIEW_INTERVAL_MS = 22000;
-  var DEBOUNCE_MS = 1800;
+  /** Matches lib/bedrockReview MIN_DRAFT_PLAIN_CHARS */
+  var MIN_PLAIN_CHARS = 15;
+
+  var hasCompletedInitialReview = false;
+  var charsSinceFingerprint = 0;
+
+  function recordTextFingerprint() {
+    var fp = getDraftPlain();
+    root.dataset.fpChars = String(fp.length);
+  }
+  var reviewInFlight = false;
+  var taLastLen = 0;
 
   /** @type {{ item: object, status: string, matchPosition: {start:number,end:number}|null }[]} */
   var feedbackRows = [];
@@ -67,6 +82,45 @@
     return quillInst.getText().replace(/\n+$/, '');
   }
 
+  function getDraftPlain() {
+    if (quill) return getPlain(quill);
+    var ta = document.getElementById('anvil2-fallback');
+    return ta ? String(ta.value).replace(/\n+$/, '') : '';
+  }
+
+  function getDraftHtml() {
+    if (quill) {
+      return quill.root && quill.root.innerHTML ? String(quill.root.innerHTML) : '';
+    }
+    var ta = document.getElementById('anvil2-fallback');
+    if (!ta) return '';
+    var esc = escapeHtml(ta.value);
+    return '<p>' + esc.replace(/\n/g, '</p><p>') + '</p>';
+  }
+
+  function deltaChangeSize(delta) {
+    if (!delta || !delta.ops) return 0;
+    var n = 0;
+    for (var i = 0; i < delta.ops.length; i++) {
+      var op = delta.ops[i];
+      if (typeof op.insert === 'string') n += op.insert.length;
+      if (typeof op.delete === 'number') n += op.delete;
+    }
+    return n;
+  }
+
+  function setAnalyzeBanner(visible, text) {
+    var el = document.getElementById('anvil2-analyze-banner');
+    if (!el) return;
+    if (visible) {
+      el.hidden = false;
+      el.textContent = text || 'Analyzing new text…';
+    } else {
+      el.hidden = true;
+      el.textContent = '';
+    }
+  }
+
   function findAnchor(documentText, item) {
     if (!item || !item.anchorText) return null;
     var anchor = String(item.anchorText);
@@ -85,17 +139,18 @@
     return null;
   }
 
+  /** Drop rows that no longer anchor; conflicted items are removed from the list. */
   function rebaseFeedback(documentText) {
-    feedbackRows = feedbackRows.map(function (row) {
-      if (row.status === 'applied' || row.status === 'dismissed') return row;
+    feedbackRows = feedbackRows.flatMap(function (row) {
+      if (row.status === 'applied' || row.status === 'dismissed') return [row];
       var m = findAnchor(documentText, row.item);
       if (m) {
-        return { item: row.item, status: 'active', matchPosition: m };
+        return [{ item: row.item, status: 'active', matchPosition: m }];
       }
       if (row.item.suggestion && String(row.item.suggestion).trim() && documentText.indexOf(String(row.item.suggestion)) !== -1) {
-        return { item: row.item, status: 'applied', matchPosition: null };
+        return [{ item: row.item, status: 'applied', matchPosition: null }];
       }
-      return { item: row.item, status: 'conflicted', matchPosition: null };
+      return [];
     });
   }
 
@@ -103,7 +158,28 @@
     feedbackRows = (items || []).map(function (it) {
       return { item: it, status: 'active', matchPosition: null };
     });
-    rebaseFeedback(getPlain(quill));
+    rebaseFeedback(getDraftPlain());
+    renderFeedbackRail();
+  }
+
+  function appendRowsFromApi(items) {
+    var plain = getDraftPlain();
+    var existingIds = {};
+    feedbackRows.forEach(function (r) {
+      existingIds[String(r.item.id)] = true;
+    });
+    var prepend = [];
+    (items || []).forEach(function (it) {
+      if (existingIds[String(it.id)]) return;
+      var row = { item: it, status: 'active', matchPosition: null };
+      var m = findAnchor(plain, row.item);
+      if (!m) return;
+      row.matchPosition = m;
+      prepend.push(row);
+      existingIds[String(it.id)] = true;
+    });
+    feedbackRows = prepend.concat(feedbackRows);
+    rebaseFeedback(plain);
     renderFeedbackRail();
   }
 
@@ -115,10 +191,13 @@
   function applyFeedbackRow(row) {
     if (!quill || !row || row.status !== 'active') return;
     if (!row.item.isActionable && !itemHasReplacement(row.item)) return;
-    var plain = getPlain(quill);
+    if (!quill) return;
+    var plain = getDraftPlain();
     var m = findAnchor(plain, row.item);
     if (!m) {
-      row.status = 'conflicted';
+      feedbackRows = feedbackRows.filter(function (r) {
+        return r !== row;
+      });
       renderFeedbackRail();
       return;
     }
@@ -126,19 +205,21 @@
     var len = m.end - m.start;
     var docLen = quill.getLength();
     if (m.start < 0 || m.start + len > docLen) {
-      row.status = 'conflicted';
+      feedbackRows = feedbackRows.filter(function (r) {
+        return r !== row;
+      });
       renderFeedbackRail();
       return;
     }
-    /* Use Quill source 'silent' so this doesn't emit text-change — otherwise Apply would
-       debounce-schedule another Bedrock review like a normal keystroke. */
     quill.deleteText(m.start, len, 'silent');
     quill.insertText(m.start, sug, 'silent');
     row.status = 'applied';
     row.matchPosition = null;
-    rebaseFeedback(getPlain(quill));
+    rebaseFeedback(getDraftPlain());
     renderFeedbackRail();
     scheduleSave();
+    charsSinceFingerprint = 0;
+    recordTextFingerprint();
   }
 
   function dismissRow(itemId) {
@@ -160,10 +241,10 @@
   }
 
   async function saveSectionDraft() {
-    if (!quill || selectedId == null || !bundle) return;
+    if (selectedId == null || !bundle) return;
+    if (!quill && !document.getElementById('anvil2-fallback')) return;
     try {
-      var html =
-        quill.root && quill.root.innerHTML ? String(quill.root.innerHTML) : '';
+      var html = getDraftHtml();
       await api('/projects/' + projectId + '/sections/' + selectedId, 'PATCH', { body: html });
       var sec = sectionById(selectedId);
       if (sec) sec.body = html;
@@ -210,10 +291,6 @@
           escapeHtml(String(it.suggestion)) +
           '</p>';
       }
-      if (st === 'conflicted') {
-        html +=
-          '<p class="anvil2-feedback-conflict">This suggestion no longer matches the text. Edit the draft or wait for a new review.</p>';
-      }
       html += '<div class="anvil2-feedback-actions">';
       var canApply = st === 'active' && (it.isActionable || itemHasReplacement(it));
       if (canApply) {
@@ -222,7 +299,7 @@
           escapeHtml(String(it.id)) +
           '">Apply</button>';
       }
-      if (st === 'active' || st === 'conflicted') {
+      if (st === 'active') {
         html +=
           '<button type="button" class="anvil2-dismiss" data-dismiss="' +
           escapeHtml(String(it.id)) +
@@ -234,20 +311,55 @@
     mount.innerHTML = html;
   }
 
-  function requestStructuredReview() {
-    if (!quill || selectedId == null) return;
-    var plain = getPlain(quill);
-    if (plain.length < 20) return;
-    if (plain === lastPlainSent) return;
+  function scheduleInitialReview() {
+    if (hasCompletedInitialReview) return;
+    if (initialTimer) clearTimeout(initialTimer);
+    initialTimer = setTimeout(function () {
+      initialTimer = null;
+      requestInitialReview();
+    }, initialIdleMs);
+  }
+
+  function requestInitialReview() {
+    if (hasCompletedInitialReview) return;
+    runStructuredReview(false);
+  }
+
+  function tryIncrementalReview() {
+    if (!hasCompletedInitialReview || reviewInFlight) return false;
+    var plain = getDraftPlain();
+    if (plain.length < MIN_PLAIN_CHARS) return false;
+    if (Date.now() - lastReviewAt < MIN_REVIEW_INTERVAL_MS) return false;
+    runStructuredReview(true);
+    return true;
+  }
+
+  function runStructuredReview(isIncremental) {
+    if (selectedId == null || !bundle) return;
+    if (!quill && !document.getElementById('anvil2-fallback')) return;
+    if (reviewInFlight) return;
+    var plain = getDraftPlain();
+    if (plain.length < MIN_PLAIN_CHARS) return;
+
+    if (!isIncremental) {
+      if (plain === lastPlainSent) return;
+    }
+
     var now = Date.now();
     if (now - lastReviewAt < MIN_REVIEW_INTERVAL_MS) return;
 
+    reviewInFlight = true;
     lastReviewAt = now;
-    lastPlainSent = plain;
-    var html = quill.root && quill.root.innerHTML ? String(quill.root.innerHTML) : '';
+    if (!isIncremental) {
+      lastPlainSent = plain;
+    }
 
+    var html = getDraftHtml();
     var mount = document.getElementById('anvil2-feedback-mount');
-    if (mount) {
+
+    if (isIncremental) {
+      setAnalyzeBanner(true, 'Analyzing new text…');
+    } else if (mount) {
       mount.innerHTML = '<p class="anvil2-feedback-placeholder">Fetching AI feedback…</p>';
     }
 
@@ -258,31 +370,56 @@
       .then(function (data) {
         var items = (data && data.items) || [];
         if (data && data.skipped && data.shortDraft) {
-          if (mount) {
+          if (isIncremental) {
+            setAnalyzeBanner(false);
+          } else if (mount) {
             mount.innerHTML =
               '<p class="anvil2-feedback-placeholder">Add a bit more text for feedback.</p>';
           }
           return;
         }
-        setRowsFromApi(items);
+        if (isIncremental) {
+          appendRowsFromApi(items);
+        } else {
+          setRowsFromApi(items);
+          hasCompletedInitialReview = true;
+        }
+        charsSinceFingerprint = 0;
+        recordTextFingerprint();
       })
       .catch(function (e) {
-        lastPlainSent = '';
-        if (mount) {
+        if (!isIncremental) {
+          lastPlainSent = '';
+        }
+        if (isIncremental) {
+          setAnalyzeBanner(false);
+        } else if (mount) {
           mount.innerHTML =
             '<p class="anvil2-feedback-placeholder anvil2-feedback-err" role="alert">' +
             escapeHtml(e.message || 'Request failed') +
             '</p>';
         }
+      })
+      .then(function () {
+        reviewInFlight = false;
+        if (isIncremental) {
+          setAnalyzeBanner(false);
+        }
       });
   }
 
-  function scheduleReview() {
-    if (reviewTimer) clearTimeout(reviewTimer);
-    reviewTimer = setTimeout(function () {
-      reviewTimer = null;
-      requestStructuredReview();
-    }, DEBOUNCE_MS);
+  function onEditorUserChange(delta) {
+    scheduleSave();
+    if (!hasCompletedInitialReview) {
+      scheduleInitialReview();
+      return;
+    }
+    charsSinceFingerprint += deltaChangeSize(delta);
+    if (charsSinceFingerprint >= incrementalChars) {
+      if (tryIncrementalReview()) {
+        charsSinceFingerprint = 0;
+      }
+    }
   }
 
   function mountEditor(rawDraft) {
@@ -297,7 +434,23 @@
       var ta = document.getElementById('anvil2-fallback');
       if (ta) {
         ta.value = draftStr;
-        ta.addEventListener('input', scheduleReview);
+        taLastLen = ta.value.length;
+        ta.addEventListener('input', function () {
+          scheduleSave();
+          var cur = ta.value.length;
+          var deltaLen = Math.abs(cur - taLastLen);
+          taLastLen = cur;
+          if (!hasCompletedInitialReview) {
+            scheduleInitialReview();
+            return;
+          }
+          charsSinceFingerprint += deltaLen;
+          if (charsSinceFingerprint >= incrementalChars) {
+            if (tryIncrementalReview()) {
+              charsSinceFingerprint = 0;
+            }
+          }
+        });
       }
       return;
     }
@@ -322,14 +475,22 @@
         quill.setText(draftStr);
       }
     }
-    quill.on('text-change', function () {
-      scheduleSave();
-      scheduleReview();
+    quill.on('text-change', function (delta, oldDelta, source) {
+      if (source === 'silent') {
+        scheduleSave();
+        return;
+      }
+      onEditorUserChange(delta);
     });
   }
 
   function render() {
     if (!bundle) return;
+    delete root.dataset.fpChars;
+    if (initialTimer) {
+      clearTimeout(initialTimer);
+      initialTimer = null;
+    }
     var sections = bundle.sections || [];
     if (!sections.length) {
       root.innerHTML =
@@ -358,6 +519,7 @@
 
     root.innerHTML =
       '<div class="anvil2-panel">' +
+      '<div id="anvil2-analyze-banner" class="anvil2-analyze-banner" hidden aria-live="polite"></div>' +
       '<div class="anvil2-toolbar">' +
       '<label class="anvil2-section-label">Section' +
       '<select id="anvil2-section-select" class="anvil2-section-select">' +
@@ -370,6 +532,8 @@
     mountEditor(draft);
     feedbackRows = [];
     lastPlainSent = '';
+    hasCompletedInitialReview = false;
+    charsSinceFingerprint = 0;
     renderFeedbackRail();
     document.getElementById('anvil2-section-select').addEventListener('change', function (e) {
       selectedId = parseInt(e.target.value, 10);
@@ -377,7 +541,6 @@
     });
   }
 
-  /** Feedback buttons live in the right rail (#anvil2-feedback-mount), outside #anvil2-root — delegate on document. */
   document.addEventListener('click', function (e) {
     if (!document.getElementById('anvil2-root')) return;
     var ap = e.target.closest('.anvil2-apply');
