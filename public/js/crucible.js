@@ -19,6 +19,7 @@
   var sortMode = 'alpha';
   var filterTags = [];
   var filterSectionId = null;
+  var notesLightMode = localStorage.getItem('crucible-notes-light') === '1';
 
   /* ── helpers ─────────────────────────────────────────────────────── */
   function escHtml(s) {
@@ -76,9 +77,16 @@
   function parseAuthors(str) {
     if (!str) return [];
     return str.split(';').map(function (a) {
-      var parts = a.trim().split(',').map(function (p) { return p.trim(); });
-      return { last: parts[0] || '', first: parts.slice(1).join(',').trim() };
-    }).filter(function (a) { return a.last; });
+      var trimmed = a.trim();
+      if (!trimmed) return null;
+      if (trimmed.indexOf(',') !== -1) {
+        var parts = trimmed.split(',').map(function (p) { return p.trim(); });
+        return { last: parts[0] || '', first: parts.slice(1).join(' ').trim() };
+      }
+      var words = trimmed.split(/\s+/);
+      if (words.length === 1) return { last: words[0], first: '' };
+      return { last: words[words.length - 1], first: words.slice(0, -1).join(' ') };
+    }).filter(function (a) { return a && a.last; });
   }
 
   function makeInitials(firstName, periods) {
@@ -377,6 +385,7 @@
     /* sort / filter bar */
     html += '<div class="crucible-toolbar">' +
       '<div class="crucible-toolbar__left">' +
+        '<span class="crucible-toolbar-spacer"></span>' +
         '<label class="crucible-sort-label">Sort: ' +
           '<select id="crucible-sort" class="crucible-select">' +
             '<option value="alpha"' + (sortMode === 'alpha' ? ' selected' : '') + '>Alphabetical</option>' +
@@ -418,9 +427,9 @@
             '<div class="crucible-tile__citation">' + formattedCitation + '</div>' +
             (tagBadges ? '<div class="crucible-tile__tags">' + tagBadges + '</div>' : '') +
           '</div>' +
-          '<div class="crucible-note-cell">' +
-            '<div class="crucible-note-cell__editor" contenteditable="true" data-source-id="' + src.id + '">' + (src.crucible_notes || '') + '</div>' +
-            '<div class="crucible-note-cell__toolbar">' +
+          '<div class="crucible-note-tile' + (notesLightMode ? ' crucible-note-tile--light' : '') + '">' +
+            '<div class="crucible-note-tile__editor" contenteditable="true" data-source-id="' + src.id + '">' + (src.crucible_notes || '') + '</div>' +
+            '<div class="crucible-note-tile__toolbar">' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-note-bold" data-source-id="' + src.id + '" title="Bold"><strong>B</strong></button>' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-note-ul" data-source-id="' + src.id + '" title="Bulleted list">&#8226; List</button>' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-notes-save-btn crucible-note-save" data-source-id="' + src.id + '">Save</button>' +
@@ -434,6 +443,10 @@
     /* action bar */
     html += '<div class="crucible-action-bar">' +
       '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn">Add a Source</button>' +
+      '<div class="crucible-mode-toggle">' +
+        '<button type="button" class="crucible-mode-btn' + (!notesLightMode ? ' crucible-mode-btn--active' : '') + '" id="crucible-dark-mode-btn">Dark Mode</button>' +
+        '<button type="button" class="crucible-mode-btn' + (notesLightMode ? ' crucible-mode-btn--active' : '') + '" id="crucible-light-mode-btn">Light Mode</button>' +
+      '</div>' +
     '</div>';
 
     root.innerHTML = html;
@@ -480,7 +493,7 @@
     root.querySelectorAll('.crucible-note-bold').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var sid = btn.getAttribute('data-source-id');
-        var editor = root.querySelector('.crucible-note-cell__editor[data-source-id="' + sid + '"]');
+        var editor = root.querySelector('.crucible-note-tile__editor[data-source-id="' + sid + '"]');
         if (editor) { editor.focus(); document.execCommand('bold', false, null); }
       });
     });
@@ -488,7 +501,7 @@
     root.querySelectorAll('.crucible-note-ul').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var sid = btn.getAttribute('data-source-id');
-        var editor = root.querySelector('.crucible-note-cell__editor[data-source-id="' + sid + '"]');
+        var editor = root.querySelector('.crucible-note-tile__editor[data-source-id="' + sid + '"]');
         if (editor) { editor.focus(); document.execCommand('insertUnorderedList', false, null); }
       });
     });
@@ -496,7 +509,7 @@
     root.querySelectorAll('.crucible-note-save').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var sid = parseInt(btn.getAttribute('data-source-id'), 10);
-        var editor = root.querySelector('.crucible-note-cell__editor[data-source-id="' + sid + '"]');
+        var editor = root.querySelector('.crucible-note-tile__editor[data-source-id="' + sid + '"]');
         if (!editor) return;
         var notesHtml = editor.innerHTML;
         api('PATCH', '/sources/' + sid, { crucible_notes: notesHtml }).then(function (d) {
@@ -506,6 +519,23 @@
           setTimeout(function () { btn.textContent = 'Save'; }, 1500);
         }).catch(function (e) { openAlertModal(e.message); });
       });
+    });
+
+    var darkBtn = document.getElementById('crucible-dark-mode-btn');
+    var lightBtn = document.getElementById('crucible-light-mode-btn');
+    if (darkBtn) darkBtn.addEventListener('click', function () {
+      notesLightMode = false;
+      localStorage.setItem('crucible-notes-light', '0');
+      root.querySelectorAll('.crucible-note-tile').forEach(function (t) { t.classList.remove('crucible-note-tile--light'); });
+      darkBtn.classList.add('crucible-mode-btn--active');
+      if (lightBtn) lightBtn.classList.remove('crucible-mode-btn--active');
+    });
+    if (lightBtn) lightBtn.addEventListener('click', function () {
+      notesLightMode = true;
+      localStorage.setItem('crucible-notes-light', '1');
+      root.querySelectorAll('.crucible-note-tile').forEach(function (t) { t.classList.add('crucible-note-tile--light'); });
+      lightBtn.classList.add('crucible-mode-btn--active');
+      if (darkBtn) darkBtn.classList.remove('crucible-mode-btn--active');
     });
   }
 
@@ -640,41 +670,48 @@
     html += '<form id="crucible-source-form" class="crucible-modal__body">';
 
     html += '<div class="crucible-form-row crucible-form-row--half">' +
-      '<label>Source type<select name="source_type" class="crucible-select crucible-select--full">' + sourceTypeOpts + '</select></label>' +
+      '<label>Source type<select name="source_type" id="crucible-source-type" class="crucible-select crucible-select--full">' + sourceTypeOpts + '</select></label>' +
       '<label>Publication date<input type="text" name="publication_date" value="' + escHtml(v.publication_date || '') + '" placeholder="e.g. 2024"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Authors <span class="crucible-hint">(semicolon separated, e.g. Smith, John; Doe, Jane)</span><input type="text" name="authors" value="' + escHtml(v.authors || '') + '"></label>' +
+      '<label>Author(s): <span class="crucible-hint">(separate by semicolon)</span><input type="text" name="authors" value="' + escHtml(v.authors || '') + '" placeholder="e.g. John Smith; Jane Doe or Smith, John; Doe, Jane"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
       '<label>Article / work title<input type="text" name="article_title" value="' + escHtml(v.article_title || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
+    html += '<div class="crucible-form-row" data-field-group="journal">' +
       '<label>Journal / publication title<input type="text" name="journal_title" value="' + escHtml(v.journal_title || '') + '"></label>' +
-      '<label>Book title <span class="crucible-hint">(for chapters)</span><input type="text" name="book_title" value="' + escHtml(v.book_title || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--third">' +
+    html += '<div class="crucible-form-row" data-field-group="chapter">' +
+      '<label>Book Title:<input type="text" name="book_title" value="' + escHtml(v.book_title || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row crucible-form-row--third" data-field-group="journal">' +
       '<label>Volume<input type="text" name="volume_number" value="' + escHtml(v.volume_number || '') + '"></label>' +
       '<label>Issue<input type="text" name="issue_number" value="' + escHtml(v.issue_number || '') + '"></label>' +
       '<label>Page(s)<input type="text" name="page_numbers" value="' + escHtml(v.page_numbers || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row" data-field-group="pages-only" style="display:none">' +
+      '<label>Page(s)<input type="text" name="page_numbers_alt" value="' + escHtml(v.page_numbers || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row crucible-form-row--half">' +
       '<label>DOI<input type="text" name="doi" value="' + escHtml(v.doi || '') + '"></label>' +
       '<label>URL<input type="text" name="url" value="' + escHtml(v.url || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
+    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="publisher">' +
       '<label>Publisher<input type="text" name="publisher" value="' + escHtml(v.publisher || '') + '"></label>' +
       '<label>Publisher location<input type="text" name="publisher_location" value="' + escHtml(v.publisher_location || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
+    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="edition">' +
       '<label>Edition <span class="crucible-hint">(e.g. 2nd ed.)</span><input type="text" name="edition" value="' + escHtml(v.edition || '') + '"></label>' +
       '<label>Editors <span class="crucible-hint">(semicolon separated)</span><input type="text" name="editors" value="' + escHtml(v.editors || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
-      '<label>Chapter name <span class="crucible-hint">(if applicable)</span><input type="text" name="chapter_name" value="' + escHtml(v.chapter_name || '') + '"></label>' +
-      '<label>Conference name <span class="crucible-hint">(if applicable)</span><input type="text" name="conference_name" value="' + escHtml(v.conference_name || '') + '"></label>' +
+    html += '<div class="crucible-form-row" data-field-group="chapter">' +
+      '<label>Chapter name<input type="text" name="chapter_name" value="' + escHtml(v.chapter_name || '') + '"></label>' +
     '</div>';
-    html += '<div class="crucible-form-row">' +
+    html += '<div class="crucible-form-row" data-field-group="conference">' +
+      '<label>Conference name<input type="text" name="conference_name" value="' + escHtml(v.conference_name || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row" data-field-group="access">' +
       '<label>Access date <span class="crucible-hint">(for web sources)</span><input type="text" name="access_date" value="' + escHtml(v.access_date || '') + '" placeholder="e.g. March 24, 2026"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
@@ -700,6 +737,27 @@
     document.getElementById('crucible-modal-save').addEventListener('click', function () {
       saveSource(isEdit ? existing.id : null);
     });
+
+    var typeSelect = document.getElementById('crucible-source-type');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', function () { applyFieldVisibility(modal, this.value); });
+      applyFieldVisibility(modal, typeSelect.value);
+    }
+  }
+
+  function applyFieldVisibility(modal, sourceType) {
+    var groups = {
+      '':          { journal: true, chapter: true, conference: true, publisher: true, edition: true, access: true, 'pages-only': false },
+      'journal':   { journal: true, chapter: false, conference: false, publisher: false, edition: false, access: true, 'pages-only': false },
+      'book':      { journal: false, chapter: false, conference: false, publisher: true, edition: true, access: true, 'pages-only': false },
+      'chapter':   { journal: false, chapter: true, conference: false, publisher: true, edition: true, access: true, 'pages-only': true },
+      'conference': { journal: false, chapter: false, conference: true, publisher: true, edition: false, access: true, 'pages-only': true },
+    };
+    var vis = groups[sourceType] || groups[''];
+    modal.querySelectorAll('[data-field-group]').forEach(function (el) {
+      var group = el.getAttribute('data-field-group');
+      el.style.display = vis[group] ? '' : 'none';
+    });
   }
 
   function saveSource(existingId) {
@@ -707,6 +765,7 @@
     if (!form) return;
     var fd = new FormData(form);
 
+    var pages = fd.get('page_numbers') || fd.get('page_numbers_alt') || '';
     var payload = {
       source_type: fd.get('source_type') || '',
       authors: fd.get('authors') || '',
@@ -716,7 +775,7 @@
       book_title: fd.get('book_title') || '',
       volume_number: fd.get('volume_number') || '',
       issue_number: fd.get('issue_number') || '',
-      page_numbers: fd.get('page_numbers') || '',
+      page_numbers: pages,
       doi: fd.get('doi') || '',
       url: fd.get('url') || '',
       publisher: fd.get('publisher') || '',

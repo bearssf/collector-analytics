@@ -517,35 +517,52 @@
   border-radius: 4px;
 }
 
-/* Note cell (right ~50%, beside each tile) */
-.crucible-note-cell {
+/* Note tile (right ~50%, beside each source tile, matching size) */
+.crucible-note-tile {
   flex: 1 1 50%;
   min-width: 0;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-.crucible-note-cell__editor {
+.crucible-note-tile__editor {
   flex: 1;
-  min-height: 80px;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.6rem;
+  border-radius: 6px;
+  padding: 0.5rem;
   font-size: 0.85rem;
   color: var(--fg);
   line-height: 1.5;
   outline: none;
 }
-.crucible-note-cell__editor:focus {
+.crucible-note-tile__editor:focus {
   border-color: var(--blue);
 }
-.crucible-note-cell__toolbar {
+.crucible-note-tile__toolbar {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding-top: 0.3rem;
+  padding-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* Light mode for notes */
+.crucible-note-tile--light .crucible-note-tile__editor {
+  background: #fff;
+  color: #1a1a1a;
+  border-color: #d0d0d0;
+}
+.crucible-note-tile--light .crucible-note-tile__editor:focus {
+  border-color: var(--blue);
 }
 .crucible-notes-fmt-btn {
   background: rgba(255,255,255,0.08);
@@ -582,6 +599,8 @@
 .crucible-action-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
   padding: 0.65rem 0 0.2rem;
   flex-shrink: 0;
 }
@@ -598,6 +617,32 @@
 }
 .crucible-add-btn:hover {
   opacity: 0.85;
+}
+.crucible-mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.crucible-mode-btn {
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  border: none;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.crucible-mode-btn:not(:last-child) {
+  border-right: 1px solid var(--line);
+}
+.crucible-mode-btn--active {
+  background: var(--blue);
+  color: #fff;
+}
+.crucible-mode-btn:hover:not(.crucible-mode-btn--active) {
+  background: rgba(255,255,255,0.12);
 }
 
 /* ── Modal ─────────────────────────────────────────────────────────── */
