@@ -841,6 +841,281 @@ function createApiRouter(getPool) {
     }
   });
 
+  /* ── Crucible: sources CRUD ─────────────────────────────────────────── */
+
+  async function ownsProject(pool, projectId, userId) {
+    const r = await pool
+      .request()
+      .input('id', sql.Int, projectId)
+      .input('user_id', sql.Int, userId)
+      .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+    return !!r.recordset[0];
+  }
+
+  router.get('/projects/:projectId/sources', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const rows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .query(
+          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                  authors, publication_date, article_title, journal_title,
+                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  sort_order, created_at, updated_at
+           FROM sources WHERE project_id = @pid ORDER BY article_title, created_at`
+        );
+
+      const tagRows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .query(
+          `SELECT st.source_id, st.tag FROM source_tags st
+           INNER JOIN sources s ON s.id = st.source_id
+           WHERE s.project_id = @pid`
+        );
+      const tagMap = {};
+      tagRows.recordset.forEach(function (r) {
+        if (!tagMap[r.source_id]) tagMap[r.source_id] = [];
+        tagMap[r.source_id].push(r.tag);
+      });
+
+      const secRows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .query(
+          `SELECT ss.source_id, ss.section_id FROM source_sections ss
+           INNER JOIN sources s ON s.id = ss.source_id
+           WHERE s.project_id = @pid`
+        );
+      const secMap = {};
+      secRows.recordset.forEach(function (r) {
+        if (!secMap[r.source_id]) secMap[r.source_id] = [];
+        secMap[r.source_id].push(r.section_id);
+      });
+
+      const sources = rows.recordset.map(function (r) {
+        return Object.assign({}, r, {
+          tags: tagMap[r.id] || [],
+          section_ids: secMap[r.id] || [],
+        });
+      });
+      res.json({ sources });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/sources', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const b = req.body || {};
+      const authors        = (b.authors || '').trim() || null;
+      const publicationDate = (b.publication_date || '').trim() || null;
+      const articleTitle   = (b.article_title || '').trim() || null;
+      const journalTitle   = (b.journal_title || '').trim() || null;
+      const volumeNumber   = (b.volume_number || '').trim() || null;
+      const issueNumber    = (b.issue_number || '').trim() || null;
+      const pageNumbers    = (b.page_numbers || '').trim() || null;
+      const doi            = (b.doi || '').trim() || null;
+      const chapterName    = (b.chapter_name || '').trim() || null;
+      const conferenceName = (b.conference_name || '').trim() || null;
+      const citationText   = (b.citation_text || '').trim() || '';
+      const tags           = Array.isArray(b.tags) ? b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean) : [];
+      const sectionIds     = Array.isArray(b.section_ids) ? b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); }) : [];
+
+      if (!articleTitle && !citationText) {
+        return res.status(400).json({ error: 'Article title or citation text is required.' });
+      }
+
+      const ins = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('citation_text', sql.NVarChar(sql.MAX), citationText)
+        .input('doi', sql.NVarChar(500), doi)
+        .input('authors', sql.NVarChar(sql.MAX), authors)
+        .input('publication_date', sql.NVarChar(100), publicationDate)
+        .input('article_title', sql.NVarChar(500), articleTitle)
+        .input('journal_title', sql.NVarChar(500), journalTitle)
+        .input('volume_number', sql.NVarChar(50), volumeNumber)
+        .input('issue_number', sql.NVarChar(50), issueNumber)
+        .input('page_numbers', sql.NVarChar(100), pageNumbers)
+        .input('chapter_name', sql.NVarChar(500), chapterName)
+        .input('conference_name', sql.NVarChar(500), conferenceName)
+        .query(
+          `INSERT INTO sources (project_id, citation_text, doi, authors, publication_date, article_title,
+            journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name)
+           VALUES (@pid, @citation_text, @doi, @authors, @publication_date, @article_title,
+            @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name);
+           SELECT SCOPE_IDENTITY() AS id;`
+        );
+      const sourceId = ins.recordset[0].id;
+
+      for (const tag of tags) {
+        await p
+          .request()
+          .input('source_id', sql.Int, sourceId)
+          .input('tag', sql.NVarChar(120), tag.slice(0, 120))
+          .query('INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)');
+      }
+      for (const secId of sectionIds) {
+        await p
+          .request()
+          .input('source_id', sql.Int, sourceId)
+          .input('section_id', sql.Int, secId)
+          .query(
+            `IF EXISTS (SELECT 1 FROM project_sections WHERE id = @section_id AND project_id = ${projectId})
+             INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)`
+          );
+      }
+
+      const row = await p
+        .request()
+        .input('id', sql.Int, sourceId)
+        .query(
+          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                  authors, publication_date, article_title, journal_title,
+                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  sort_order, created_at, updated_at
+           FROM sources WHERE id = @id`
+        );
+      const source = row.recordset[0];
+      source.tags = tags;
+      source.section_ids = sectionIds;
+      res.status(201).json({ source });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.patch('/projects/:projectId/sources/:sourceId', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sourceId))
+        return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const b = req.body || {};
+      const updates = [];
+      const rq = p.request().input('sid', sql.Int, sourceId).input('pid', sql.Int, projectId);
+
+      const textFields = [
+        { key: 'authors',          col: 'authors',          type: sql.NVarChar(sql.MAX) },
+        { key: 'publication_date', col: 'publication_date', type: sql.NVarChar(100) },
+        { key: 'article_title',    col: 'article_title',    type: sql.NVarChar(500) },
+        { key: 'journal_title',    col: 'journal_title',    type: sql.NVarChar(500) },
+        { key: 'volume_number',    col: 'volume_number',    type: sql.NVarChar(50) },
+        { key: 'issue_number',     col: 'issue_number',     type: sql.NVarChar(50) },
+        { key: 'page_numbers',     col: 'page_numbers',     type: sql.NVarChar(100) },
+        { key: 'doi',              col: 'doi',              type: sql.NVarChar(500) },
+        { key: 'chapter_name',     col: 'chapter_name',     type: sql.NVarChar(500) },
+        { key: 'conference_name',  col: 'conference_name',  type: sql.NVarChar(500) },
+        { key: 'citation_text',    col: 'citation_text',    type: sql.NVarChar(sql.MAX) },
+        { key: 'crucible_notes',   col: 'crucible_notes',   type: sql.NVarChar(sql.MAX) },
+      ];
+      textFields.forEach(function (f) {
+        if (b[f.key] !== undefined) {
+          const val = b[f.key] != null ? String(b[f.key]).trim() : null;
+          updates.push(f.col + ' = @' + f.col);
+          rq.input(f.col, f.type, val || null);
+        }
+      });
+
+      if (updates.length > 0) {
+        updates.push('updated_at = GETDATE()');
+        const affected = await rq.query(
+          `UPDATE sources SET ${updates.join(', ')} WHERE id = @sid AND project_id = @pid`
+        );
+        if (!affected.rowsAffected[0]) return res.status(404).json({ error: 'Source not found' });
+      }
+
+      if (Array.isArray(b.tags)) {
+        await p.request().input('sid', sql.Int, sourceId).query('DELETE FROM source_tags WHERE source_id = @sid');
+        const tags = b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean);
+        for (const tag of tags) {
+          await p
+            .request()
+            .input('source_id', sql.Int, sourceId)
+            .input('tag', sql.NVarChar(120), tag.slice(0, 120))
+            .query('INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)');
+        }
+      }
+
+      if (Array.isArray(b.section_ids)) {
+        await p.request().input('sid', sql.Int, sourceId).query('DELETE FROM source_sections WHERE source_id = @sid');
+        const sectionIds = b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); });
+        for (const secId of sectionIds) {
+          await p
+            .request()
+            .input('source_id', sql.Int, sourceId)
+            .input('section_id', sql.Int, secId)
+            .query(
+              `IF EXISTS (SELECT 1 FROM project_sections WHERE id = @section_id AND project_id = ${projectId})
+               INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)`
+            );
+        }
+      }
+
+      const row = await p
+        .request()
+        .input('id', sql.Int, sourceId)
+        .query(
+          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                  authors, publication_date, article_title, journal_title,
+                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  sort_order, created_at, updated_at
+           FROM sources WHERE id = @id`
+        );
+      if (!row.recordset[0]) return res.status(404).json({ error: 'Source not found' });
+
+      const tRows = await p.request().input('sid', sql.Int, sourceId)
+        .query('SELECT tag FROM source_tags WHERE source_id = @sid');
+      const sRows = await p.request().input('sid', sql.Int, sourceId)
+        .query('SELECT section_id FROM source_sections WHERE source_id = @sid');
+
+      const source = row.recordset[0];
+      source.tags = tRows.recordset.map(function (r) { return r.tag; });
+      source.section_ids = sRows.recordset.map(function (r) { return r.section_id; });
+      res.json({ source });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.delete('/projects/:projectId/sources/:sourceId', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sourceId))
+        return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+      const del = await p
+        .request()
+        .input('sid', sql.Int, sourceId)
+        .input('pid', sql.Int, projectId)
+        .query('DELETE FROM sources WHERE id = @sid AND project_id = @pid');
+      if (!del.rowsAffected[0]) return res.status(404).json({ error: 'Source not found' });
+      res.status(204).end();
+    } catch (e) {
+      next(e);
+    }
+  });
+
   return router;
 }
 

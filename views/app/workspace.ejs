@@ -38,7 +38,9 @@
           data-incremental-chars="<%= typeof anvilIncrementalChars !== 'undefined' ? anvilIncrementalChars : 40 %>"
         ></div>
       <% } else if (phaseSlug === 'crucible') { %>
-        <div id="crucible-root" class="crucible" data-project-id="<%= projectId %>">
+        <div id="crucible-root" class="crucible"
+          data-project-id="<%= projectId %>"
+          data-sections="<%= encodeURIComponent(JSON.stringify((typeof crucibleSections !== 'undefined' ? crucibleSections : []).map(function(s){ return { id: s.id, title: s.title }; }))) %>">
         </div>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder">
@@ -62,6 +64,8 @@
   <% if (phaseSlug === 'anvil') { %>
   <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js" crossorigin="anonymous"></script>
   <script src="/js/anvil.js" defer></script>
+  <% } else if (phaseSlug === 'crucible') { %>
+  <script src="/js/crucible.js" defer></script>
   <% } %>
 </body>
 </html>

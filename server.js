@@ -803,6 +803,12 @@ app.get(
         req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
       anvilSectionId = !Number.isNaN(sq) ? sq : null;
     }
+    let crucibleSections = [];
+    if (slug === 'crucible' && bundle.sections && bundle.sections.length) {
+      crucibleSections = bundle.sections.map(function (s) {
+        return { id: s.id, title: s.title };
+      });
+    }
     res.render('app/workspace', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -816,6 +822,7 @@ app.get(
       insightHint: phase.insight,
       anvilSections,
       anvilSectionId,
+      crucibleSections,
       anvilInitialIdleMs: ANVIL_INITIAL_IDLE_MS,
       anvilIncrementalChars: ANVIL_INCREMENTAL_CHARS,
     });

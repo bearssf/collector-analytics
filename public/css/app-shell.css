@@ -338,6 +338,456 @@
   color: var(--blue);
 }
 
+/* ── The Crucible: source management components ────────────────────── */
+
+/* Toolbar: sort + filter */
+.crucible-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.crucible-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.crucible-toolbar__right {
+  display: flex;
+  align-items: center;
+}
+.crucible-sort-label {
+  font-size: 0.84rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.crucible-select {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.crucible-select:focus {
+  outline: 2px solid var(--blue);
+}
+.crucible-filter-btn {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.crucible-filter-btn:hover {
+  background: rgba(255,255,255,0.14);
+}
+.crucible-count {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Main area: tiles left + notes right */
+.crucible-main {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Make crucible-root a flex column so the main area fills available space */
+#crucible-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Tiles pane (left 50%) */
+.crucible-tiles-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.5rem;
+}
+
+/* Notes pane (right 50%) */
+.crucible-notes-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.crucible-notes-header {
+  font-size: 0.88rem;
+  color: var(--fg);
+  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+.crucible-notes-editor {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+  line-height: 1.55;
+  outline: none;
+}
+.crucible-notes-editor:focus {
+  border-color: var(--blue);
+}
+.crucible-notes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+}
+.crucible-notes-fmt-btn {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.crucible-notes-fmt-btn:hover {
+  background: rgba(255,255,255,0.14);
+}
+.crucible-notes-save-btn {
+  margin-left: auto;
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.crucible-notes-save-btn:hover {
+  opacity: 0.85;
+}
+.crucible-notes-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  color: var(--muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Source tiles */
+.crucible-tile {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  height: 125px;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.crucible-tile:hover {
+  border-color: rgba(120,160,255,0.4);
+  background: rgba(255,255,255,0.07);
+}
+.crucible-tile--active {
+  border-color: var(--blue);
+  background: rgba(120,160,255,0.1);
+}
+.crucible-tile__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.crucible-tile__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.crucible-tile__actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.crucible-tile-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 0.2rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.crucible-tile-btn:hover {
+  color: var(--fg);
+}
+.crucible-tile-btn--delete:hover {
+  color: #ef4444;
+}
+.crucible-tile__meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crucible-tile__tags {
+  margin-top: auto;
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  padding-top: 0.3rem;
+}
+.crucible-tag-badge {
+  display: inline-block;
+  background: rgba(120,160,255,0.15);
+  color: var(--blue);
+  font-size: 0.74rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+/* Empty state */
+.crucible-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+/* Action bar */
+.crucible-action-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0.65rem 0 0.2rem;
+  flex-shrink: 0;
+}
+.crucible-add-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.6rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.crucible-add-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+.crucible-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.crucible-modal {
+  background: var(--bg, #1a1d23);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  width: 600px;
+  max-width: 94vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.crucible-modal--sm {
+  width: 380px;
+}
+.crucible-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.2rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+.crucible-modal__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--fg);
+}
+.crucible-modal__close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+.crucible-modal__close:hover {
+  color: var(--fg);
+}
+.crucible-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.2rem;
+}
+.crucible-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+/* Buttons */
+.crucible-btn {
+  border: none;
+  border-radius: 7px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.crucible-btn--primary {
+  background: var(--blue);
+  color: #fff;
+}
+.crucible-btn--primary:hover {
+  opacity: 0.85;
+}
+.crucible-btn--secondary {
+  background: rgba(255,255,255,0.1);
+  color: var(--fg);
+}
+.crucible-btn--secondary:hover {
+  background: rgba(255,255,255,0.16);
+}
+
+/* Form rows */
+.crucible-form-row {
+  margin-bottom: 0.65rem;
+}
+.crucible-form-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.84rem;
+  color: var(--muted);
+  gap: 0.2rem;
+}
+.crucible-form-row input[type="text"] {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+  width: 100%;
+  box-sizing: border-box;
+}
+.crucible-form-row input[type="text"]:focus {
+  outline: 2px solid var(--blue);
+  border-color: transparent;
+}
+.crucible-form-row--half {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.crucible-form-row--third {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+.crucible-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.crucible-field-label {
+  font-size: 0.84rem;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+.crucible-section-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+.crucible-section-check {
+  font-size: 0.84rem;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+/* Tag filter modal list */
+.crucible-tag-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.crucible-tag-filter-item {
+  font-size: 0.88rem;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+/* Make center canvas fill height for crucible */
+.app-body--crucible .app-canvas {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-body--crucible .app-canvas h1 {
+  flex-shrink: 0;
+}
+.app-body--crucible .app-canvas .sub {
+  flex-shrink: 0;
+}
+
 .anvil2-panel {
   width: 100%;
   max-width: 52rem;
