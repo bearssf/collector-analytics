@@ -130,8 +130,10 @@
       renderFeedbackRail();
       return;
     }
-    quill.deleteText(m.start, len);
-    quill.insertText(m.start, sug);
+    /* Use Quill source 'silent' so this doesn't emit text-change — otherwise Apply would
+       debounce-schedule another Bedrock review like a normal keystroke. */
+    quill.deleteText(m.start, len, 'silent');
+    quill.insertText(m.start, sug, 'silent');
     row.status = 'applied';
     row.matchPosition = null;
     rebaseFeedback(getPlain(quill));
