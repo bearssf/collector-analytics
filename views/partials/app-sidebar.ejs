@@ -42,7 +42,7 @@
     <% if (!currentProject) { %>
       <p class="app-sidebar-muted">No projects yet.<br><a href="/app/projects/new">Forge a project</a></p>
     <% } else { %>
-      <span class="app-sidebar-project-name" title="<%= currentProject.name %>"><%= truncateProjectTitle(currentProject.name) %></span>
+      <a href="/app/project/<%= effectivePid %>/settings" class="app-sidebar-project-name" title="<%= currentProject.name %>"><%= truncateProjectTitle(currentProject.name) %></a>
       <nav class="app-nav">
         <a href="/app/project/<%= effectivePid %>/settings" class="<%= slug === 'settings' ? 'active' : '' %>">Project settings</a>
         <% var hasActiveSection = typeof anvilSectionId !== 'undefined' && anvilSectionId != null; %>

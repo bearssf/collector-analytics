@@ -61,10 +61,11 @@
   ];
   Quill.register(Size, true);
 
-  /* ── Image resize overlay (does not modify Quill DOM) ── */
+  /* ── Image resize overlay (viewport-fixed, does not modify Quill DOM) ── */
   var resizeOverlay = null;
   var resizeHandle = null;
   var resizeTarget = null;
+  var isDragging = false;
 
   function createResizeOverlay() {
     if (resizeOverlay) return;
@@ -73,12 +74,14 @@
     resizeHandle = document.createElement('div');
     resizeHandle.className = 'anvil-img-resize-handle';
     resizeOverlay.appendChild(resizeHandle);
+    document.body.appendChild(resizeOverlay);
 
     var startX, startW;
     function onDown(e) {
       if (!resizeTarget) return;
       e.preventDefault();
       e.stopPropagation();
+      isDragging = true;
       startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
       startW = resizeTarget.offsetWidth;
       document.addEventListener('mousemove', onMove);
@@ -97,6 +100,7 @@
       positionOverlay();
     }
     function onUp() {
+      isDragging = false;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.removeEventListener('touchmove', onMove);
@@ -108,17 +112,13 @@
   }
 
   function positionOverlay() {
-    if (!resizeOverlay || !resizeTarget || !quill) return;
-    var editorEl = quill.root;
-    var parent = editorEl.closest('.anvil-quill-wrap') || editorEl.parentNode;
-    if (resizeOverlay.parentNode !== parent) parent.appendChild(resizeOverlay);
-    var parentRect = parent.getBoundingClientRect();
-    var imgRect = resizeTarget.getBoundingClientRect();
+    if (!resizeOverlay || !resizeTarget) return;
+    var r = resizeTarget.getBoundingClientRect();
     resizeOverlay.style.display = 'block';
-    resizeOverlay.style.left = (imgRect.left - parentRect.left) + 'px';
-    resizeOverlay.style.top = (imgRect.top - parentRect.top) + 'px';
-    resizeOverlay.style.width = imgRect.width + 'px';
-    resizeOverlay.style.height = imgRect.height + 'px';
+    resizeOverlay.style.left = r.left + 'px';
+    resizeOverlay.style.top = r.top + 'px';
+    resizeOverlay.style.width = r.width + 'px';
+    resizeOverlay.style.height = r.height + 'px';
   }
 
   function hideOverlay() {
@@ -126,12 +126,18 @@
     resizeTarget = null;
   }
 
+  function isImgStillVisible() {
+    if (!resizeTarget || !quill) return false;
+    return quill.root.contains(resizeTarget);
+  }
+
   function onEditorImgClick(e) {
     if (e.target.tagName === 'IMG') {
+      e.preventDefault();
       createResizeOverlay();
       resizeTarget = e.target;
       positionOverlay();
-    } else {
+    } else if (!isDragging) {
       hideOverlay();
     }
   }
@@ -139,8 +145,18 @@
   function attachImageResizeHandlers() {
     if (!quill) return;
     quill.root.addEventListener('click', onEditorImgClick);
+
+    var editorScroller = quill.root;
+    editorScroller.addEventListener('scroll', function () {
+      if (resizeTarget && !isDragging) {
+        if (isImgStillVisible()) positionOverlay();
+        else hideOverlay();
+      }
+    });
+
     document.addEventListener('click', function (e) {
       if (!quill) return;
+      if (isDragging) return;
       if (!quill.root.contains(e.target) && resizeOverlay && !resizeOverlay.contains(e.target)) {
         hideOverlay();
       }

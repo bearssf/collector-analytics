@@ -461,10 +461,16 @@
 .app-sidebar-muted a:hover { text-decoration: underline; }
 .app-sidebar-project-name {
   display: block;
-  padding: 0 0.55rem 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
   font-size: 0.92rem;
   line-height: 1.35;
   color: #1eb8c6;
+  text-decoration: none;
+}
+.app-sidebar-project-name:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #3dd4e0;
 }
 .app-sidebar-footer {
   margin-top: auto;
@@ -2338,26 +2344,26 @@
   margin-top: 0.25rem;
 }
 
-/* Image resize overlay for Quill editor */
+/* Image resize overlay for Quill editor (viewport-fixed) */
 .anvil-img-overlay {
   display: none;
-  position: absolute;
+  position: fixed;
   border: 2px solid var(--blue);
   pointer-events: none;
-  z-index: 10;
+  z-index: 9999;
   box-sizing: border-box;
 }
 .anvil-img-resize-handle {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
-  width: 10px;
-  height: 10px;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
   background: var(--blue);
   border: 2px solid #fff;
   border-radius: 2px;
   cursor: nwse-resize;
   pointer-events: auto;
-  z-index: 11;
+  z-index: 10000;
 }
 
