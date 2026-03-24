@@ -8,8 +8,6 @@ const { ensureSubscriptionRow, getSubscriptionRow, appAccessFromRow } = require(
 const { ALLOWED_TITLES, SEARCH_ENGINES } = require('../lib/userConstants');
 const { getUserProfileRow, rowToPublicUser } = require('../lib/userProfile');
 const {
-  PURPOSES,
-  CITATION_STYLES,
   loadTemplates,
   listProjects,
   getProjectBundle,
