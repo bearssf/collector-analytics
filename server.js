@@ -823,6 +823,7 @@ app.get(
       anvilSections,
       anvilSectionId,
       crucibleSections,
+      crucibleCitationStyle: bundle.project.citation_style || 'APA',
       anvilInitialIdleMs: ANVIL_INITIAL_IDLE_MS,
       anvilIncrementalChars: ANVIL_INCREMENTAL_CHARS,
     });

@@ -40,6 +40,7 @@
       <% } else if (phaseSlug === 'crucible') { %>
         <div id="crucible-root" class="crucible"
           data-project-id="<%= projectId %>"
+          data-citation-style="<%= typeof crucibleCitationStyle !== 'undefined' ? crucibleCitationStyle : 'APA' %>"
           data-sections="<%= encodeURIComponent(JSON.stringify((typeof crucibleSections !== 'undefined' ? crucibleSections : []).map(function(s){ return { id: s.id, title: s.title }; }))) %>">
         </div>
       <% } else if (phaseSlug === 'framework') { %>

@@ -867,6 +867,8 @@ function createApiRouter(getPool) {
           `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  source_type, publisher, publisher_location, editors, book_title,
+                  url, edition, access_date,
                   sort_order, created_at, updated_at
            FROM sources WHERE project_id = @pid ORDER BY article_title, created_at`
         );
@@ -920,19 +922,28 @@ function createApiRouter(getPool) {
         return res.status(404).json({ error: 'Not found' });
 
       const b = req.body || {};
-      const authors        = (b.authors || '').trim() || null;
-      const publicationDate = (b.publication_date || '').trim() || null;
-      const articleTitle   = (b.article_title || '').trim() || null;
-      const journalTitle   = (b.journal_title || '').trim() || null;
-      const volumeNumber   = (b.volume_number || '').trim() || null;
-      const issueNumber    = (b.issue_number || '').trim() || null;
-      const pageNumbers    = (b.page_numbers || '').trim() || null;
-      const doi            = (b.doi || '').trim() || null;
-      const chapterName    = (b.chapter_name || '').trim() || null;
-      const conferenceName = (b.conference_name || '').trim() || null;
-      const citationText   = (b.citation_text || '').trim() || '';
-      const tags           = Array.isArray(b.tags) ? b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean) : [];
-      const sectionIds     = Array.isArray(b.section_ids) ? b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); }) : [];
+      function trimOrNull(v) { return (v || '').trim() || null; }
+      const authors          = trimOrNull(b.authors);
+      const publicationDate  = trimOrNull(b.publication_date);
+      const articleTitle     = trimOrNull(b.article_title);
+      const journalTitle     = trimOrNull(b.journal_title);
+      const volumeNumber     = trimOrNull(b.volume_number);
+      const issueNumber      = trimOrNull(b.issue_number);
+      const pageNumbers      = trimOrNull(b.page_numbers);
+      const doi              = trimOrNull(b.doi);
+      const chapterName      = trimOrNull(b.chapter_name);
+      const conferenceName   = trimOrNull(b.conference_name);
+      const sourceType       = trimOrNull(b.source_type);
+      const publisher        = trimOrNull(b.publisher);
+      const publisherLocation = trimOrNull(b.publisher_location);
+      const editors          = trimOrNull(b.editors);
+      const bookTitle        = trimOrNull(b.book_title);
+      const url              = trimOrNull(b.url);
+      const edition          = trimOrNull(b.edition);
+      const accessDate       = trimOrNull(b.access_date);
+      const citationText     = (b.citation_text || '').trim() || '';
+      const tags             = Array.isArray(b.tags) ? b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean) : [];
+      const sectionIds       = Array.isArray(b.section_ids) ? b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); }) : [];
 
       if (!articleTitle && !citationText) {
         return res.status(400).json({ error: 'Article title or citation text is required.' });
@@ -952,11 +963,21 @@ function createApiRouter(getPool) {
         .input('page_numbers', sql.NVarChar(100), pageNumbers)
         .input('chapter_name', sql.NVarChar(500), chapterName)
         .input('conference_name', sql.NVarChar(500), conferenceName)
+        .input('source_type', sql.NVarChar(40), sourceType)
+        .input('publisher', sql.NVarChar(500), publisher)
+        .input('publisher_location', sql.NVarChar(500), publisherLocation)
+        .input('editors', sql.NVarChar(sql.MAX), editors)
+        .input('book_title', sql.NVarChar(500), bookTitle)
+        .input('url', sql.NVarChar(1000), url)
+        .input('edition', sql.NVarChar(100), edition)
+        .input('access_date', sql.NVarChar(100), accessDate)
         .query(
           `INSERT INTO sources (project_id, citation_text, doi, authors, publication_date, article_title,
-            journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name)
+            journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name,
+            source_type, publisher, publisher_location, editors, book_title, url, edition, access_date)
            VALUES (@pid, @citation_text, @doi, @authors, @publication_date, @article_title,
-            @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name);
+            @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name,
+            @source_type, @publisher, @publisher_location, @editors, @book_title, @url, @edition, @access_date);
            SELECT SCOPE_IDENTITY() AS id;`
         );
       const sourceId = ins.recordset[0].id;
@@ -986,6 +1007,8 @@ function createApiRouter(getPool) {
           `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  source_type, publisher, publisher_location, editors, book_title,
+                  url, edition, access_date,
                   sort_order, created_at, updated_at
            FROM sources WHERE id = @id`
         );
@@ -1013,18 +1036,26 @@ function createApiRouter(getPool) {
       const rq = p.request().input('sid', sql.Int, sourceId).input('pid', sql.Int, projectId);
 
       const textFields = [
-        { key: 'authors',          col: 'authors',          type: sql.NVarChar(sql.MAX) },
-        { key: 'publication_date', col: 'publication_date', type: sql.NVarChar(100) },
-        { key: 'article_title',    col: 'article_title',    type: sql.NVarChar(500) },
-        { key: 'journal_title',    col: 'journal_title',    type: sql.NVarChar(500) },
-        { key: 'volume_number',    col: 'volume_number',    type: sql.NVarChar(50) },
-        { key: 'issue_number',     col: 'issue_number',     type: sql.NVarChar(50) },
-        { key: 'page_numbers',     col: 'page_numbers',     type: sql.NVarChar(100) },
-        { key: 'doi',              col: 'doi',              type: sql.NVarChar(500) },
-        { key: 'chapter_name',     col: 'chapter_name',     type: sql.NVarChar(500) },
-        { key: 'conference_name',  col: 'conference_name',  type: sql.NVarChar(500) },
-        { key: 'citation_text',    col: 'citation_text',    type: sql.NVarChar(sql.MAX) },
-        { key: 'crucible_notes',   col: 'crucible_notes',   type: sql.NVarChar(sql.MAX) },
+        { key: 'authors',            col: 'authors',            type: sql.NVarChar(sql.MAX) },
+        { key: 'publication_date',   col: 'publication_date',   type: sql.NVarChar(100) },
+        { key: 'article_title',      col: 'article_title',      type: sql.NVarChar(500) },
+        { key: 'journal_title',      col: 'journal_title',      type: sql.NVarChar(500) },
+        { key: 'volume_number',      col: 'volume_number',      type: sql.NVarChar(50) },
+        { key: 'issue_number',       col: 'issue_number',       type: sql.NVarChar(50) },
+        { key: 'page_numbers',       col: 'page_numbers',       type: sql.NVarChar(100) },
+        { key: 'doi',                col: 'doi',                type: sql.NVarChar(500) },
+        { key: 'chapter_name',       col: 'chapter_name',       type: sql.NVarChar(500) },
+        { key: 'conference_name',    col: 'conference_name',    type: sql.NVarChar(500) },
+        { key: 'source_type',        col: 'source_type',        type: sql.NVarChar(40) },
+        { key: 'publisher',          col: 'publisher',          type: sql.NVarChar(500) },
+        { key: 'publisher_location', col: 'publisher_location', type: sql.NVarChar(500) },
+        { key: 'editors',            col: 'editors',            type: sql.NVarChar(sql.MAX) },
+        { key: 'book_title',         col: 'book_title',         type: sql.NVarChar(500) },
+        { key: 'url',                col: 'url',                type: sql.NVarChar(1000) },
+        { key: 'edition',            col: 'edition',            type: sql.NVarChar(100) },
+        { key: 'access_date',        col: 'access_date',        type: sql.NVarChar(100) },
+        { key: 'citation_text',      col: 'citation_text',      type: sql.NVarChar(sql.MAX) },
+        { key: 'crucible_notes',     col: 'crucible_notes',     type: sql.NVarChar(sql.MAX) },
       ];
       textFields.forEach(function (f) {
         if (b[f.key] !== undefined) {
@@ -1076,6 +1107,8 @@ function createApiRouter(getPool) {
           `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                  source_type, publisher, publisher_location, editors, book_title,
+                  url, edition, access_date,
                   sort_order, created_at, updated_at
            FROM sources WHERE id = @id`
         );
