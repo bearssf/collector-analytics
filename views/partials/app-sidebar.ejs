@@ -31,7 +31,7 @@
       <% if (projects.length > 1) { %>
         <nav class="app-nav app-project-picker" aria-label="Switch project">
           <% projects.forEach(function(p) { %>
-            <a href="/app/project/<%= p.id %>/<%= typeof workspaceSlug !== 'undefined' && workspaceSlug === 'anvil2' ? 'anvil2' : 'anvil' %>" class="<%= (cur == p.id && na === 'workspace') ? 'active' : '' %>"><%= p.name %></a>
+            <a href="/app/project/<%= p.id %>/anvil" class="<%= (cur == p.id && na === 'workspace') ? 'active' : '' %>"><%= p.name %></a>
           <% }); %>
         </nav>
       <% } else { %>
@@ -41,10 +41,7 @@
         <nav class="app-nav">
           <a href="/app/project/<%= effectivePid %>/settings" class="<%= typeof workspaceSlug !== 'undefined' && workspaceSlug === 'settings' ? 'active' : '' %>">Project settings</a>
           <a href="/app/project/<%= effectivePid %>/anvil<%= (typeof anvilSections !== 'undefined' && anvilSections.length) ? ('?section=' + anvilSections[0].id) : '' %>" class="<%= slug === 'anvil' ? 'active' : '' %>">The Anvil</a>
-          <% if (typeof anvilSections !== 'undefined' && anvilSections.length) { %>
-          <a href="/app/project/<%= effectivePid %>/anvil2?section=<%= anvilSections[0].id %>" class="<%= slug === 'anvil2' ? 'active' : '' %>">The Anvil (beta)</a>
-          <% } %>
-          <% if (typeof anvilSections !== 'undefined' && anvilSections.length && (slug === 'anvil' || slug === 'anvil2')) { %>
+          <% if (typeof anvilSections !== 'undefined' && anvilSections.length && slug === 'anvil') { %>
           <nav class="app-nav app-nav--anvil-sections" aria-label="Section drafts">
             <% anvilSections.forEach(function (sec) { %>
               <a href="/app/project/<%= effectivePid %>/<%= slug %>?section=<%= sec.id %>" class="<%= typeof anvilSectionId !== 'undefined' && anvilSectionId != null && Number(anvilSectionId) === Number(sec.id) ? 'active' : '' %>"><%= sec.title %></a>

@@ -1115,7 +1115,7 @@ function createApiRouter(getPool) {
     }
   });
 
-  /** Anvil2 (beta): structured anchor-based feedback — does not persist to anvil_suggestions. */
+  /** The Anvil: structured anchor-based feedback — does not persist to anvil_suggestions. */
   router.post('/projects/:projectId/sections/:sectionId/review-structured', async (req, res, next) => {
     try {
       if (!isBedrockConfigured()) {

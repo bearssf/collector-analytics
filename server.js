@@ -51,14 +51,20 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 const PORT = process.env.PORT || 3000;
 
-/** Anvil2 (beta) — idle delay before first Bedrock review; character threshold for follow-up reviews (see docs/anvil2.md). */
-const ANVIL2_INITIAL_IDLE_MS = Math.max(
+/** The Anvil — idle delay before first Bedrock review; character threshold for follow-ups (see docs/anvil-workspace.md). ANVIL2_* still supported. */
+const ANVIL_INITIAL_IDLE_MS = Math.max(
   0,
-  parseInt(process.env.ANVIL2_INITIAL_IDLE_MS || '1800', 10) || 1800
+  parseInt(
+    process.env.ANVIL_INITIAL_IDLE_MS || process.env.ANVIL2_INITIAL_IDLE_MS || '1800',
+    10
+  ) || 1800
 );
-const ANVIL2_INCREMENTAL_CHARS = Math.max(
+const ANVIL_INCREMENTAL_CHARS = Math.max(
   1,
-  parseInt(process.env.ANVIL2_INCREMENTAL_CHARS || '40', 10) || 40
+  parseInt(
+    process.env.ANVIL_INCREMENTAL_CHARS || process.env.ANVIL2_INCREMENTAL_CHARS || '40',
+    10
+  ) || 40
 );
 
 const dbConfig = {
@@ -326,10 +332,9 @@ app.get('/product', (req, res) => {
 });
 
 const WORKSPACE_PHASES = {
-  anvil: { title: 'The Anvil', insight: 'Paragraph feedback, scoring, and citations will appear here.' },
-  anvil2: {
-    title: 'The Anvil (beta)',
-    insight: 'Experimental anchor-based AI feedback. Compare with the classic Anvil; same project drafts.',
+  anvil: {
+    title: 'The Anvil',
+    insight: 'Anchor-based AI writing feedback. Same project drafts as The Crucible.',
   },
   crucible: { title: 'The Crucible', insight: 'Source lists, notes, and Semantic Scholar suggestions will appear here.' },
   foundry: { title: 'The Foundry', insight: 'Generated research topics and gaps will appear here for paid members.' },
@@ -760,15 +765,15 @@ app.get(
   asyncHandler(async (req, res) => {
     const projectId = parseInt(req.params.projectId, 10);
     const { slug } = req.params;
+    if (slug === 'anvil2') {
+      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      return res.redirect(301, `/app/project/${projectId}/anvil${qs}`);
+    }
     const phase = WORKSPACE_PHASES[slug];
     if (Number.isNaN(projectId) || !phase) return res.status(404).send('Not found');
     const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
     if (!bundle) return res.status(404).send('Not found');
-    if (
-      (slug === 'anvil' || slug === 'anvil2') &&
-      bundle.sections &&
-      bundle.sections.length > 0
-    ) {
+    if (slug === 'anvil' && bundle.sections && bundle.sections.length > 0) {
       const q =
         req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
       const valid =
@@ -787,7 +792,7 @@ app.get(
     const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
     let anvilSections = [];
     let anvilSectionId = null;
-    if ((slug === 'anvil' || slug === 'anvil2') && bundle.sections && bundle.sections.length) {
+    if (slug === 'anvil' && bundle.sections && bundle.sections.length) {
       anvilSections = bundle.sections.map(function (s) {
         return { id: s.id, title: s.title };
       });
@@ -808,8 +813,8 @@ app.get(
       insightHint: phase.insight,
       anvilSections,
       anvilSectionId,
-      anvil2InitialIdleMs: ANVIL2_INITIAL_IDLE_MS,
-      anvil2IncrementalChars: ANVIL2_INCREMENTAL_CHARS,
+      anvilInitialIdleMs: ANVIL_INITIAL_IDLE_MS,
+      anvilIncrementalChars: ANVIL_INCREMENTAL_CHARS,
     });
   })
 );

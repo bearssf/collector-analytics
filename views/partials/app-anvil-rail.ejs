@@ -1,46 +1,12 @@
 <%#
-  Anvil-only right column: feedback & suggestions, citations (Crucible sources). Research plan lives on The Crucible.
-  anvil.js: suggestions, research plan POST (Evidence), citations.
+  The Anvil: structured AI feedback (client-side + /review-structured).
 %>
-<aside class="app-insight app-anvil-rail" aria-label="Writing feedback and citations">
-  <div class="app-anvil-rail__stack">
-    <section class="app-anvil-rail__pane" aria-labelledby="anvil-rail-feedback-h">
-      <div id="anvil-rail-feedback-h" class="insight-h">Feedback & suggestions</div>
-      <div id="anvil-score-strip" class="anvil-score-strip" aria-label="Scores by feedback category" role="region"></div>
-      <div id="anvil-feedback-pane" class="app-anvil-rail__scroll">
-        <div id="anvil-feedback-stale-banner" class="anvil-feedback-stale-banner" hidden role="status"></div>
-        <p id="anvil-ai-review-hint" class="anvil-ai-review-hint" role="status" aria-live="polite" hidden></p>
-        <div id="anvil-feedback-mount" class="anvil-feedback-mount" aria-live="polite">
-          <p class="anvil-feedback-placeholder">Loading feedback…</p>
-        </div>
-      </div>
-    </section>
-    <section class="app-anvil-rail__pane" aria-labelledby="anvil-rail-citations-h">
-      <div id="anvil-rail-citations-h" class="insight-h">Citations</div>
-      <div id="anvil-citations-pane" class="app-anvil-rail__scroll">
-        <div id="anvil-citations-mount" class="anvil-citations-mount" aria-live="polite">
-          <p class="anvil-citations-placeholder">Loading sources…</p>
-        </div>
-      </div>
-    </section>
-  </div>
-  <dialog id="anvil-evidence-resolve-dialog" class="anvil-evidence-resolve-dialog">
-    <div class="anvil-evidence-resolve-dialog__inner">
-      <h3 class="anvil-evidence-resolve-dialog__title">Resolve with citation</h3>
-      <p class="anvil-evidence-resolve-dialog__hint">
-        Pick a source linked to this section. We’ll insert the in-text citation and mark this feedback resolved.
-      </p>
-      <div id="anvil-evidence-resolve-sources" class="anvil-evidence-resolve-sources"></div>
-      <div class="anvil-evidence-resolve-dialog__actions">
-        <button type="button" class="anvil-evidence-resolve-dialog__cancel" id="anvil-evidence-resolve-cancel">Cancel</button>
-      </div>
-    </div>
-  </dialog>
-  <div id="anvil-feedback-apply-overlay" class="anvil-feedback-apply-overlay" hidden aria-hidden="true">
-    <div class="anvil-feedback-apply-overlay__card" role="status">
-      <span class="anvil-feedback-apply-overlay__spinner" aria-hidden="true"></span>
-      <p class="anvil-feedback-apply-overlay__title">Applying suggestion…</p>
-      <p class="anvil-feedback-apply-overlay__sub">This may take a few seconds. Please don’t close the tab.</p>
+<aside class="app-insight app-anvil-rail" aria-label="AI feedback">
+  <div class="app-anvil-rail__inner">
+    <div class="insight-h">AI feedback</div>
+    <p class="app-anvil-rail__hint">Anchored suggestions from the model. Apply updates the draft; items that no longer match the text are removed. New analysis adds suggestions above older ones.</p>
+    <div id="anvil-feedback-mount" class="app-anvil-rail__scroll" aria-live="polite">
+      <p class="anvil2-feedback-placeholder">Load a section to see feedback after you pause typing.</p>
     </div>
   </div>
 </aside>

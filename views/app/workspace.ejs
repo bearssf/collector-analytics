@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <%- include('../partials/app-head', { title: phaseTitle }) %>
-  <% if (phaseSlug === 'anvil' || phaseSlug === 'anvil2') { %>
+  <% if (phaseSlug === 'anvil') { %>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" crossorigin="anonymous" />
   <% } %>
 </head>
-<body class="app-body app-body--workspace-shell<%= phaseSlug === 'anvil' || phaseSlug === 'anvil2' ? ' app-body--anvil' : '' %><%= phaseSlug === 'anvil2' ? ' app-body--anvil2' : '' %><%= phaseSlug === 'crucible' ? ' app-body--crucible' : '' %>">
+<body class="app-body app-body--workspace-shell<%= phaseSlug === 'anvil' ? ' app-body--anvil' : '' %><%= phaseSlug === 'crucible' ? ' app-body--crucible' : '' %>">
   <div class="app-grid">
     <%- include('../partials/app-sidebar', { user: user, navActive: 'workspace', projects: projects, currentProjectId: currentProjectId, workspaceSlug: phaseSlug, appAccess: appAccess, anvilSections: typeof anvilSections !== 'undefined' ? anvilSections : [], anvilSectionId: typeof anvilSectionId !== 'undefined' ? anvilSectionId : null }) %>
     <main class="app-canvas">
@@ -17,9 +17,7 @@
       <% if (phaseSlug === 'crucible') { %>
         <p class="sub">Sources and Notes for your project, &ldquo;<%= projectTitle %>&rdquo;.</p>
       <% } else if (phaseSlug === 'anvil') { %>
-        <p class="sub app-anvil-intro">Forge Draft for: <strong><%= projectTitle %></strong></p>
-      <% } else if (phaseSlug === 'anvil2') { %>
-        <p class="sub app-anvil-intro">Beta editor — same project drafts as <a class="app-anvil2-link" href="/app/project/<%= projectId %>/anvil">The Anvil</a>. <strong><%= projectTitle %></strong></p>
+        <p class="sub app-anvil-intro">Forge draft for <strong><%= projectTitle %></strong>. Same sections as The Crucible.</p>
       <% } else if (phaseSlug === 'framework') { %>
         <p class="sub">Argument outline and evidence mapping for <strong><%= projectTitle %></strong>.</p>
       <% } else { %>
@@ -35,14 +33,12 @@
         <div id="crucible-root" class="crucible" data-project-id="<%= projectId %>"></div>
         <script src="/js/crucible.js" defer></script>
       <% } else if (phaseSlug === 'anvil') { %>
-        <div id="anvil-root" class="anvil" data-project-id="<%= projectId %>"></div>
-      <% } else if (phaseSlug === 'anvil2') { %>
         <div
-          id="anvil2-root"
-          class="anvil anvil2"
+          id="anvil-root"
+          class="anvil"
           data-project-id="<%= projectId %>"
-          data-initial-idle-ms="<%= typeof anvil2InitialIdleMs !== 'undefined' ? anvil2InitialIdleMs : 1800 %>"
-          data-incremental-chars="<%= typeof anvil2IncrementalChars !== 'undefined' ? anvil2IncrementalChars : 40 %>"
+          data-initial-idle-ms="<%= typeof anvilInitialIdleMs !== 'undefined' ? anvilInitialIdleMs : 1800 %>"
+          data-incremental-chars="<%= typeof anvilIncrementalChars !== 'undefined' ? anvilIncrementalChars : 40 %>"
         ></div>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder">
@@ -57,8 +53,6 @@
     </main>
     <% if (phaseSlug === 'anvil') { %>
       <%- include('../partials/app-anvil-rail') %>
-    <% } else if (phaseSlug === 'anvil2') { %>
-      <%- include('../partials/app-anvil2-rail') %>
     <% } else if (phaseSlug === 'crucible') { %>
       <%- include('../partials/app-crucible-rail', { insightHint: insightHint || 'Feedback and suggestions for this step will appear here.' }) %>
     <% } else { %>
@@ -67,11 +61,7 @@
   </div>
   <% if (phaseSlug === 'anvil') { %>
   <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/quill-image-resize-module@3.0.0/image-resize.min.js" crossorigin="anonymous"></script>
   <script src="/js/anvil.js" defer></script>
-  <% } else if (phaseSlug === 'anvil2') { %>
-  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js" crossorigin="anonymous"></script>
-  <script src="/js/anvil2.js" defer></script>
   <% } %>
 </body>
 </html>

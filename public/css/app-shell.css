@@ -245,84 +245,35 @@
   margin-bottom: 0.6rem;
 }
 
-/* Anvil: right rail = feedback (top) + citations (bottom), each scrolls independently. Research plan: Crucible page */
+/* The Anvil: right rail = AI feedback column */
 .app-body--workspace-shell .app-insight.app-anvil-rail {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
-.app-anvil-rail__stack {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-.app-anvil-rail__pane {
+.app-anvil-rail__inner {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-.app-anvil-rail__pane:first-child {
-  border-bottom: 1px solid var(--line);
-  margin-bottom: calc(0.75rem + 0.125in);
-  padding-bottom: 0.75rem;
-}
-.app-anvil-rail__pane .insight-h {
-  flex-shrink: 0;
 }
 .app-insight.app-anvil-rail .insight-h {
-  color: var(--blue);
-}
-.app-anvil-rail__scroll {
-  flex: 1;
-  min-height: 5rem;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.app-anvil-rail__placeholder-card {
-  margin-bottom: 0;
-}
-
-/* Anvil2 (beta): single scrollable feedback column */
-.app-body--workspace-shell .app-insight.app-anvil2-rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-.app-anvil2-rail__inner {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.app-insight.app-anvil2-rail .insight-h {
   color: #c4a5ff;
 }
-.app-anvil2-rail__hint {
+.app-anvil-rail__hint {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.45;
   margin: 0 0 0.65rem;
   max-width: 22rem;
 }
-.app-anvil2-rail__scroll {
+.app-anvil-rail__scroll {
   flex: 1;
   min-height: 8rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-}
-.app-anvil2-link {
-  color: var(--blue);
-  text-decoration: none;
-}
-.app-anvil2-link:hover {
-  text-decoration: underline;
 }
 .anvil2-panel {
   width: 100%;

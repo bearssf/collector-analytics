@@ -103,7 +103,7 @@ On startup the app creates (if missing): **`subscriptions`** (Stripe IDs, `curre
 
 - **Billing:** **Account** → subscribe via **`/billing/subscribe`** or **`/billing/checkout`**; **update payment method** on **`/billing/payment-method`** (SetupIntent + Payment Element when **`STRIPE_PUBLISHABLE_KEY`** is set); **auto-renew**; **monthly/yearly plan change** with **proration estimate** (dual prices; yearly → monthly only near renewal); **`GET /billing/portal`** for Stripe portal (invoices, etc.). **`POST /webhooks/stripe`** updates `subscriptions` (see **Stripe** section above).
 - **The Crucible** (`/app/project/:id/crucible`): list, add, edit, and delete sources; link each source to outline sections via the REST API (`fetch` with `credentials: 'same-origin'`).
-- **The Anvil** (`/app/project/:id/anvil`): **Quill** rich-text drafts (HTML in `project_sections.body`); plain-text drafts are migrated to paragraphs on load. **Center progress** (words, section status); autosave; **section-switch guard**; **split rail** — score strip, feedback (Bedrock, Apply/Ignore), citations; **export** — [Anvil vision](docs/anvil-vision.md). **AWS Bedrock:** [docs/aws-bedrock.md](docs/aws-bedrock.md).
+- **The Anvil** (`/app/project/:id/anvil`): **Quill** rich-text section drafts (HTML in `project_sections.body`); autosave; **structured AI feedback** (Bedrock, anchored suggestions) — [docs/anvil-workspace.md](docs/anvil-workspace.md). **AWS Bedrock:** [docs/aws-bedrock.md](docs/aws-bedrock.md).
 - **Framework** (`/app/project/:id/framework`): placeholder (“coming soon”) until outline/evidence UX is defined.
 - **Home:** Marketing landing + sign-in; **Workspace** (`/app/dashboard`) when signed in.
 - **Header (signed out):** Email and password, Sign in, and **Create an account** below.
@@ -125,11 +125,11 @@ Work to keep **subscription management on AcademiqForge** (API + your UI), simil
 
 ## The Anvil (vision)
 
-The shipped Anvil is a **section draft editor with autosave**. The full **writing workspace** vision — three-stage layout (nav | editor | feedback + citations), rich document editing, **AWS Bedrock**-assisted review (e.g. Claude), scoring, Crucible-linked citations, and export — is documented in **[`docs/anvil-vision.md`](docs/anvil-vision.md)**.
+The shipped Anvil is a **section draft editor** with **structured Bedrock feedback** (see [docs/anvil-workspace.md](docs/anvil-workspace.md)). Additional roadmap ideas (scoring, citations rail, export, etc.) are in **[`docs/anvil-vision.md`](docs/anvil-vision.md)**.
 
 ## Backlog
 
-- **The Anvil:** Implement the [Anvil vision](docs/anvil-vision.md) incrementally (rich editor, right-hand feedback/citation canvas, Bedrock review, scoring, export) — see doc for scope and engineering notes.
+- **The Anvil:** Remaining ideas in [docs/anvil-vision.md](docs/anvil-vision.md).
 - **Account / billing:** **Manage billing** uses Stripe [Customer Portal](https://stripe.com/docs/customer-management) (`GET /billing/portal`) for invoices and other Stripe-hosted actions. On-site: subscription summary, auto-renew, payment method, and plan change (dual prices) per **Billing maintenance track**.
 - **User management:** **Profile edit** and **password change** are on **Account** (`PATCH /api/me`, `POST /api/me/password`). **Email** change / verification — not started (would require a verified flow and Stripe sync if billing email must match).
 
