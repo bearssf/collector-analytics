@@ -461,7 +461,7 @@
 
     /* action bar */
     html += '<div class="crucible-action-bar">' +
-      '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn">Add a Source</button>' +
+      '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn"' + (fullLibraryMode ? ' disabled' : '') + '>Add a Source</button>' +
       '<div class="crucible-paper-toggle-wrap">' +
         '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' + (notesLightMode ? 'true' : 'false') + '" title="Toggle light/dark notes mode">' +
           '<span class="anvil-paper-toggle__track"><span class="anvil-paper-toggle__thumb"></span></span>' +
