@@ -638,6 +638,17 @@
       });
   }
 
+  function manualRefreshFeedback() {
+    if (selectedId == null || !bundle) return;
+    if (!quill && !document.getElementById('anvil-fallback')) return;
+    if (reviewInFlight) return;
+    var plain = getDraftPlain();
+    if (plain.length < MIN_PLAIN_CHARS) return;
+    lastPlainSent = '';
+    lastReviewAt = 0;
+    runStructuredReview(false);
+  }
+
   function onEditorUserChange(delta) {
     editorDirty = true;
     var changeSize = deltaChangeSize(delta);
@@ -1387,6 +1398,11 @@
       return;
     }
     render();
+  }
+
+  var refreshBtn = document.getElementById('anvil-refresh-feedback');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', manualRefreshFeedback);
   }
 
   load();
