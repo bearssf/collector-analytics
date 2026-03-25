@@ -3341,8 +3341,7 @@
   display: flex;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
-  min-height: 200px;
-  max-height: 300px;
+  min-height: 280px;
 }
 .dash-visual-card {
   flex: 1;
@@ -3406,8 +3405,7 @@
   margin-top: 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  max-height: 120px;
+  gap: 0.45rem;
   overflow-y: auto;
 }
 .dash-section-bar {
@@ -3416,17 +3414,18 @@
   gap: 0.4rem;
 }
 .dash-section-bar__label {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.65);
-  width: 80px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.72);
+  width: 100px;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dash-section-bar__track {
-  flex: 1;
-  height: 6px;
+  width: 80px;
+  flex-shrink: 0;
+  height: 7px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
@@ -3438,9 +3437,9 @@
   transition: width 0.4s ease;
 }
 .dash-section-bar__pct {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   color: var(--muted);
-  width: 28px;
+  width: 32px;
   text-align: right;
   flex-shrink: 0;
 }
