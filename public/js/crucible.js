@@ -758,7 +758,7 @@
     if (sections.length) {
       html += '<div class="crucible-form-row"><span class="crucible-field-label">Applicable Sections:</span>' +
         '<div class="crucible-section-checks">' +
-        '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong>Select All</strong></label>' +
+        '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong class="crucible-select-all-text">Select All</strong></label>' +
         sectionChecks + '</div></div>';
     }
 
@@ -1200,9 +1200,11 @@
     fullLibraryMode = enabled;
     if (enabled) {
       projectSources = sources.slice();
-      openAlertModal('The Suggested Source feature is not available while viewing all tracked sources across all research projects.');
+      openAlertModal('The Suggested Source feature, the ability to add sources, and the research plan are not available while viewing all tracked sources across all research projects.');
       var sugPanel = document.getElementById('crucible-suggestions');
       if (sugPanel) sugPanel.innerHTML = '<div class="crucible-sug-empty">Suggested Sources are paused while viewing the full source library.</div>';
+      var rpPanel = document.getElementById('crucible-research-plan');
+      if (rpPanel) rpPanel.innerHTML = '<div class="crucible-rp-empty">Research Planning is paused while viewing the full source library.</div>';
 
       fetch('/api/sources/all', { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
@@ -1228,6 +1230,7 @@
       } else {
         fetchSuggestions();
       }
+      loadResearchPlan();
     }
   }
 

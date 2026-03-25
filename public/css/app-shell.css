@@ -1030,6 +1030,9 @@
   border-bottom: 1px solid var(--line);
   margin-bottom: 0.1rem;
 }
+.crucible-select-all-text {
+  color: #2d9a66;
+}
 
 /* Tag filter modal list */
 .crucible-tag-filter-list {
