@@ -352,8 +352,9 @@
   line-height: 1.35;
   margin-bottom: 0.2rem;
 }
+.crucible-sug-card__title,
 .crucible-sug-card__title a {
-  color: var(--blue);
+  color: #1cb9c5;
   text-decoration: none;
 }
 .crucible-sug-card__title a:hover {
@@ -426,7 +427,7 @@
 .app-crucible-intro {
   color: #1cb9c5;
   width: 100%;
-  max-width: 100%;
+  max-width: 100% !important;
   box-sizing: border-box;
 }
 
