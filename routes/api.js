@@ -33,6 +33,7 @@ const { staleFeedbackEnabled } = require('../lib/anvilStaleFeedback');
 const { isBedrockConfigured } = require('../lib/bedrockReview');
 const { runStructuredSectionReview } = require('../lib/bedrockStructuredReview');
 const { applySuggestionToDraftHtml } = require('../lib/bedrockApplySuggestion');
+const { searchPapers } = require('../lib/semanticScholar');
 
 function mapSuggestionRow(r) {
   if (!r) return null;
@@ -837,6 +838,45 @@ function createApiRouter(getPool) {
         bedrockConfigured: true,
       });
     } catch (e) {
+      next(e);
+    }
+  });
+
+  /* ── Semantic Scholar paper search ──────────────────────────────────── */
+
+  router.get('/projects/:projectId/sources/search-scholar', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const p = await getPool();
+      const own = await p
+        .request()
+        .input('id', sql.Int, projectId)
+        .input('user_id', sql.Int, req.session.userId)
+        .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+      if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
+
+      const rawQ = req.query.q || req.query.query || '';
+      const keywords = rawQ
+        .split(',')
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+      if (!keywords.length) {
+        return res.status(400).json({ error: 'query parameter "q" is required (comma-separated keywords)' });
+      }
+
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+      const results = await searchPapers(keywords, {
+        limit,
+        apiKey: process.env.SEMANTIC_SCHOLAR_API_KEY || undefined,
+        year: req.query.year || undefined,
+        fieldsOfStudy: req.query.fieldsOfStudy || undefined,
+      });
+      res.json({ papers: results });
+    } catch (e) {
+      if (e && e.message && e.message.includes('rate limit')) {
+        return res.status(429).json({ error: e.message });
+      }
       next(e);
     }
   });
