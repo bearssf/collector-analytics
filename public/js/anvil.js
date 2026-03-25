@@ -639,9 +639,8 @@
     charsSinceLastSave += changeSize;
     if (charsSinceLastSave >= autosaveChars) {
       saveSectionDraft();
-    } else {
-      scheduleSave();
     }
+    scheduleSave();
     if (!hasCompletedInitialReview) {
       scheduleInitialReview();
       return;
@@ -1291,6 +1290,7 @@
         e.preventDefault();
         var sid = parseInt(match[1], 10);
         if (!Number.isNaN(sid) && bundle.sections && bundle.sections.some(function (s) { return Number(s.id) === sid; })) {
+          flushPendingSave();
           selectedId = sid;
           history.replaceState(null, '', href);
           render();
@@ -1317,6 +1317,23 @@
       dismissRow(dis.getAttribute('data-dismiss'));
     }
   });
+
+  function flushPendingSave() {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (selectedId == null || !bundle || !quill) return;
+    var html = getDraftHtml();
+    var sec = sectionById(selectedId);
+    if (sec) sec.body = html;
+    var xhr = new XMLHttpRequest();
+    xhr.open('PATCH', '/api/projects/' + projectId + '/sections/' + selectedId, false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    try { xhr.send(JSON.stringify({ body: html })); } catch (e) { /* best effort */ }
+    charsSinceLastSave = 0;
+  }
+
+  window.addEventListener('beforeunload', flushPendingSave);
 
   async function load() {
     loadPaperPref();
