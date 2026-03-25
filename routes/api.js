@@ -983,7 +983,7 @@ function createApiRouter(getPool) {
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
                   source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date,
+                  url, edition, access_date, open_access_url, from_suggestion,
                   sort_order, created_at, updated_at
            FROM sources WHERE project_id = @pid ORDER BY article_title, created_at`
         );
@@ -1056,6 +1056,8 @@ function createApiRouter(getPool) {
       const url              = trimOrNull(b.url);
       const edition          = trimOrNull(b.edition);
       const accessDate       = trimOrNull(b.access_date);
+      const openAccessUrl    = trimOrNull(b.open_access_url);
+      const fromSuggestion   = b.from_suggestion ? 1 : 0;
       const citationText     = (b.citation_text || '').trim() || '';
       const tags             = Array.isArray(b.tags) ? b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean) : [];
       const sectionIds       = Array.isArray(b.section_ids) ? b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); }) : [];
@@ -1086,13 +1088,17 @@ function createApiRouter(getPool) {
         .input('url', sql.NVarChar(1000), url)
         .input('edition', sql.NVarChar(100), edition)
         .input('access_date', sql.NVarChar(100), accessDate)
+        .input('open_access_url', sql.NVarChar(1000), openAccessUrl)
+        .input('from_suggestion', sql.Bit, fromSuggestion)
         .query(
           `INSERT INTO sources (project_id, citation_text, doi, authors, publication_date, article_title,
             journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name,
-            source_type, publisher, publisher_location, editors, book_title, url, edition, access_date)
+            source_type, publisher, publisher_location, editors, book_title, url, edition, access_date,
+            open_access_url, from_suggestion)
            VALUES (@pid, @citation_text, @doi, @authors, @publication_date, @article_title,
             @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name,
-            @source_type, @publisher, @publisher_location, @editors, @book_title, @url, @edition, @access_date);
+            @source_type, @publisher, @publisher_location, @editors, @book_title, @url, @edition, @access_date,
+            @open_access_url, @from_suggestion);
            SELECT SCOPE_IDENTITY() AS id;`
         );
       const sourceId = ins.recordset[0].id;
@@ -1123,7 +1129,7 @@ function createApiRouter(getPool) {
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
                   source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date,
+                  url, edition, access_date, open_access_url, from_suggestion,
                   sort_order, created_at, updated_at
            FROM sources WHERE id = @id`
         );
@@ -1223,7 +1229,7 @@ function createApiRouter(getPool) {
                   authors, publication_date, article_title, journal_title,
                   volume_number, issue_number, page_numbers, chapter_name, conference_name,
                   source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date,
+                  url, edition, access_date, open_access_url, from_suggestion,
                   sort_order, created_at, updated_at
            FROM sources WHERE id = @id`
         );

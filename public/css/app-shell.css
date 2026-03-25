@@ -620,6 +620,17 @@
 .crucible-tile__citation em {
   font-style: italic;
 }
+.crucible-tile__open-access {
+  margin-top: 4px;
+  font-size: 0.78rem;
+}
+.crucible-tile__open-access a {
+  color: #1cb9c5;
+  text-decoration: none;
+}
+.crucible-tile__open-access a:hover {
+  text-decoration: underline;
+}
 .crucible-tile__tags {
   margin-top: auto;
   display: flex;

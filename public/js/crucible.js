@@ -429,6 +429,9 @@
               '</span>' +
             '</div>' +
             '<div class="crucible-tile__citation">' + formattedCitation + '</div>' +
+            (src.from_suggestion && src.open_access_url
+              ? '<div class="crucible-tile__open-access"><a href="' + escHtml(src.open_access_url) + '" target="_blank" rel="noopener">URL to Open Access</a></div>'
+              : '') +
             (tagBadges ? '<div class="crucible-tile__tags">' + tagBadges + '</div>' : '') +
           '</div>' +
           '<div class="crucible-note-tile' + (notesLightMode ? ' crucible-note-tile--light' : '') + '">' +
@@ -877,16 +880,36 @@
     return kws;
   }
 
+  function mapS2TypeToSourceType(pubTypes) {
+    if (!Array.isArray(pubTypes) || !pubTypes.length) return '';
+    for (var i = 0; i < pubTypes.length; i++) {
+      var t = pubTypes[i];
+      if (t === 'JournalArticle' || t === 'Review') return 'journal';
+      if (t === 'Conference') return 'conference';
+      if (t === 'BookSection') return 'chapter';
+      if (t === 'Book') return 'book';
+    }
+    return '';
+  }
+
   function trackSuggestedSource(paper, btn) {
     btn.disabled = true;
     btn.textContent = 'Adding…';
     var allAuthors = (paper.authors || []).join('; ');
+    var sourceType = mapS2TypeToSourceType(paper.publicationTypes);
     var payload = {
       article_title: paper.title || '',
       authors: allAuthors,
-      publication_date: paper.year ? String(paper.year) : '',
-      doi: '',
+      publication_date: paper.publicationDate || (paper.year ? String(paper.year) : ''),
+      doi: paper.doi || '',
       citation_text: paper.title || '',
+      source_type: sourceType,
+      journal_title: paper.journalName || '',
+      volume_number: paper.journalVolume || '',
+      page_numbers: paper.journalPages || '',
+      conference_name: (sourceType === 'conference' && paper.venueName) ? paper.venueName : '',
+      open_access_url: paper.openAccessUrl || '',
+      from_suggestion: true,
       tags: [],
       section_ids: [],
     };
