@@ -171,14 +171,9 @@
               <% } %>
 
               <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
-                <p class="account-portal-actions">
-                  <a class="app-btn-primary account-btn-portal" href="/billing/portal">Update Card on File</a>
+                <p class="account-payment-method-link">
+                  <a href="/billing/payment-method" class="app-link-cta">Update payment method</a>
                 </p>
-                <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-                  <p class="account-payment-method-link">
-                    <a href="/billing/payment-method" class="app-link-cta">Update payment method</a>
-                  </p>
-                <% } %>
               <% } %>
 
               <% if (!appAccess.paid) { %>

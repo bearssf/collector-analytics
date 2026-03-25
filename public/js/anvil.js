@@ -859,7 +859,23 @@
       quill.formatText(0, len, 'font', prof.font, 'silent');
       quill.formatText(0, len, 'size', prof.size, 'silent');
     }
+    editorDirty = true;
+    try { localStorage.setItem('anvil-ms-' + projectId, style); } catch (e) {}
     scheduleSave();
+  }
+
+  function restoreManuscriptMode() {
+    var stored = null;
+    try { stored = localStorage.getItem('anvil-ms-' + projectId); } catch (e) {}
+    if (!stored) return;
+    var wrap = document.getElementById('anvil-quill-wrap');
+    if (!wrap) return;
+    wrap.classList.add('anvil-quill-manuscript');
+    if (stored === 'IEEE') {
+      wrap.setAttribute('data-ms-profile', 'ieee');
+    } else {
+      wrap.removeAttribute('data-ms-profile');
+    }
   }
 
   /* ── Export helpers ── */
@@ -1070,7 +1086,6 @@
       var tags = (src.tags || []).map(function (t) {
         return '<span class="anvil-cite-tag">' + escapeHtml(t) + '</span>';
       }).join('');
-      var count = citationUsageCounts[src.id] || 0;
       html += '<div class="anvil-citation-card" data-source-id="' + src.id + '">' +
         '<div class="anvil-citation-card__title">' + escapeHtml(src.article_title || src.citation_text || '(Untitled)') + '</div>' +
         '<div class="anvil-citation-card__authors">' + escapeHtml(src.authors || '') + '</div>' +
@@ -1078,7 +1093,6 @@
         (tags ? '<div class="anvil-citation-card__tags">' + tags + '</div>' : '') +
         '<div class="anvil-citation-card__footer">' +
           '<button type="button" class="anvil-citation-insert-btn" data-source-id="' + src.id + '">Insert</button>' +
-          (count > 0 ? '<span class="anvil-citation-count">' + count + '</span>' : '') +
         '</div>' +
       '</div>';
     });
@@ -1162,12 +1176,10 @@
     return '<div class="anvil-progress-row">' +
       '<div class="anvil-progress-item">' +
         '<span class="anvil-progress-label">Section: ' + sectionPct + '% complete</span>' +
-        '<span class="anvil-progress-detail">(' + sectionWords.toLocaleString() + ' / ' + sectionTarget.toLocaleString() + ' words)</span>' +
         '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' + sectionPct + '%"></div></div>' +
       '</div>' +
       '<div class="anvil-progress-item">' +
         '<span class="anvil-progress-label">Project: ' + projectPct + '% complete</span>' +
-        '<span class="anvil-progress-detail">(' + projectWords.toLocaleString() + ' / ' + totalTarget.toLocaleString() + ' words)</span>' +
         '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' + projectPct + '%"></div></div>' +
       '</div>' +
     '</div>';
@@ -1250,6 +1262,7 @@
       '</div>';
 
     mountEditor(draft);
+    restoreManuscriptMode();
     feedbackRows = [];
     lastPlainSent = '';
     hasCompletedInitialReview = false;

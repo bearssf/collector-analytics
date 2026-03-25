@@ -2956,10 +2956,14 @@
   border-color: rgba(47, 128, 237, 0.45);
   color: rgba(200, 220, 255, 0.95);
 }
+.app-body--account-page .app-canvas .sub {
+  color: #1bb5c0;
+}
 .account-block .account-h2 {
   margin: 1rem 0 0.5rem;
   font-size: 1rem;
   font-weight: 600;
+  color: #2f80ec;
 }
 .account-layout {
   display: grid;
