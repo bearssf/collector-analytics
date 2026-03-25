@@ -17,6 +17,7 @@
   if (Number.isNaN(autosaveChars) || autosaveChars < 1) autosaveChars = 250;
   var charsSinceLastSave = 0;
   var saveStatusRevertTimer = null;
+  var lastSavedLabel = null;
 
   var bundle = null;
   var selectedId = null;
@@ -441,9 +442,9 @@
     if (state === 'unsaved') el.style.color = '#a5a5a5';
     else if (state === 'saving') el.style.color = '#d59372';
     else if (state === 'saved') {
+      lastSavedLabel = msg;
       el.style.color = '#3b743c';
       saveStatusRevertTimer = setTimeout(function () {
-        el.textContent = 'Unsaved';
         el.style.color = '#a5a5a5';
       }, 10000);
     }
@@ -640,7 +641,6 @@
       saveSectionDraft();
     } else {
       scheduleSave();
-      updateSaveStatus('unsaved', 'Unsaved');
     }
     if (!hasCompletedInitialReview) {
       scheduleInitialReview();
@@ -1227,7 +1227,7 @@
       '</div>' +
       '</div>' +
       '<div class="anvil-save-bar">' +
-        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">Unsaved</span>' +
+        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">' + (draft ? (lastSavedLabel || 'Saved') : 'Unsaved') + '</span>' +
         '<button type="button" class="anvil-save-btn" id="anvil-manual-save">Save</button>' +
       '</div>' +
       '<div class="anvil-export-bar">' +
