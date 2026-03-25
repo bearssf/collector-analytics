@@ -20,6 +20,8 @@
   var filterTags = [];
   var filterSectionId = null;
   var notesLightMode = localStorage.getItem('crucible-notes-light') === '1';
+  var fullLibraryMode = false;
+  var projectSources = [];
 
   /* ── helpers ─────────────────────────────────────────────────────── */
   function escHtml(s) {
@@ -401,6 +403,8 @@
         '<label class="crucible-sort-label">Show Sources For: ' +
           '<select id="crucible-section-filter" class="crucible-select">' + sectionFilterOpts + '</select>' +
         '</label>' +
+        '<span class="crucible-toolbar-spacer"></span>' +
+        '<label class="crucible-sort-label crucible-full-lib-label"><input type="checkbox" id="crucible-full-library-cb"' + (fullLibraryMode ? ' checked' : '') + '> Review Full Source Library:</label>' +
       '</div>' +
       '<div class="crucible-toolbar__right">' +
         '<span class="crucible-count">' + filtered.length + ' source' + (filtered.length !== 1 ? 's' : '') + '</span>' +
@@ -418,15 +422,22 @@
         (src.tags || []).forEach(function (t) {
           tagBadges += '<span class="crucible-tag-badge">' + escHtml(t) + '</span>';
         });
+        var isOtherProject = fullLibraryMode && String(src.project_id) !== String(projectId);
+        var projectLabel = (fullLibraryMode && src.project_name)
+          ? '<div class="crucible-tile__project-label">' + escHtml(src.project_name) + '</div>'
+          : '';
+        var actionBtns = isOtherProject ? '' :
+          '<span class="crucible-tile__actions">' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--search" data-source-id="' + src.id + '" title="Find related sources">&#128269;</button>' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--edit" data-source-id="' + src.id + '" title="Edit source">&#9998;</button>' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--delete" data-source-id="' + src.id + '" title="Delete source">&times;</button>' +
+          '</span>';
         html += '<div class="crucible-source-row" data-source-id="' + src.id + '">' +
           '<div class="crucible-tile">' +
+            projectLabel +
             '<div class="crucible-tile__header">' +
               '<span class="crucible-tile__title">' + escHtml(src.article_title || src.citation_text || '(Untitled)') + '</span>' +
-              '<span class="crucible-tile__actions">' +
-                '<button type="button" class="crucible-tile-btn crucible-tile-btn--search" data-source-id="' + src.id + '" title="Find related sources">&#128269;</button>' +
-                '<button type="button" class="crucible-tile-btn crucible-tile-btn--edit" data-source-id="' + src.id + '" title="Edit source">&#9998;</button>' +
-                '<button type="button" class="crucible-tile-btn crucible-tile-btn--delete" data-source-id="' + src.id + '" title="Delete source">&times;</button>' +
-              '</span>' +
+              actionBtns +
             '</div>' +
             '<div class="crucible-tile__citation">' + formattedCitation + '</div>' +
             (src.from_suggestion && src.open_access_url
@@ -435,12 +446,13 @@
             (tagBadges ? '<div class="crucible-tile__tags">' + tagBadges + '</div>' : '') +
           '</div>' +
           '<div class="crucible-note-tile' + (notesLightMode ? ' crucible-note-tile--light' : '') + '">' +
-            '<div class="crucible-note-tile__editor" contenteditable="true" data-source-id="' + src.id + '">' + (src.crucible_notes || '') + '</div>' +
+            '<div class="crucible-note-tile__editor"' + (isOtherProject ? '' : ' contenteditable="true"') + ' data-source-id="' + src.id + '">' + (src.crucible_notes || '') + '</div>' +
+            (isOtherProject ? '' :
             '<div class="crucible-note-tile__toolbar">' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-note-bold" data-source-id="' + src.id + '" title="Bold"><strong>B</strong></button>' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-note-ul" data-source-id="' + src.id + '" title="Bulleted list">&#8226; List</button>' +
               '<button type="button" class="crucible-notes-fmt-btn crucible-notes-save-btn crucible-note-save" data-source-id="' + src.id + '">Save</button>' +
-            '</div>' +
+            '</div>') +
           '</div>' +
         '</div>';
       });
@@ -536,6 +548,11 @@
           setTimeout(function () { btn.textContent = 'Save'; }, 1500);
         }).catch(function (e) { openAlertModal(e.message); });
       });
+    });
+
+    var fullLibCb = document.getElementById('crucible-full-library-cb');
+    if (fullLibCb) fullLibCb.addEventListener('change', function () {
+      toggleFullLibraryMode(this.checked);
     });
 
     var paperToggle = document.getElementById('crucible-paper-toggle');
@@ -1124,6 +1141,43 @@
       closeModal();
       fetchSuggestions();
     });
+  }
+
+  /* ── Full Source Library mode ────────────────────────────────────── */
+
+  function toggleFullLibraryMode(enabled) {
+    fullLibraryMode = enabled;
+    if (enabled) {
+      projectSources = sources.slice();
+      openAlertModal('The Suggested Source feature is not available while viewing all tracked sources across all research projects.');
+      var sugPanel = document.getElementById('crucible-suggestions');
+      if (sugPanel) sugPanel.innerHTML = '<div class="crucible-sug-empty">Suggested Sources are paused while viewing the full source library.</div>';
+
+      fetch('/api/sources/all', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.sources) throw new Error('Failed to load');
+          sources = d.sources;
+          collectAllTags();
+          render();
+        }).catch(function (e) {
+          openAlertModal('Could not load full library: ' + (e.message || 'unknown error'));
+          fullLibraryMode = false;
+          sources = projectSources;
+          render();
+        });
+    } else {
+      sources = projectSources;
+      projectSources = [];
+      collectAllTags();
+      render();
+      var cached = getCachedSuggestions();
+      if (cached) {
+        renderSuggestionPapers(cached);
+      } else {
+        fetchSuggestions();
+      }
+    }
   }
 
   /* ── Research Plan ──────────────────────────────────────────────── */

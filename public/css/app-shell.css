@@ -547,6 +547,26 @@
   gap: 0;
   flex-wrap: wrap;
 }
+.crucible-full-lib-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.crucible-full-lib-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+.crucible-tile__project-label {
+  font-size: 0.7rem;
+  color: #1cb9c5;
+  padding: 0.15rem 0.4rem;
+  background: rgba(28, 185, 197, 0.1);
+  border-radius: 3px;
+  margin-bottom: 0.3rem;
+  display: inline-block;
+}
 .crucible-toolbar-spacer {
   display: inline-block;
   width: 50px;
@@ -965,8 +985,9 @@
 }
 .crucible-section-checks {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
   margin-top: 0.35rem;
 }
 .crucible-section-check {

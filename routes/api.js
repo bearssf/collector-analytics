@@ -956,6 +956,63 @@ function createApiRouter(getPool) {
     }
   });
 
+  /* ── Crucible: all-sources (cross-project library) ────────────────── */
+
+  router.get('/sources/all', async (req, res, next) => {
+    try {
+      const userId = req.session.userId;
+      const p = await getPool();
+      const rows = await p
+        .request()
+        .input('user_id', sql.Int, userId)
+        .query(
+          `SELECT s.id, s.project_id, pr.name AS project_name,
+                  s.citation_text, s.notes, s.crucible_notes, s.doi,
+                  s.authors, s.publication_date, s.article_title, s.journal_title,
+                  s.volume_number, s.issue_number, s.page_numbers, s.chapter_name, s.conference_name,
+                  s.source_type, s.publisher, s.publisher_location, s.editors, s.book_title,
+                  s.url, s.edition, s.access_date, s.open_access_url, s.from_suggestion,
+                  s.sort_order, s.created_at, s.updated_at
+           FROM sources s
+           INNER JOIN projects pr ON pr.id = s.project_id
+           WHERE pr.user_id = @user_id
+           ORDER BY s.article_title, s.created_at`
+        );
+
+      const sourceIds = rows.recordset.map(function (r) { return r.id; });
+      let tagMap = {};
+      let secMap = {};
+
+      if (sourceIds.length) {
+        const idList = sourceIds.join(',');
+        const tagRows = await p.request().query(
+          'SELECT source_id, tag FROM source_tags WHERE source_id IN (' + idList + ')'
+        );
+        tagRows.recordset.forEach(function (r) {
+          if (!tagMap[r.source_id]) tagMap[r.source_id] = [];
+          tagMap[r.source_id].push(r.tag);
+        });
+        const secRows = await p.request().query(
+          'SELECT source_id, section_id FROM source_sections WHERE source_id IN (' + idList + ')'
+        );
+        secRows.recordset.forEach(function (r) {
+          if (!secMap[r.source_id]) secMap[r.source_id] = [];
+          secMap[r.source_id].push(r.section_id);
+        });
+      }
+
+      const sources = rows.recordset.map(function (r) {
+        return Object.assign({}, r, {
+          tags: tagMap[r.id] || [],
+          section_ids: secMap[r.id] || [],
+        });
+      });
+      res.json({ sources });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   /* ── Crucible: sources CRUD ─────────────────────────────────────────── */
 
   async function ownsProject(pool, projectId, userId) {
