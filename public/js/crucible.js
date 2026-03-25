@@ -830,11 +830,42 @@
   /* ── source suggestions (Semantic Scholar) ────────────────────── */
   var customSearchTerms = null;
 
+  var STOP_WORDS = (
+    'a an the and or but nor for yet so in on at to by of from with into onto ' +
+    'upon through during before after above below between among is am are was were ' +
+    'be been being has have had do does did will would shall should may might can ' +
+    'could it its this that these those he she they we you i me him her us them ' +
+    'my your his our their who whom which what where when how if then than not no ' +
+    'very also about as up out off over such each every all any both few more most ' +
+    'other some many much own same too just only even still already often never ' +
+    'however therefore thus hence while although because since until unless whether ' +
+    'versus via per using based'
+  ).split(' ');
+  var stopSet = {};
+  STOP_WORDS.forEach(function (w) { stopSet[w] = true; });
+
   function extractKeywords() {
+    var seen = {};
     var kws = [];
+
     sources.forEach(function (s) {
-      if (s.article_title) kws.push(s.article_title);
+      if (s.article_title) {
+        var words = s.article_title
+          .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+          .split(/\s+/)
+          .map(function (w) { return w.toLowerCase().replace(/^-+|-+$/g, ''); })
+          .filter(function (w) { return w.length > 2 && !stopSet[w]; });
+        words.forEach(function (w) {
+          if (!seen[w]) { seen[w] = true; kws.push(w); }
+        });
+      }
+
+      (s.tags || []).forEach(function (t) {
+        var tag = t.trim().toLowerCase();
+        if (tag && !seen[tag]) { seen[tag] = true; kws.push(tag); }
+      });
     });
+
     return kws;
   }
 
