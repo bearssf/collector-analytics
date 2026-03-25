@@ -116,6 +116,7 @@
 }
 .app-sidebar-brand .word .a { color: var(--blue); }
 
+.app-sidebar-brand { margin-bottom: 25px; }
 .app-nav-section { margin-top: 0.25rem; }
 .app-nav-label {
   font-size: 11px;
@@ -3476,6 +3477,7 @@
 }
 .dash-rail-top .insight-h {
   flex-shrink: 0;
+  margin-bottom: 15px;
 }
 .dash-rail-add {
   flex-shrink: 0;
@@ -3484,7 +3486,7 @@
   font-weight: 600;
   color: #2f80ec;
   text-decoration: none;
-  margin-bottom: 0.75rem;
+  margin-bottom: 15px;
 }
 .dash-rail-add:hover { text-decoration: underline; }
 .dash-rail-projects {
