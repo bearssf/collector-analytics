@@ -573,25 +573,26 @@
   display: inline-block;
 }
 .crucible-add-to-project-btn {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid #1cb9c5;
+  display: inline-block;
+  background: rgba(120,160,255,0.15);
+  color: var(--blue);
+  font-size: 0.74rem;
+  padding: 0.1rem 0.45rem;
   border-radius: 4px;
-  background: transparent;
-  color: #1cb9c5;
+  border: none;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
 }
 .crucible-add-to-project-btn:hover {
-  background: rgba(28, 185, 197, 0.15);
+  background: rgba(120,160,255,0.25);
 }
 .crucible-add-to-project-btn:disabled {
   cursor: default;
   opacity: 0.6;
 }
 .crucible-add-to-project-btn--done {
-  border-color: #4caf50;
+  background: rgba(76,175,80,0.15);
   color: #4caf50;
 }
 .crucible-toolbar-spacer {
