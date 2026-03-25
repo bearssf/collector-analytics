@@ -463,13 +463,14 @@
   }
 
   async function saveSectionDraft() {
-    if (selectedId == null || !bundle) return;
+    var savingId = selectedId;
+    if (savingId == null || !bundle) return;
     if (!quill && !document.getElementById('anvil-fallback')) return;
     updateSaveStatus('saving', 'Saving\u2026');
     try {
       var html = getDraftHtml();
-      await api('/projects/' + projectId + '/sections/' + selectedId, 'PATCH', { body: html });
-      var sec = sectionById(selectedId);
+      await api('/projects/' + projectId + '/sections/' + savingId, 'PATCH', { body: html });
+      var sec = sectionById(savingId);
       if (sec) sec.body = html;
       charsSinceLastSave = 0;
       updateSaveStatus('saved', 'Saved ' + formatSaveTime());
@@ -1319,9 +1320,7 @@
   });
 
   function flushPendingSave() {
-    if (!saveTimer) return;
-    clearTimeout(saveTimer);
-    saveTimer = null;
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     if (selectedId == null || !bundle || !quill) return;
     var html = getDraftHtml();
     var sec = sectionById(selectedId);

@@ -1199,7 +1199,7 @@
         var modal = document.createElement('div');
         modal.className = 'crucible-modal';
 
-        var html = '<div class="crucible-modal__header"><h2>Citation Usages: ' + escHtml(title) + '</h2>' +
+        var html = '<div class="crucible-modal__header"><h2>Citation Uses</h2>' +
           '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
         html += '<div class="crucible-modal__body">';
         if (!usages.length) {
@@ -1208,9 +1208,9 @@
           usages.forEach(function (u) {
             html += '<div class="crucible-usage-item">';
             if (fullLibraryMode) {
-              html += '<strong>' + escHtml(u.project_name || 'Project') + ':</strong> ';
+              html += '<strong style="color:#2f80ec">' + escHtml(u.project_name || 'Project') + ':</strong> ';
             }
-            html += '<strong>' + escHtml(u.section_title || 'Section') + ':</strong> ';
+            html += '<strong style="color:#1abac4">' + escHtml(u.section_title || 'Section') + ':</strong> ';
             html += '"' + escHtml(u.context_excerpt || u.cite_marker || '') + '"';
             html += '</div>';
           });
