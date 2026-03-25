@@ -2203,6 +2203,11 @@
 .anvil-paper-toggle[aria-checked='true'] .anvil-paper-toggle__thumb {
   transform: translateX(1.125rem);
 }
+.anvil-paper-toggle--disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .anvil-paper-toggle__hint {
   font-size: 0.72rem;
   text-transform: uppercase;

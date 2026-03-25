@@ -9,10 +9,12 @@
 
   var projectId = root.getAttribute('data-project-id');
   var citationStyle = root.getAttribute('data-citation-style') || 'APA';
+  var BIBLIO_RE = /^(references|bibliography|works\s+cited|sources?\s*(cited|list)?)$/i;
   var sections = [];
   try {
     sections = JSON.parse(decodeURIComponent(root.getAttribute('data-sections') || '[]'));
   } catch (e) { sections = []; }
+  var assignableSections = sections.filter(function (s) { return !BIBLIO_RE.test((s.title || '').trim()); });
 
   var sources = [];
   var allTags = [];
@@ -469,7 +471,7 @@
     html += '<div class="crucible-action-bar">' +
       '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn"' + (fullLibraryMode ? ' disabled' : '') + '>Add a Source</button>' +
       '<div class="crucible-paper-toggle-wrap">' +
-        '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' + (notesLightMode ? 'true' : 'false') + '" title="Toggle light/dark notes mode">' +
+        '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle' + (fullLibraryMode ? ' anvil-paper-toggle--disabled' : '') + '" role="switch" aria-checked="' + (notesLightMode ? 'true' : 'false') + '"' + (fullLibraryMode ? ' disabled' : '') + ' title="Toggle light/dark notes mode">' +
           '<span class="anvil-paper-toggle__track"><span class="anvil-paper-toggle__thumb"></span></span>' +
         '</button>' +
         '<span id="crucible-paper-hint" class="anvil-paper-toggle__hint">' + (notesLightMode ? 'LIGHT MODE' : 'DARK MODE') + '</span>' +
@@ -706,7 +708,7 @@
 
     var v = existing || {};
     var sectionChecks = '';
-    sections.forEach(function (sec) {
+    assignableSections.forEach(function (sec) {
       var checked = (v.section_ids || []).indexOf(sec.id) !== -1 ? ' checked' : '';
       sectionChecks += '<label class="crucible-section-check"><input type="checkbox" name="section_ids" value="' + sec.id + '"' + checked + '> ' + escHtml(sec.title) + '</label>';
     });
@@ -765,7 +767,7 @@
     html += '<div class="crucible-form-row">' +
       '<label>Tags: <span class="crucible-hint">(comma separated)</span><input type="text" name="tags" value="' + escHtml((v.tags || []).join(', ')) + '"></label>' +
     '</div>';
-    if (sections.length) {
+    if (assignableSections.length) {
       html += '<div class="crucible-form-row"><span class="crucible-field-label">Applicable Sections:</span>' +
         '<div class="crucible-section-checks">' +
         '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong class="crucible-select-all-text">Select All</strong></label>' +
@@ -1182,7 +1184,10 @@
 
   function openCitationUsageModal(sourceId) {
     closeModal();
-    fetch('/api/projects/' + projectId + '/citation-usages/' + sourceId, { credentials: 'same-origin' })
+    var url = fullLibraryMode
+      ? '/api/citation-usages/source/' + sourceId
+      : '/api/projects/' + projectId + '/citation-usages/' + sourceId;
+    fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var usages = d.usages || [];
@@ -1202,6 +1207,9 @@
         } else {
           usages.forEach(function (u) {
             html += '<div class="crucible-usage-item">';
+            if (fullLibraryMode) {
+              html += '<strong>' + escHtml(u.project_name || 'Project') + ':</strong> ';
+            }
             html += '<strong>' + escHtml(u.section_title || 'Section') + ':</strong> ';
             html += '"' + escHtml(u.context_excerpt || u.cite_marker || '') + '"';
             html += '</div>';

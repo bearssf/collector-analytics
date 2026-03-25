@@ -763,7 +763,7 @@
           matchers: [],
         },
       },
-      placeholder: 'Your journey begins. As you forge ahead, feedback and suggestions will be offered to the right.',
+      placeholder: 'As you forge ahead, feedback and suggestions will appear in the canvas to the right.',
     });
 
     quill.clipboard.addMatcher(Node.ELEMENT_NODE, function (node, delta) {

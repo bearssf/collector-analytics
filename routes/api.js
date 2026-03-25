@@ -1501,6 +1501,32 @@ function createApiRouter(getPool) {
     }
   });
 
+  router.get('/citation-usages/source/:sourceId', async (req, res, next) => {
+    try {
+      const sourceId = parseInt(req.params.sourceId, 10);
+      if (Number.isNaN(sourceId)) return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      const rows = await p
+        .request()
+        .input('sid', sql.Int, sourceId)
+        .input('user_id', sql.Int, req.session.userId)
+        .query(
+          `SELECT cu.id, cu.source_id, cu.section_id, cu.project_id, cu.cite_marker,
+                  cu.context_excerpt, cu.created_at,
+                  ps.title AS section_title,
+                  pr.name  AS project_name
+           FROM citation_usages cu
+           LEFT JOIN project_sections ps ON ps.id = cu.section_id
+           INNER JOIN projects pr ON pr.id = cu.project_id
+           WHERE cu.source_id = @sid AND pr.user_id = @user_id
+           ORDER BY pr.name, cu.created_at`
+        );
+      res.json({ usages: rows.recordset });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.post('/projects/:projectId/citation-usages', async (req, res, next) => {
     try {
       const projectId = parseInt(req.params.projectId, 10);
