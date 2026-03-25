@@ -618,31 +618,10 @@
 .crucible-add-btn:hover {
   opacity: 0.85;
 }
-.crucible-mode-toggle {
+.crucible-paper-toggle-wrap {
   display: flex;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.crucible-mode-btn {
-  background: rgba(255,255,255,0.06);
-  color: var(--muted);
-  border: none;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.crucible-mode-btn:not(:last-child) {
-  border-right: 1px solid var(--line);
-}
-.crucible-mode-btn--active {
-  background: var(--blue);
-  color: #fff;
-}
-.crucible-mode-btn:hover:not(.crucible-mode-btn--active) {
-  background: rgba(255,255,255,0.12);
+  align-items: center;
+  gap: 0.45rem;
 }
 
 /* ── Modal ─────────────────────────────────────────────────────────── */
@@ -797,6 +776,12 @@
   align-items: center;
   gap: 0.3rem;
   cursor: pointer;
+}
+.crucible-section-check--all {
+  flex-basis: 100%;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.15rem;
 }
 
 /* Tag filter modal list */

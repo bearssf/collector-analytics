@@ -443,9 +443,11 @@
     /* action bar */
     html += '<div class="crucible-action-bar">' +
       '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn">Add a Source</button>' +
-      '<div class="crucible-mode-toggle">' +
-        '<button type="button" class="crucible-mode-btn' + (!notesLightMode ? ' crucible-mode-btn--active' : '') + '" id="crucible-dark-mode-btn">Dark Mode</button>' +
-        '<button type="button" class="crucible-mode-btn' + (notesLightMode ? ' crucible-mode-btn--active' : '') + '" id="crucible-light-mode-btn">Light Mode</button>' +
+      '<div class="crucible-paper-toggle-wrap">' +
+        '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' + (notesLightMode ? 'true' : 'false') + '" title="Toggle light/dark notes mode">' +
+          '<span class="anvil-paper-toggle__track"><span class="anvil-paper-toggle__thumb"></span></span>' +
+        '</button>' +
+        '<span id="crucible-paper-hint" class="anvil-paper-toggle__hint">' + (notesLightMode ? 'LIGHT MODE' : 'DARK MODE') + '</span>' +
       '</div>' +
     '</div>';
 
@@ -521,21 +523,17 @@
       });
     });
 
-    var darkBtn = document.getElementById('crucible-dark-mode-btn');
-    var lightBtn = document.getElementById('crucible-light-mode-btn');
-    if (darkBtn) darkBtn.addEventListener('click', function () {
-      notesLightMode = false;
-      localStorage.setItem('crucible-notes-light', '0');
-      root.querySelectorAll('.crucible-note-tile').forEach(function (t) { t.classList.remove('crucible-note-tile--light'); });
-      darkBtn.classList.add('crucible-mode-btn--active');
-      if (lightBtn) lightBtn.classList.remove('crucible-mode-btn--active');
-    });
-    if (lightBtn) lightBtn.addEventListener('click', function () {
-      notesLightMode = true;
-      localStorage.setItem('crucible-notes-light', '1');
-      root.querySelectorAll('.crucible-note-tile').forEach(function (t) { t.classList.add('crucible-note-tile--light'); });
-      lightBtn.classList.add('crucible-mode-btn--active');
-      if (darkBtn) darkBtn.classList.remove('crucible-mode-btn--active');
+    var paperToggle = document.getElementById('crucible-paper-toggle');
+    if (paperToggle) paperToggle.addEventListener('click', function () {
+      notesLightMode = !notesLightMode;
+      localStorage.setItem('crucible-notes-light', notesLightMode ? '1' : '0');
+      paperToggle.setAttribute('aria-checked', notesLightMode ? 'true' : 'false');
+      var hint = document.getElementById('crucible-paper-hint');
+      if (hint) hint.textContent = notesLightMode ? 'LIGHT MODE' : 'DARK MODE';
+      root.querySelectorAll('.crucible-note-tile').forEach(function (t) {
+        if (notesLightMode) t.classList.add('crucible-note-tile--light');
+        else t.classList.remove('crucible-note-tile--light');
+      });
     });
   }
 
@@ -670,55 +668,54 @@
     html += '<form id="crucible-source-form" class="crucible-modal__body">';
 
     html += '<div class="crucible-form-row crucible-form-row--half">' +
-      '<label>Source type<select name="source_type" id="crucible-source-type" class="crucible-select crucible-select--full">' + sourceTypeOpts + '</select></label>' +
-      '<label>Publication date<input type="text" name="publication_date" value="' + escHtml(v.publication_date || '') + '" placeholder="e.g. 2024"></label>' +
+      '<label>Source Type:<select name="source_type" id="crucible-source-type" class="crucible-select crucible-select--full">' + sourceTypeOpts + '</select></label>' +
+      '<label>Publication Date:<input type="text" name="publication_date" value="' + escHtml(v.publication_date || '') + '" placeholder="e.g. 2024"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
       '<label>Author(s): <span class="crucible-hint">(separate by semicolon)</span><input type="text" name="authors" value="' + escHtml(v.authors || '') + '" placeholder="e.g. John Smith; Jane Doe or Smith, John; Doe, Jane"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Article / work title<input type="text" name="article_title" value="' + escHtml(v.article_title || '') + '"></label>' +
+      '<label>Article / Work Title:<input type="text" name="article_title" value="' + escHtml(v.article_title || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row" data-field-group="journal">' +
-      '<label>Journal / publication title<input type="text" name="journal_title" value="' + escHtml(v.journal_title || '') + '"></label>' +
+      '<label>Journal / Publication Title:<input type="text" name="journal_title" value="' + escHtml(v.journal_title || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row" data-field-group="chapter">' +
       '<label>Book Title:<input type="text" name="book_title" value="' + escHtml(v.book_title || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row crucible-form-row--third" data-field-group="journal">' +
-      '<label>Volume<input type="text" name="volume_number" value="' + escHtml(v.volume_number || '') + '"></label>' +
-      '<label>Issue<input type="text" name="issue_number" value="' + escHtml(v.issue_number || '') + '"></label>' +
-      '<label>Page(s)<input type="text" name="page_numbers" value="' + escHtml(v.page_numbers || '') + '"></label>' +
+      '<label>Volume:<input type="text" name="volume_number" value="' + escHtml(v.volume_number || '') + '"></label>' +
+      '<label>Issue:<input type="text" name="issue_number" value="' + escHtml(v.issue_number || '') + '"></label>' +
+      '<label>Page(s):<input type="text" name="page_numbers" value="' + escHtml(v.page_numbers || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row" data-field-group="pages-only" style="display:none">' +
-      '<label>Page(s)<input type="text" name="page_numbers_alt" value="' + escHtml(v.page_numbers || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
-      '<label>DOI<input type="text" name="doi" value="' + escHtml(v.doi || '') + '"></label>' +
-      '<label>URL<input type="text" name="url" value="' + escHtml(v.url || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="publisher">' +
-      '<label>Publisher<input type="text" name="publisher" value="' + escHtml(v.publisher || '') + '"></label>' +
-      '<label>Publisher location<input type="text" name="publisher_location" value="' + escHtml(v.publisher_location || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="edition">' +
-      '<label>Edition <span class="crucible-hint">(e.g. 2nd ed.)</span><input type="text" name="edition" value="' + escHtml(v.edition || '') + '"></label>' +
-      '<label>Editors <span class="crucible-hint">(semicolon separated)</span><input type="text" name="editors" value="' + escHtml(v.editors || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row" data-field-group="chapter">' +
-      '<label>Chapter name<input type="text" name="chapter_name" value="' + escHtml(v.chapter_name || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row" data-field-group="conference">' +
-      '<label>Conference name<input type="text" name="conference_name" value="' + escHtml(v.conference_name || '') + '"></label>' +
-    '</div>';
-    html += '<div class="crucible-form-row" data-field-group="access">' +
-      '<label>Access date <span class="crucible-hint">(for web sources)</span><input type="text" name="access_date" value="' + escHtml(v.access_date || '') + '" placeholder="e.g. March 24, 2026"></label>' +
+      '<label>Page(s):<input type="text" name="page_numbers_alt" value="' + escHtml(v.page_numbers || '') + '"></label>' +
     '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Tags <span class="crucible-hint">(comma separated)</span><input type="text" name="tags" value="' + escHtml((v.tags || []).join(', ')) + '"></label>' +
+      '<label>DOI:<input type="text" name="doi" value="' + escHtml(v.doi || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="publisher">' +
+      '<label>Publisher:<input type="text" name="publisher" value="' + escHtml(v.publisher || '') + '"></label>' +
+      '<label>Publisher Location:<input type="text" name="publisher_location" value="' + escHtml(v.publisher_location || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="edition">' +
+      '<label>Edition: <span class="crucible-hint">(e.g. 2nd ed.)</span><input type="text" name="edition" value="' + escHtml(v.edition || '') + '"></label>' +
+      '<label>Editors: <span class="crucible-hint">(semicolon separated)</span><input type="text" name="editors" value="' + escHtml(v.editors || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row" data-field-group="chapter">' +
+      '<label>Chapter Name:<input type="text" name="chapter_name" value="' + escHtml(v.chapter_name || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row" data-field-group="conference">' +
+      '<label>Conference Name:<input type="text" name="conference_name" value="' + escHtml(v.conference_name || '') + '"></label>' +
+    '</div>';
+    html += '<div class="crucible-form-row">' +
+      '<label>Tags: <span class="crucible-hint">(comma separated)</span><input type="text" name="tags" value="' + escHtml((v.tags || []).join(', ')) + '"></label>' +
     '</div>';
     if (sections.length) {
-      html += '<div class="crucible-form-row"><span class="crucible-field-label">Applicable sections</span><div class="crucible-section-checks">' + sectionChecks + '</div></div>';
+      html += '<div class="crucible-form-row"><span class="crucible-field-label">Applicable Sections:</span>' +
+        '<div class="crucible-section-checks">' +
+        '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong>Select All</strong></label>' +
+        sectionChecks + '</div></div>';
     }
 
     html += '</form>';
@@ -743,15 +740,25 @@
       typeSelect.addEventListener('change', function () { applyFieldVisibility(modal, this.value); });
       applyFieldVisibility(modal, typeSelect.value);
     }
+
+    var selectAllCb = document.getElementById('crucible-select-all-sections');
+    if (selectAllCb) {
+      selectAllCb.addEventListener('change', function () {
+        var checked = this.checked;
+        modal.querySelectorAll('input[name="section_ids"]').forEach(function (cb) {
+          cb.checked = checked;
+        });
+      });
+    }
   }
 
   function applyFieldVisibility(modal, sourceType) {
     var groups = {
-      '':          { journal: true, chapter: true, conference: true, publisher: true, edition: true, access: true, 'pages-only': false },
-      'journal':   { journal: true, chapter: false, conference: false, publisher: false, edition: false, access: true, 'pages-only': false },
-      'book':      { journal: false, chapter: false, conference: false, publisher: true, edition: true, access: true, 'pages-only': false },
-      'chapter':   { journal: false, chapter: true, conference: false, publisher: true, edition: true, access: true, 'pages-only': true },
-      'conference': { journal: false, chapter: false, conference: true, publisher: true, edition: false, access: true, 'pages-only': true },
+      '':          { journal: true, chapter: true, conference: true, publisher: true, edition: true, 'pages-only': false },
+      'journal':   { journal: true, chapter: false, conference: false, publisher: false, edition: false, 'pages-only': false },
+      'book':      { journal: false, chapter: false, conference: false, publisher: true, edition: true, 'pages-only': false },
+      'chapter':   { journal: false, chapter: true, conference: false, publisher: true, edition: true, 'pages-only': true },
+      'conference': { journal: false, chapter: false, conference: true, publisher: true, edition: false, 'pages-only': true },
     };
     var vis = groups[sourceType] || groups[''];
     modal.querySelectorAll('[data-field-group]').forEach(function (el) {
@@ -777,14 +784,12 @@
       issue_number: fd.get('issue_number') || '',
       page_numbers: pages,
       doi: fd.get('doi') || '',
-      url: fd.get('url') || '',
       publisher: fd.get('publisher') || '',
       publisher_location: fd.get('publisher_location') || '',
       edition: fd.get('edition') || '',
       editors: fd.get('editors') || '',
       chapter_name: fd.get('chapter_name') || '',
       conference_name: fd.get('conference_name') || '',
-      access_date: fd.get('access_date') || '',
       citation_text: fd.get('article_title') || '',
       tags: (fd.get('tags') || '').split(/[,;]/).map(function (t) { return t.trim(); }).filter(Boolean),
       section_ids: fd.getAll('section_ids').map(function (v) { return parseInt(v, 10); }),
