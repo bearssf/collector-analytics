@@ -114,7 +114,7 @@
       totalInput.className = 'narrow';
       totalInput.value =
         t.projectedTotalWords != null && t.projectedTotalWords !== '' ? String(t.projectedTotalWords) : '';
-      totalInput.addEventListener('input', function () {
+      totalInput.addEventListener('change', function () {
         const v = totalInput.value.trim();
         t.projectedTotalWords = v === '' ? null : Math.round(Number(v));
         render();
@@ -158,7 +158,7 @@
         inPct.min = '0';
         inPct.max = '100';
         inPct.value = s.percent != null ? String(s.percent) : '';
-        inPct.addEventListener('input', function () {
+        inPct.addEventListener('change', function () {
           const v = parseInt(inPct.value, 10);
           s.percent = Number.isNaN(v) ? null : v;
           render();
