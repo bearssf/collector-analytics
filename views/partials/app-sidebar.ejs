@@ -46,10 +46,10 @@
       <nav class="app-nav">
         <% var hasActiveSection = typeof anvilSectionId !== 'undefined' && anvilSectionId != null; %>
         <a href="/app/project/<%= effectivePid %>/anvil<%= (typeof anvilSections !== 'undefined' && anvilSections.length) ? ('?section=' + anvilSections[0].id) : '' %>" class="<%= slug === 'anvil' && !hasActiveSection ? 'active' : '' %>">The Anvil</a>
-        <% if (typeof anvilSections !== 'undefined' && anvilSections.length && slug === 'anvil') { %>
+        <% if (typeof anvilSections !== 'undefined' && anvilSections.length) { %>
         <nav class="app-nav app-nav--anvil-sections" aria-label="Section drafts">
           <% anvilSections.forEach(function (sec) { %>
-            <a href="/app/project/<%= effectivePid %>/<%= slug %>?section=<%= sec.id %>" class="<%= hasActiveSection && Number(anvilSectionId) === Number(sec.id) ? 'active' : '' %>"><%= sec.title %></a>
+            <a href="/app/project/<%= effectivePid %>/anvil?section=<%= sec.id %>" class="<%= hasActiveSection && Number(anvilSectionId) === Number(sec.id) ? 'active' : '' %>"><%= sec.title %></a>
           <% }); %>
         </nav>
         <% } %>

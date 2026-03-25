@@ -1078,7 +1078,7 @@
     var mount = document.getElementById('anvil-citations-mount');
     if (!mount) return;
     if (!sectionSources.length) {
-      mount.innerHTML = '<p class="app-anvil-rail__citations-placeholder">No citations tagged to this section.</p>';
+      mount.innerHTML = '<p class="app-anvil-rail__citations-placeholder">No sources tagged to this section.</p>';
       return;
     }
     var html = '';
@@ -1282,6 +1282,14 @@
     document.getElementById('anvil-export-section-docx').addEventListener('click', exportSectionDocx);
     document.getElementById('anvil-export-all-rtf').addEventListener('click', exportAllRtf);
     document.getElementById('anvil-export-all-docx').addEventListener('click', exportAllDocx);
+
+    var addSourceBtn = document.getElementById('anvil-add-source-btn');
+    if (addSourceBtn) {
+      addSourceBtn.addEventListener('click', function () {
+        flushPendingSave();
+        window.location.href = '/app/project/' + projectId + '/crucible';
+      });
+    }
 
     /* Highlight the active section in sidebar */
     var sidebarSectionLinks = document.querySelectorAll('.app-nav--anvil-sections a');

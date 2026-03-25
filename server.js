@@ -799,13 +799,15 @@ app.get(
     const foundryLocked = slug === 'foundry' && !res.locals.appAccess.foundryUnlocked;
     let anvilSections = [];
     let anvilSectionId = null;
-    if (slug === 'anvil' && bundle.sections && bundle.sections.length) {
+    if (bundle.sections && bundle.sections.length) {
       anvilSections = bundle.sections.map(function (s) {
         return { id: s.id, title: s.title };
       });
-      const sq =
-        req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
-      anvilSectionId = !Number.isNaN(sq) ? sq : null;
+      if (slug === 'anvil') {
+        const sq =
+          req.query.section != null ? parseInt(String(req.query.section), 10) : NaN;
+        anvilSectionId = !Number.isNaN(sq) ? sq : null;
+      }
     }
     let crucibleSections = [];
     if (slug === 'crucible' && bundle.sections && bundle.sections.length) {
