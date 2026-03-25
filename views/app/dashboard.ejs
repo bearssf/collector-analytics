@@ -36,6 +36,17 @@
             </svg>
           </div>
           <div class="dash-visual-card__sub">Project completion</div>
+          <% if (recentProg && recentProg.sections && recentProg.sections.length) { %>
+          <div class="dash-section-bars">
+            <% recentProg.sections.forEach(function(sec) { %>
+            <div class="dash-section-bar">
+              <span class="dash-section-bar__label"><%= sec.title %></span>
+              <div class="dash-section-bar__track"><div class="dash-section-bar__fill" style="width:<%= sec.pct %>%"></div></div>
+              <span class="dash-section-bar__pct"><%= sec.pct %>%</span>
+            </div>
+            <% }); %>
+          </div>
+          <% } %>
         </div>
         <% } %>
 
@@ -58,6 +69,15 @@
             </svg>
           </div>
           <div class="dash-visual-card__sub">Portfolio completion</div>
+          <div class="dash-section-bars">
+            <% progressData.forEach(function(pp) { %>
+            <div class="dash-section-bar">
+              <span class="dash-section-bar__label"><%= pp.name %></span>
+              <div class="dash-section-bar__track"><div class="dash-section-bar__fill" style="width:<%= pp.pct %>%"></div></div>
+              <span class="dash-section-bar__pct"><%= pp.pct %>%</span>
+            </div>
+            <% }); %>
+          </div>
         </div>
         <% } %>
       </div>
@@ -92,13 +112,15 @@
         </div>
       </div>
       <div class="dash-rail-bottom">
-        <% var renewal = typeof renewalDate !== 'undefined' ? renewalDate : null; %>
-        <% if (renewal) { %>
-          <div class="dash-rail-renewal">
-            <span class="dash-rail-renewal__label">Next renewal:</span>
-            <span class="dash-rail-renewal__date"><%= renewal %></span>
-          </div>
-          <a href="/app/account" class="dash-rail-renewal__link">Renew or update subscription</a>
+        <% var bLines = typeof billingSummary !== 'undefined' && billingSummary && billingSummary.lines ? billingSummary.lines : []; %>
+        <% if (appAccess.paid || bLines.length) { %>
+          <% bLines.forEach(function(row) { %>
+            <div class="dash-rail-renewal">
+              <span class="dash-rail-renewal__label"><%= row.label %>:</span>
+              <span class="dash-rail-renewal__date"><%= row.value %></span>
+            </div>
+          <% }); %>
+          <a href="/app/account" class="dash-rail-renewal__link">Manage subscription</a>
         <% } else { %>
           <div class="dash-rail-renewal">
             <span class="dash-rail-renewal__label">No active subscription</span>

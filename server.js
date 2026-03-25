@@ -367,24 +367,34 @@ app.get(
       const secs = await p
         .request()
         .input('pid', sql.Int, proj.id)
-        .query('SELECT body FROM project_sections WHERE project_id = @pid');
+        .query('SELECT title, body, sort_order FROM project_sections WHERE project_id = @pid ORDER BY sort_order');
+      const def = proj.template_key && tpl[proj.template_key] ? tpl[proj.template_key] : null;
+      const docTarget = def && def.projectedTotalWords ? Math.max(1, Math.round(Number(def.projectedTotalWords))) : 0;
+      const tplSections = def && def.sections ? def.sections : [];
+
       let totalWords = 0;
-      for (const row of secs.recordset) {
+      const sections = [];
+      for (let i = 0; i < secs.recordset.length; i++) {
+        const row = secs.recordset[i];
+        let words = 0;
         if (row.body) {
           const text = String(row.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (text) totalWords += text.split(/\s+/).length;
+          if (text) words = text.split(/\s+/).length;
         }
+        totalWords += words;
+        const tplSec = tplSections[i] || {};
+        const secPct = tplSec.percent || 0;
+        const secTarget = docTarget > 0 && secPct > 0 ? Math.round((docTarget * secPct) / 100) : 0;
+        const secCompletePct = secTarget > 0 ? Math.min(100, Math.round((words / secTarget) * 100)) : 0;
+        sections.push({ title: row.title, words, target: secTarget, pct: secCompletePct });
       }
-      const def = proj.template_key && tpl[proj.template_key] ? tpl[proj.template_key] : null;
-      const target = def && def.projectedTotalWords ? Math.max(1, Math.round(Number(def.projectedTotalWords))) : 0;
-      const pct = target > 0 ? Math.min(100, Math.round((totalWords / target) * 100)) : 0;
-      projectProgress.push({ id: proj.id, name: proj.name, totalWords, target, pct });
+      const pct = docTarget > 0 ? Math.min(100, Math.round((totalWords / docTarget) * 100)) : 0;
+      projectProgress.push({ id: proj.id, name: proj.name, totalWords, target: docTarget, pct, sections });
     }
 
     const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
-    const renewalDate = subscriptionRow?.current_period_end
-      ? formatLongDate(subscriptionRow.current_period_end)
-      : null;
+    const priceCfg = getStripePriceConfig();
+    const billingSummary = buildBillingSummaryLines(subscriptionRow, priceCfg);
 
     res.render('app/dashboard', {
       user: req.session.user,
@@ -392,7 +402,7 @@ app.get(
       projects,
       currentProjectId,
       projectProgress,
-      renewalDate,
+      billingSummary,
     });
   })
 );

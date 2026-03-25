@@ -3401,6 +3401,49 @@
   color: var(--muted);
   margin-top: 0.4rem;
 }
+.dash-section-bars {
+  width: 100%;
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.dash-section-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.dash-section-bar__label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.65);
+  width: 80px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-section-bar__track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.dash-section-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #1cb9c5;
+  transition: width 0.4s ease;
+}
+.dash-section-bar__pct {
+  font-size: 0.6rem;
+  color: var(--muted);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
 
 .dash-actions-placeholder {
   padding: 1.25rem;
