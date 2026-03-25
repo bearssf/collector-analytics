@@ -1006,7 +1006,7 @@
 }
 .crucible-field-label {
   font-size: 0.84rem;
-  color: #1cb9c5;
+  color: #2f80ec;
   display: block;
   margin-top: 20px;
   margin-bottom: 0.3rem;
@@ -1032,7 +1032,7 @@
   margin-bottom: 0.1rem;
 }
 .crucible-select-all-text {
-  color: #2d9a66;
+  color: #1cb9c5;
 }
 
 /* Tag filter modal list */
