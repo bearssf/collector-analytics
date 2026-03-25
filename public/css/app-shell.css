@@ -1525,8 +1525,7 @@
 }
 .anvil-layout--single .anvil-editor-footer {
   flex-shrink: 0;
-  /* Space below paper / light-mode row before export buttons (~¼ in / 25px) */
-  padding-bottom: 25px;
+  padding-bottom: 10px;
 }
 .anvil-layout--single .anvil-quill-wrap {
   flex: 1;

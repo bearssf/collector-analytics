@@ -1214,7 +1214,9 @@
       '<div class="anvil-editor">' +
       '<div id="anvil-quill-wrap" class="anvil-quill-wrap"><div id="anvil-editor" class="anvil-quill"></div></div>' +
       '<div class="anvil-editor-footer">' +
-      '<div class="anvil-editor-footer__left"></div>' +
+      '<div class="anvil-editor-footer__left">' +
+        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">' + (draft ? (lastSavedLabel || 'Saved') : 'Unsaved') + '</span>' +
+      '</div>' +
       '<div class="anvil-editor-footer__mid">' +
       '<div class="anvil-paper-toggle-wrap">' +
       '<button type="button" id="anvil-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' + (paperMode ? 'true' : 'false') + '" title="Toggle light/dark writing mode">' +
@@ -1223,12 +1225,10 @@
       '<span id="anvil-paper-hint" class="anvil-paper-toggle__hint">' + (paperMode ? 'LIGHT MODE' : 'DARK MODE') + '</span>' +
       '</div>' +
       '</div>' +
-      '<div class="anvil-editor-footer__right"></div>' +
-      '</div>' +
-      '</div>' +
-      '<div class="anvil-save-bar">' +
-        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">' + (draft ? (lastSavedLabel || 'Saved') : 'Unsaved') + '</span>' +
+      '<div class="anvil-editor-footer__right">' +
         '<button type="button" class="anvil-save-btn" id="anvil-manual-save">Save</button>' +
+      '</div>' +
+      '</div>' +
       '</div>' +
       '<div class="anvil-export-bar">' +
       '<div class="anvil-export-bar__row">' +
