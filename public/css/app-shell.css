@@ -558,14 +558,41 @@
   margin: 0;
   cursor: pointer;
 }
+.crucible-tile__project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
 .crucible-tile__project-label {
   font-size: 0.7rem;
   color: #1cb9c5;
   padding: 0.15rem 0.4rem;
   background: rgba(28, 185, 197, 0.1);
   border-radius: 3px;
-  margin-bottom: 0.3rem;
   display: inline-block;
+}
+.crucible-add-to-project-btn {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #1cb9c5;
+  border-radius: 4px;
+  background: transparent;
+  color: #1cb9c5;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.crucible-add-to-project-btn:hover {
+  background: rgba(28, 185, 197, 0.15);
+}
+.crucible-add-to-project-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.crucible-add-to-project-btn--done {
+  border-color: #4caf50;
+  color: #4caf50;
 }
 .crucible-toolbar-spacer {
   display: inline-block;

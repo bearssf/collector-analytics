@@ -423,9 +423,13 @@
           tagBadges += '<span class="crucible-tag-badge">' + escHtml(t) + '</span>';
         });
         var isOtherProject = fullLibraryMode && String(src.project_id) !== String(projectId);
-        var projectLabel = (fullLibraryMode && src.project_name)
-          ? '<div class="crucible-tile__project-label">' + escHtml(src.project_name) + '</div>'
-          : '';
+        var projectLabel = '';
+        if (fullLibraryMode && src.project_name) {
+          projectLabel = '<div class="crucible-tile__project-row">' +
+            '<span class="crucible-tile__project-label">' + escHtml(src.project_name) + '</span>' +
+            (isOtherProject ? '<button type="button" class="crucible-tile-btn crucible-add-to-project-btn" data-source-id="' + src.id + '">+ Add to Current Project</button>' : '') +
+          '</div>';
+        }
         var actionBtns = isOtherProject ? '' :
           '<span class="crucible-tile__actions">' +
             '<button type="button" class="crucible-tile-btn crucible-tile-btn--search" data-source-id="' + src.id + '" title="Find related sources">&#128269;</button>' +
@@ -495,6 +499,14 @@
 
     var addBtn = document.getElementById('crucible-add-source-btn');
     if (addBtn) addBtn.addEventListener('click', function () { openSourceModal(null); });
+
+    root.querySelectorAll('.crucible-add-to-project-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var sid = parseInt(btn.getAttribute('data-source-id'), 10);
+        var src = sources.find(function (s) { return s.id === sid; });
+        if (src) addOtherSourceToCurrentProject(src, btn);
+      });
+    });
 
     root.querySelectorAll('.crucible-tile-btn--search').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1140,6 +1152,45 @@
       customSearchTerms = null;
       closeModal();
       fetchSuggestions();
+    });
+  }
+
+  /* ── Add source from another project to current project ─────────── */
+
+  function addOtherSourceToCurrentProject(src, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    var payload = {
+      article_title: src.article_title || '',
+      authors: src.authors || '',
+      publication_date: src.publication_date || '',
+      doi: src.doi || '',
+      citation_text: src.citation_text || src.article_title || '',
+      source_type: src.source_type || '',
+      journal_title: src.journal_title || '',
+      volume_number: src.volume_number || '',
+      issue_number: src.issue_number || '',
+      page_numbers: src.page_numbers || '',
+      chapter_name: src.chapter_name || '',
+      conference_name: src.conference_name || '',
+      publisher: src.publisher || '',
+      publisher_location: src.publisher_location || '',
+      editors: src.editors || '',
+      book_title: src.book_title || '',
+      edition: src.edition || '',
+      open_access_url: src.open_access_url || '',
+      from_suggestion: !!src.from_suggestion,
+      tags: src.tags || [],
+      section_ids: [],
+    };
+    api('POST', '/sources', payload).then(function (d) {
+      projectSources.push(d.source);
+      btn.textContent = 'Added ✓';
+      btn.classList.add('crucible-add-to-project-btn--done');
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = '+ Add to Current Project';
+      openAlertModal('Could not add source: ' + (e.message || 'unknown error'));
     });
   }
 
