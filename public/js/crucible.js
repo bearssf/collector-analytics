@@ -846,7 +846,12 @@
     fetch('/api/projects/' + projectId + '/sources/search-scholar?q=' + encodeURIComponent(q) + '&limit=20', {
       credentials: 'same-origin'
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error(d.error || 'Request failed (' + r.status + ')');
+          return d;
+        });
+      })
       .then(function (d) {
         if (!d.papers || !d.papers.length) {
           panel.innerHTML = '<div class="crucible-sug-empty">No related papers found.</div>';
@@ -872,7 +877,8 @@
         panel.innerHTML = html;
       })
       .catch(function (e) {
-        panel.innerHTML = '<div class="crucible-sug-empty">Could not load suggestions.</div>';
+        var msg = (e && e.message) || 'Could not load suggestions.';
+        panel.innerHTML = '<div class="crucible-sug-empty">' + escHtml(msg) + '</div>';
       });
   }
 

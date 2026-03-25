@@ -866,16 +866,23 @@ function createApiRouter(getPool) {
       }
 
       const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+      console.log('[Semantic Scholar] Searching with keywords:', keywords.slice(0, 3), '..., limit:', limit);
       const results = await searchPapers(keywords, {
         limit,
         apiKey: process.env.SEMANTIC_SCHOLAR_API_KEY || undefined,
         year: req.query.year || undefined,
         fieldsOfStudy: req.query.fieldsOfStudy || undefined,
       });
+      console.log('[Semantic Scholar] Returned', results.length, 'papers');
       res.json({ papers: results });
     } catch (e) {
+      console.error('[Semantic Scholar] Error:', e.message);
       if (e && e.message && e.message.includes('rate limit')) {
-        return res.status(429).json({ error: e.message });
+        const hasKey = !!process.env.SEMANTIC_SCHOLAR_API_KEY;
+        const msg = hasKey
+          ? 'Semantic Scholar is temporarily rate-limiting requests. Please try again in a minute.'
+          : 'Semantic Scholar requires an API key for reliable access. Add SEMANTIC_SCHOLAR_API_KEY to your environment. Get a free key at semanticscholar.org/product/api';
+        return res.status(429).json({ error: msg });
       }
       next(e);
     }
