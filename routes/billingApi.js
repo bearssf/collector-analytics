@@ -20,7 +20,7 @@ const {
 } = require('../lib/billingPlanPreview');
 
 /**
- * @param {() => Promise<import('mssql').ConnectionPool>} getPool
+ * @param {() => Promise<import('mysql2/promise').Pool>} getPool
  * @param {import('stripe').default | null} stripe
  */
 function createBillingApiRouter(getPool, stripe) {

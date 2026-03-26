@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const sql = require('mssql');
+const { query, queryRaw } = require('../lib/db');
 const bcrypt = require('bcryptjs');
 const { ensureSubscriptionRow, getSubscriptionRow, appAccessFromRow } = require('../lib/subscriptions');
 const { ALLOWED_TITLES, SEARCH_ENGINES } = require('../lib/userConstants');
@@ -160,26 +160,26 @@ function createApiRouter(getPool) {
         return res.status(400).json({ error: 'Invalid preferred search engine.' });
       }
 
-      const p = await getPool();
-      await p
-        .request()
-        .input('id', sql.Int, req.session.userId)
-        .input('title', sql.NVarChar(20), title)
-        .input('first_name', sql.NVarChar(100), firstName)
-        .input('last_name', sql.NVarChar(100), lastName)
-        .input('university', sql.NVarChar(255), university || null)
-        .input('research_focus', sql.NVarChar(sql.MAX), researchFocus || null)
-        .input('preferred_search_engine', sql.NVarChar(100), preferredSearchEngine || null)
-        .query(
-          `UPDATE users SET
+      await query(
+        getPool,
+        `UPDATE users SET
             title = @title,
             first_name = @first_name,
             last_name = @last_name,
             university = @university,
             research_focus = @research_focus,
             preferred_search_engine = @preferred_search_engine
-           WHERE id = @id`
-        );
+           WHERE id = @id`,
+        {
+          id: req.session.userId,
+          title,
+          first_name: firstName,
+          last_name: lastName,
+          university: university || null,
+          research_focus: researchFocus || null,
+          preferred_search_engine: preferredSearchEngine || null,
+        }
+      );
 
       req.session.user = {
         id: req.session.userId,
@@ -218,22 +218,19 @@ function createApiRouter(getPool) {
         return res.status(400).json({ error: 'New password and confirmation do not match.' });
       }
 
-      const p = await getPool();
-      const r = await p
-        .request()
-        .input('id', sql.Int, req.session.userId)
-        .query('SELECT password_hash FROM users WHERE id = @id');
+      const r = await query(getPool, 'SELECT password_hash FROM users WHERE id = @id', {
+        id: req.session.userId,
+      });
       const row = r.recordset[0];
       if (!row || !(await bcrypt.compare(currentPassword, row.password_hash))) {
         return res.status(400).json({ error: 'Current password is incorrect.' });
       }
 
       const hash = await bcrypt.hash(newPassword, 10);
-      await p
-        .request()
-        .input('id', sql.Int, req.session.userId)
-        .input('password_hash', sql.NVarChar(255), hash)
-        .query('UPDATE users SET password_hash = @password_hash WHERE id = @id');
+      await query(getPool, 'UPDATE users SET password_hash = @password_hash WHERE id = @id', {
+        id: req.session.userId,
+        password_hash: hash,
+      });
 
       res.json({ ok: true });
     } catch (e) {
@@ -325,30 +322,33 @@ function createApiRouter(getPool) {
       }
 
       const updates = [];
-      const p = await getPool();
-      const reqB = p.request().input('id', sql.Int, projectId).input('user_id', sql.Int, req.session.userId);
+      const pubParams = { id: projectId, user_id: req.session.userId };
       if (body.status !== undefined) {
         updates.push('status = @status');
-        reqB.input('status', sql.NVarChar(40), body.status);
+        pubParams.status = body.status;
       }
       ['publishing_title', 'publishing_venue', 'publishing_disposition'].forEach((k) => {
         if (body[k] !== undefined) {
           updates.push(`${k} = @${k}`);
-          reqB.input(k, sql.NVarChar(500), body[k]);
+          pubParams[k] = body[k];
         }
       });
       if (body.publishing_submitted_at !== undefined) {
         updates.push('publishing_submitted_at = @publishing_submitted_at');
-        reqB.input('publishing_submitted_at', sql.DateTime2, body.publishing_submitted_at ? new Date(body.publishing_submitted_at) : null);
+        pubParams.publishing_submitted_at = body.publishing_submitted_at
+          ? new Date(body.publishing_submitted_at)
+          : null;
       }
       if (body.publishing_published_at !== undefined) {
         updates.push('publishing_published_at = @publishing_published_at');
-        reqB.input('publishing_published_at', sql.DateTime2, body.publishing_published_at ? new Date(body.publishing_published_at) : null);
+        pubParams.publishing_published_at = body.publishing_published_at
+          ? new Date(body.publishing_published_at)
+          : null;
       }
       if (updates.length > 0) {
-        updates.push('updated_at = GETDATE()');
+        updates.push('updated_at = NOW()');
         const sqlText = `UPDATE projects SET ${updates.join(', ')} WHERE id = @id AND user_id = @user_id`;
-        const r = await reqB.query(sqlText);
+        const r = await query(getPool, sqlText, pubParams);
         if (r.rowsAffected[0] === 0) return res.status(404).json({ error: 'Not found' });
       } else if (!hasMeta) {
         return res.status(400).json({ error: 'No valid fields to update' });
@@ -368,68 +368,59 @@ function createApiRouter(getPool) {
       const sectionId = parseInt(req.params.sectionId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sectionId)) return res.status(400).json({ error: 'invalid id' });
       const body = req.body || {};
-      const p = await getPool();
-      const own = await p
-        .request()
-        .input('sid', sql.Int, sectionId)
-        .input('pid', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query(
-          `SELECT ps.id FROM project_sections ps
-           INNER JOIN projects pr ON pr.id = ps.project_id
-           WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`
-        );
+      const own = await query(
+        getPool,
+        `SELECT ps.id FROM project_sections ps
+         INNER JOIN projects pr ON pr.id = ps.project_id
+         WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`,
+        { sid: sectionId, pid: projectId, user_id: req.session.userId }
+      );
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
       const updates = [];
-      const reqB = p.request().input('sid', sql.Int, sectionId);
+      const secParams = { sid: sectionId };
       if (body.status !== undefined) {
         updates.push('status = @status');
-        reqB.input('status', sql.NVarChar(40), body.status);
+        secParams.status = body.status;
       }
       if (body.progressPercent !== undefined) {
         updates.push('progress_percent = @progress_percent');
         const pp = parseInt(body.progressPercent, 10);
-        reqB.input('progress_percent', sql.TinyInt, Math.min(100, Math.max(0, Number.isNaN(pp) ? 0 : pp)));
+        secParams.progress_percent = Math.min(100, Math.max(0, Number.isNaN(pp) ? 0 : pp));
       }
       if (body.title !== undefined) {
         updates.push('title = @title');
-        reqB.input('title', sql.NVarChar(255), String(body.title).trim());
+        secParams.title = String(body.title).trim();
       }
       let bodyChanged = false;
       if (body.body !== undefined) {
         updates.push('body = @body');
-        reqB.input('body', sql.NVarChar(sql.MAX), body.body != null ? String(body.body) : null);
+        secParams.body = body.body != null ? String(body.body) : null;
         if (staleFeedbackEnabled()) {
           updates.push('draft_revision = draft_revision + 1');
         }
         bodyChanged = true;
       }
       if (updates.length === 0) return res.status(400).json({ error: 'No valid fields' });
-      updates.push('updated_at = GETDATE()');
-      await reqB.query(`UPDATE project_sections SET ${updates.join(', ')} WHERE id = @sid`);
+      updates.push('updated_at = NOW()');
+      await query(getPool, `UPDATE project_sections SET ${updates.join(', ')} WHERE id = @sid`, secParams);
       let invalidatedOpen = 0;
       if (staleFeedbackEnabled() && bodyChanged) {
-        const revRow = await p
-          .request()
-          .input('sid', sql.Int, sectionId)
-          .input('pid', sql.Int, projectId)
-          .query(
-            `SELECT draft_revision FROM project_sections WHERE id = @sid AND project_id = @pid`
-          );
+        const revRow = await query(
+          getPool,
+          `SELECT draft_revision FROM project_sections WHERE id = @sid AND project_id = @pid`,
+          { sid: sectionId, pid: projectId }
+        );
         const newRev =
           revRow.recordset[0] && revRow.recordset[0].draft_revision != null
             ? Number(revRow.recordset[0].draft_revision)
             : 0;
-        const del = await p
-          .request()
-          .input('sid', sql.Int, sectionId)
-          .input('pid', sql.Int, projectId)
-          .input('rev', sql.Int, newRev)
-          .query(
-            `DELETE FROM anvil_suggestions WHERE section_id = @sid AND project_id = @pid
-             AND suggestion_status = N'open' AND COALESCE(draft_revision_at_generation, -1) < @rev`
-          );
+        const del = await query(
+          getPool,
+          `DELETE FROM anvil_suggestions WHERE section_id = @sid AND project_id = @pid
+           AND suggestion_status = 'open' AND COALESCE(draft_revision_at_generation, -1) < @rev`,
+          { sid: sectionId, pid: projectId, rev: newRev }
+        );
         invalidatedOpen = del.rowsAffected && del.rowsAffected[0] ? del.rowsAffected[0] : 0;
       }
       const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
@@ -563,32 +554,26 @@ function createApiRouter(getPool) {
       if (Number.isNaN(projectId) || Number.isNaN(sectionId)) {
         return res.status(400).json({ error: 'invalid id' });
       }
-      const p = await getPool();
-      const own = await p
-        .request()
-        .input('sid', sql.Int, sectionId)
-        .input('pid', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query(
-          `SELECT ps.id FROM project_sections ps
-           INNER JOIN projects pr ON pr.id = ps.project_id
-           WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`
-        );
+      const own = await query(
+        getPool,
+        `SELECT ps.id FROM project_sections ps
+         INNER JOIN projects pr ON pr.id = ps.project_id
+         WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`,
+        { sid: sectionId, pid: projectId, user_id: req.session.userId }
+      );
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('section_id', sql.Int, sectionId)
-        .input('project_id', sql.Int, projectId)
-        .query(
-          `SELECT s.id, s.project_id, s.section_id, s.category, s.body, s.suggestion_status, s.anchor_json,
-                  s.draft_revision_at_generation, ps.draft_revision AS section_draft_revision,
-                  s.created_at, s.updated_at
-           FROM anvil_suggestions s
-           INNER JOIN project_sections ps ON ps.id = s.section_id AND ps.project_id = s.project_id
-           WHERE s.section_id = @section_id AND s.project_id = @project_id
-           ORDER BY s.created_at DESC`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT s.id, s.project_id, s.section_id, s.category, s.body, s.suggestion_status, s.anchor_json,
+                s.draft_revision_at_generation, ps.draft_revision AS section_draft_revision,
+                s.created_at, s.updated_at
+         FROM anvil_suggestions s
+         INNER JOIN project_sections ps ON ps.id = s.section_id AND ps.project_id = s.project_id
+         WHERE s.section_id = @section_id AND s.project_id = @project_id
+         ORDER BY s.created_at DESC`,
+        { section_id: sectionId, project_id: projectId }
+      );
       const suggestions = rows.recordset.map(mapSuggestionRow).filter(Boolean);
       res.json({ suggestions });
     } catch (e) {
@@ -603,17 +588,13 @@ function createApiRouter(getPool) {
       if (Number.isNaN(projectId) || Number.isNaN(sectionId)) {
         return res.status(400).json({ error: 'invalid id' });
       }
-      const p = await getPool();
-      const own = await p
-        .request()
-        .input('sid', sql.Int, sectionId)
-        .input('pid', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query(
-          `SELECT ps.id FROM project_sections ps
-           INNER JOIN projects pr ON pr.id = ps.project_id
-           WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`
-        );
+      const own = await query(
+        getPool,
+        `SELECT ps.id FROM project_sections ps
+         INNER JOIN projects pr ON pr.id = ps.project_id
+         WHERE ps.id = @sid AND ps.project_id = @pid AND pr.user_id = @user_id`,
+        { sid: sectionId, pid: projectId, user_id: req.session.userId }
+      );
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
       const body = req.body || {};
@@ -665,29 +646,27 @@ function createApiRouter(getPool) {
         return res.status(400).json({ error: 'status must be applied or ignored' });
       }
 
-      const p = await getPool();
-      const upd = await p
-        .request()
-        .input('sid', sql.Int, suggestionId)
-        .input('pid', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .input('suggestion_status', sql.NVarChar(20), newStatus)
-        .query(
-          `UPDATE sug
-           SET suggestion_status = @suggestion_status, updated_at = GETDATE()
-           FROM anvil_suggestions AS sug
-           INNER JOIN projects AS pr ON pr.id = sug.project_id AND pr.user_id = @user_id
-           WHERE sug.id = @sid AND sug.project_id = @pid`
-        );
+      const upd = await query(
+        getPool,
+        `UPDATE anvil_suggestions AS sug
+         INNER JOIN projects AS pr ON pr.id = sug.project_id
+         SET sug.suggestion_status = @suggestion_status, sug.updated_at = NOW()
+         WHERE sug.id = @sid AND sug.project_id = @pid AND pr.user_id = @user_id`,
+        {
+          sid: suggestionId,
+          pid: projectId,
+          user_id: req.session.userId,
+          suggestion_status: newStatus,
+        }
+      );
       if (!upd.rowsAffected || !upd.rowsAffected[0]) return res.status(404).json({ error: 'Not found' });
 
-      const row = await p
-        .request()
-        .input('id', sql.Int, suggestionId)
-        .query(
-          `SELECT id, project_id, section_id, category, body, suggestion_status, anchor_json, draft_revision_at_generation, created_at, updated_at
-           FROM anvil_suggestions WHERE id = @id`
-        );
+      const row = await query(
+        getPool,
+        `SELECT id, project_id, section_id, category, body, suggestion_status, anchor_json, draft_revision_at_generation, created_at, updated_at
+         FROM anvil_suggestions WHERE id = @id`,
+        { id: suggestionId }
+      );
       res.json({ suggestion: mapSuggestionRow(row.recordset[0]) });
     } catch (e) {
       next(e);
@@ -718,20 +697,20 @@ function createApiRouter(getPool) {
           return res.status(400).json({ error: 'html is required' });
         }
 
-        const p = await getPool();
-        const rowRes = await p
-          .request()
-          .input('sid', sql.Int, suggestionId)
-          .input('sec', sql.Int, sectionId)
-          .input('pid', sql.Int, projectId)
-          .input('user_id', sql.Int, req.session.userId)
-          .query(
-            `SELECT sug.id, sug.body, sug.suggestion_status, ps.title AS section_title
-             FROM anvil_suggestions AS sug
-             INNER JOIN projects AS pr ON pr.id = sug.project_id AND pr.user_id = @user_id
-             INNER JOIN project_sections AS ps ON ps.id = sug.section_id AND ps.project_id = sug.project_id
-             WHERE sug.id = @sid AND sug.section_id = @sec AND sug.project_id = @pid`
-          );
+        const rowRes = await query(
+          getPool,
+          `SELECT sug.id, sug.body, sug.suggestion_status, ps.title AS section_title
+           FROM anvil_suggestions AS sug
+           INNER JOIN projects AS pr ON pr.id = sug.project_id AND pr.user_id = @user_id
+           INNER JOIN project_sections AS ps ON ps.id = sug.section_id AND ps.project_id = sug.project_id
+           WHERE sug.id = @sid AND sug.section_id = @sec AND sug.project_id = @pid`,
+          {
+            sid: suggestionId,
+            sec: sectionId,
+            pid: projectId,
+            user_id: req.session.userId,
+          }
+        );
 
         const row = rowRes.recordset[0];
         if (!row) return res.status(404).json({ error: 'Not found' });
@@ -841,16 +820,13 @@ function createApiRouter(getPool) {
 
       const newItems = reviewResult.items || [];
 
-      const p = await getPool();
-      const existing = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sectionId)
-        .query(
-          `SELECT id, fb_id, category, anchor_text, status
-           FROM anvil_feedback
-           WHERE project_id = @pid AND section_id = @sid`
-        );
+      const existing = await query(
+        getPool,
+        `SELECT id, fb_id, category, anchor_text, status
+         FROM anvil_feedback
+         WHERE project_id = @pid AND section_id = @sid`,
+        { pid: projectId, sid: sectionId }
+      );
 
       const existingSet = new Set();
       for (const row of existing.recordset) {
@@ -863,42 +839,41 @@ function createApiRouter(getPool) {
         if (existingSet.has(key)) continue;
         existingSet.add(key);
         const awc = countWordsPlain(it.anchorText);
-        await p
-          .request()
-          .input('pid', sql.Int, projectId)
-          .input('sid', sql.Int, sectionId)
-          .input('fb_id', sql.NVarChar(100), String(it.id || '').slice(0, 100))
-          .input('category', sql.NVarChar(50), String(it.category || '').slice(0, 50))
-          .input('anchor_text', sql.NVarChar(sql.MAX), it.anchorText || '')
-          .input('context_before', sql.NVarChar(500), (it.contextBefore || '').slice(0, 500))
-          .input('context_after', sql.NVarChar(500), (it.contextAfter || '').slice(0, 500))
-          .input('suggestion', sql.NVarChar(sql.MAX), it.suggestion || '')
-          .input('rationale', sql.NVarChar(sql.MAX), it.rationale || '')
-          .input('is_actionable', sql.Bit, it.isActionable ? 1 : 0)
-          .input('awc', sql.Int, awc)
-          .query(
-            `INSERT INTO anvil_feedback
-              (project_id, section_id, fb_id, category, anchor_text, context_before, context_after,
-               suggestion, rationale, is_actionable, status, anchor_word_count)
-             VALUES
-              (@pid, @sid, @fb_id, @category, @anchor_text, @context_before, @context_after,
-               @suggestion, @rationale, @is_actionable, 'active', @awc)`
-          );
+        await query(
+          getPool,
+          `INSERT INTO anvil_feedback
+            (project_id, section_id, fb_id, category, anchor_text, context_before, context_after,
+             suggestion, rationale, is_actionable, status, anchor_word_count)
+           VALUES
+            (@pid, @sid, @fb_id, @category, @anchor_text, @context_before, @context_after,
+             @suggestion, @rationale, @is_actionable, 'active', @awc)`,
+          {
+            pid: projectId,
+            sid: sectionId,
+            fb_id: String(it.id || '').slice(0, 100),
+            category: String(it.category || '').slice(0, 50),
+            anchor_text: it.anchorText || '',
+            context_before: (it.contextBefore || '').slice(0, 500),
+            context_after: (it.contextAfter || '').slice(0, 500),
+            suggestion: it.suggestion || '',
+            rationale: it.rationale || '',
+            is_actionable: it.isActionable ? 1 : 0,
+            awc,
+          }
+        );
         insertedCount++;
       }
 
-      const allRows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sectionId)
-        .query(
-          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
-                  context_before, context_after, suggestion, rationale,
-                  is_actionable, status, anchor_word_count, created_at, updated_at
-           FROM anvil_feedback
-           WHERE project_id = @pid AND section_id = @sid
-           ORDER BY created_at DESC`
-        );
+      const allRows = await query(
+        getPool,
+        `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                context_before, context_after, suggestion, rationale,
+                is_actionable, status, anchor_word_count, created_at, updated_at
+         FROM anvil_feedback
+         WHERE project_id = @pid AND section_id = @sid
+         ORDER BY created_at DESC`,
+        { pid: projectId, sid: sectionId }
+      );
       const allItems = allRows.recordset.map(function (r) {
         return {
           dbId: r.id,
@@ -941,22 +916,19 @@ function createApiRouter(getPool) {
       const sectionId = parseInt(req.params.sectionId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sectionId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sectionId)
-        .query(
-          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
-                  context_before, context_after, suggestion, rationale,
-                  is_actionable, status, anchor_word_count, created_at, updated_at
-           FROM anvil_feedback
-           WHERE project_id = @pid AND section_id = @sid
-           ORDER BY created_at DESC`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                context_before, context_after, suggestion, rationale,
+                is_actionable, status, anchor_word_count, created_at, updated_at
+         FROM anvil_feedback
+         WHERE project_id = @pid AND section_id = @sid
+         ORDER BY created_at DESC`,
+        { pid: projectId, sid: sectionId }
+      );
       const items = rows.recordset.map(function (r) {
         return {
           dbId: r.id,
@@ -984,8 +956,7 @@ function createApiRouter(getPool) {
       const itemId = parseInt(req.params.itemId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(itemId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const newStatus = (req.body.status || '').trim().toLowerCase();
@@ -993,16 +964,13 @@ function createApiRouter(getPool) {
       if (!allowed.includes(newStatus))
         return res.status(400).json({ error: 'Invalid status' });
 
-      const upd = await p
-        .request()
-        .input('id', sql.Int, itemId)
-        .input('pid', sql.Int, projectId)
-        .input('status', sql.NVarChar(20), newStatus)
-        .query(
-          `UPDATE anvil_feedback
-           SET status = @status, updated_at = GETDATE()
-           WHERE id = @id AND project_id = @pid`
-        );
+      const upd = await query(
+        getPool,
+        `UPDATE anvil_feedback
+         SET status = @status, updated_at = NOW()
+         WHERE id = @id AND project_id = @pid`,
+        { id: itemId, pid: projectId, status: newStatus }
+      );
       if (!upd.rowsAffected[0]) return res.status(404).json({ error: 'Item not found' });
       res.json({ ok: true, status: newStatus });
     } catch (e) {
@@ -1016,20 +984,17 @@ function createApiRouter(getPool) {
       const sectionId = parseInt(req.params.sectionId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sectionId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const plainText = req.body.plainText != null ? String(req.body.plainText) : '';
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sectionId)
-        .query(
-          `SELECT id, anchor_text, suggestion, status
-           FROM anvil_feedback
-           WHERE project_id = @pid AND section_id = @sid`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT id, anchor_text, suggestion, status
+         FROM anvil_feedback
+         WHERE project_id = @pid AND section_id = @sid`,
+        { pid: projectId, sid: sectionId }
+      );
 
       const staleIds = [];
       for (const r of rows.recordset) {
@@ -1042,23 +1007,22 @@ function createApiRouter(getPool) {
         }
       }
       if (staleIds.length) {
-        await p.request().query(
+        await queryRaw(
+          getPool,
           `DELETE FROM anvil_feedback WHERE id IN (${staleIds.join(',')})`
         );
       }
 
-      const remaining = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sectionId)
-        .query(
-          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
-                  context_before, context_after, suggestion, rationale,
-                  is_actionable, status, anchor_word_count, created_at, updated_at
-           FROM anvil_feedback
-           WHERE project_id = @pid AND section_id = @sid
-           ORDER BY created_at DESC`
-        );
+      const remaining = await query(
+        getPool,
+        `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                context_before, context_after, suggestion, rationale,
+                is_actionable, status, anchor_word_count, created_at, updated_at
+         FROM anvil_feedback
+         WHERE project_id = @pid AND section_id = @sid
+         ORDER BY created_at DESC`,
+        { pid: projectId, sid: sectionId }
+      );
       const items = remaining.recordset.map(function (r) {
         return {
           dbId: r.id,
@@ -1084,28 +1048,25 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const sectionIdParam = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
 
-      const scoreRows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT section_id, category, SUM(anchor_word_count) AS flagged_words
-           FROM anvil_feedback
-           WHERE project_id = @pid AND status IN ('applied','dismissed','resolved')
-           GROUP BY section_id, category`
-        );
+      const scoreRows = await query(
+        getPool,
+        `SELECT section_id, category, SUM(anchor_word_count) AS flagged_words
+         FROM anvil_feedback
+         WHERE project_id = @pid AND status IN ('applied','dismissed','resolved')
+         GROUP BY section_id, category`,
+        { pid: projectId }
+      );
 
-      const wordRows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT id, body FROM project_sections WHERE project_id = @pid`
-        );
+      const wordRows = await query(
+        getPool,
+        `SELECT id, body FROM project_sections WHERE project_id = @pid`,
+        { pid: projectId }
+      );
       const sectionWords = {};
       let totalProjectWords = 0;
       for (const wr of wordRows.recordset) {
@@ -1169,12 +1130,11 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      const own = await p
-        .request()
-        .input('id', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+      const own = await query(
+        getPool,
+        'SELECT id FROM projects WHERE id = @id AND user_id = @user_id',
+        { id: projectId, user_id: req.session.userId }
+      );
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
       if (!isBedrockConfigured()) {
@@ -1237,12 +1197,11 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      const own = await p
-        .request()
-        .input('id', sql.Int, projectId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+      const own = await query(
+        getPool,
+        'SELECT id FROM projects WHERE id = @id AND user_id = @user_id',
+        { id: projectId, user_id: req.session.userId }
+      );
       if (!own.recordset[0]) return res.status(404).json({ error: 'Not found' });
 
       const rawQ = req.query.q || req.query.query || '';
@@ -1282,23 +1241,21 @@ function createApiRouter(getPool) {
   router.get('/sources/all', async (req, res, next) => {
     try {
       const userId = req.session.userId;
-      const p = await getPool();
-      const rows = await p
-        .request()
-        .input('user_id', sql.Int, userId)
-        .query(
-          `SELECT s.id, s.project_id, pr.name AS project_name,
-                  s.citation_text, s.notes, s.crucible_notes, s.doi,
-                  s.authors, s.publication_date, s.article_title, s.journal_title,
-                  s.volume_number, s.issue_number, s.page_numbers, s.chapter_name, s.conference_name,
-                  s.source_type, s.publisher, s.publisher_location, s.editors, s.book_title,
-                  s.url, s.edition, s.access_date, s.open_access_url, s.from_suggestion,
-                  s.sort_order, s.created_at, s.updated_at
-           FROM sources s
-           INNER JOIN projects pr ON pr.id = s.project_id
-           WHERE pr.user_id = @user_id
-           ORDER BY s.article_title, s.created_at`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT s.id, s.project_id, pr.name AS project_name,
+                s.citation_text, s.notes, s.crucible_notes, s.doi,
+                s.authors, s.publication_date, s.article_title, s.journal_title,
+                s.volume_number, s.issue_number, s.page_numbers, s.chapter_name, s.conference_name,
+                s.source_type, s.publisher, s.publisher_location, s.editors, s.book_title,
+                s.url, s.edition, s.access_date, s.open_access_url, s.from_suggestion,
+                s.sort_order, s.created_at, s.updated_at
+         FROM sources s
+         INNER JOIN projects pr ON pr.id = s.project_id
+         WHERE pr.user_id = @user_id
+         ORDER BY s.article_title, s.created_at`,
+        { user_id: userId }
+      );
 
       const sourceIds = rows.recordset.map(function (r) { return r.id; });
       let tagMap = {};
@@ -1306,14 +1263,16 @@ function createApiRouter(getPool) {
 
       if (sourceIds.length) {
         const idList = sourceIds.join(',');
-        const tagRows = await p.request().query(
+        const tagRows = await queryRaw(
+          getPool,
           'SELECT source_id, tag FROM source_tags WHERE source_id IN (' + idList + ')'
         );
         tagRows.recordset.forEach(function (r) {
           if (!tagMap[r.source_id]) tagMap[r.source_id] = [];
           tagMap[r.source_id].push(r.tag);
         });
-        const secRows = await p.request().query(
+        const secRows = await queryRaw(
+          getPool,
           'SELECT source_id, section_id FROM source_sections WHERE source_id IN (' + idList + ')'
         );
         secRows.recordset.forEach(function (r) {
@@ -1336,12 +1295,12 @@ function createApiRouter(getPool) {
 
   /* ── Crucible: sources CRUD ─────────────────────────────────────────── */
 
-  async function ownsProject(pool, projectId, userId) {
-    const r = await pool
-      .request()
-      .input('id', sql.Int, projectId)
-      .input('user_id', sql.Int, userId)
-      .query('SELECT id FROM projects WHERE id = @id AND user_id = @user_id');
+  async function ownsProject(getPool, projectId, userId) {
+    const r = await query(
+      getPool,
+      'SELECT id FROM projects WHERE id = @id AND user_id = @user_id',
+      { id: projectId, user_id: userId }
+    );
     return !!r.recordset[0];
   }
 
@@ -1349,45 +1308,41 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
-                  authors, publication_date, article_title, journal_title,
-                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
-                  source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date, open_access_url, from_suggestion,
-                  sort_order, created_at, updated_at
-           FROM sources WHERE project_id = @pid ORDER BY article_title, created_at`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                authors, publication_date, article_title, journal_title,
+                volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                source_type, publisher, publisher_location, editors, book_title,
+                url, edition, access_date, open_access_url, from_suggestion,
+                sort_order, created_at, updated_at
+         FROM sources WHERE project_id = @pid ORDER BY article_title, created_at`,
+        { pid: projectId }
+      );
 
-      const tagRows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT st.source_id, st.tag FROM source_tags st
-           INNER JOIN sources s ON s.id = st.source_id
-           WHERE s.project_id = @pid`
-        );
+      const tagRows = await query(
+        getPool,
+        `SELECT st.source_id, st.tag FROM source_tags st
+         INNER JOIN sources s ON s.id = st.source_id
+         WHERE s.project_id = @pid`,
+        { pid: projectId }
+      );
       const tagMap = {};
       tagRows.recordset.forEach(function (r) {
         if (!tagMap[r.source_id]) tagMap[r.source_id] = [];
         tagMap[r.source_id].push(r.tag);
       });
 
-      const secRows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT ss.source_id, ss.section_id FROM source_sections ss
-           INNER JOIN sources s ON s.id = ss.source_id
-           WHERE s.project_id = @pid`
-        );
+      const secRows = await query(
+        getPool,
+        `SELECT ss.source_id, ss.section_id FROM source_sections ss
+         INNER JOIN sources s ON s.id = ss.source_id
+         WHERE s.project_id = @pid`,
+        { pid: projectId }
+      );
       const secMap = {};
       secRows.recordset.forEach(function (r) {
         if (!secMap[r.source_id]) secMap[r.source_id] = [];
@@ -1410,8 +1365,7 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const b = req.body || {};
@@ -1444,73 +1398,75 @@ function createApiRouter(getPool) {
         return res.status(400).json({ error: 'Article title or citation text is required.' });
       }
 
-      const ins = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('citation_text', sql.NVarChar(sql.MAX), citationText)
-        .input('doi', sql.NVarChar(500), doi)
-        .input('authors', sql.NVarChar(sql.MAX), authors)
-        .input('publication_date', sql.NVarChar(100), publicationDate)
-        .input('article_title', sql.NVarChar(500), articleTitle)
-        .input('journal_title', sql.NVarChar(500), journalTitle)
-        .input('volume_number', sql.NVarChar(50), volumeNumber)
-        .input('issue_number', sql.NVarChar(50), issueNumber)
-        .input('page_numbers', sql.NVarChar(100), pageNumbers)
-        .input('chapter_name', sql.NVarChar(500), chapterName)
-        .input('conference_name', sql.NVarChar(500), conferenceName)
-        .input('source_type', sql.NVarChar(40), sourceType)
-        .input('publisher', sql.NVarChar(500), publisher)
-        .input('publisher_location', sql.NVarChar(500), publisherLocation)
-        .input('editors', sql.NVarChar(sql.MAX), editors)
-        .input('book_title', sql.NVarChar(500), bookTitle)
-        .input('url', sql.NVarChar(1000), url)
-        .input('edition', sql.NVarChar(100), edition)
-        .input('access_date', sql.NVarChar(100), accessDate)
-        .input('open_access_url', sql.NVarChar(1000), openAccessUrl)
-        .input('from_suggestion', sql.Bit, fromSuggestion)
-        .query(
-          `INSERT INTO sources (project_id, citation_text, doi, authors, publication_date, article_title,
-            journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name,
-            source_type, publisher, publisher_location, editors, book_title, url, edition, access_date,
-            open_access_url, from_suggestion)
-           VALUES (@pid, @citation_text, @doi, @authors, @publication_date, @article_title,
-            @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name,
-            @source_type, @publisher, @publisher_location, @editors, @book_title, @url, @edition, @access_date,
-            @open_access_url, @from_suggestion);
-           SELECT SCOPE_IDENTITY() AS id;`
-        );
-      const sourceId = ins.recordset[0].id;
+      const ins = await query(
+        getPool,
+        `INSERT INTO sources (project_id, citation_text, doi, authors, publication_date, article_title,
+          journal_title, volume_number, issue_number, page_numbers, chapter_name, conference_name,
+          source_type, publisher, publisher_location, editors, book_title, url, edition, access_date,
+          open_access_url, from_suggestion)
+         VALUES (@pid, @citation_text, @doi, @authors, @publication_date, @article_title,
+          @journal_title, @volume_number, @issue_number, @page_numbers, @chapter_name, @conference_name,
+          @source_type, @publisher, @publisher_location, @editors, @book_title, @url, @edition, @access_date,
+          @open_access_url, @from_suggestion)`,
+        {
+          pid: projectId,
+          citation_text: citationText,
+          doi,
+          authors,
+          publication_date: publicationDate,
+          article_title: articleTitle,
+          journal_title: journalTitle,
+          volume_number: volumeNumber,
+          issue_number: issueNumber,
+          page_numbers: pageNumbers,
+          chapter_name: chapterName,
+          conference_name: conferenceName,
+          source_type: sourceType,
+          publisher,
+          publisher_location: publisherLocation,
+          editors,
+          book_title: bookTitle,
+          url,
+          edition,
+          access_date: accessDate,
+          open_access_url: openAccessUrl,
+          from_suggestion: fromSuggestion,
+        }
+      );
+      const sourceId = ins.insertId;
 
       for (const tag of tags) {
-        await p
-          .request()
-          .input('source_id', sql.Int, sourceId)
-          .input('tag', sql.NVarChar(120), tag.slice(0, 120))
-          .query('INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)');
+        await query(getPool, 'INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)', {
+          source_id: sourceId,
+          tag: tag.slice(0, 120),
+        });
       }
       for (const secId of sectionIds) {
-        await p
-          .request()
-          .input('source_id', sql.Int, sourceId)
-          .input('section_id', sql.Int, secId)
-          .query(
-            `IF EXISTS (SELECT 1 FROM project_sections WHERE id = @section_id AND project_id = ${projectId})
-             INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)`
+        const chk = await query(
+          getPool,
+          'SELECT 1 AS ok FROM project_sections WHERE id = @section_id AND project_id = @proj_id LIMIT 1',
+          { section_id: secId, proj_id: projectId }
+        );
+        if (chk.recordset[0]) {
+          await query(
+            getPool,
+            'INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)',
+            { source_id: sourceId, section_id: secId }
           );
+        }
       }
 
-      const row = await p
-        .request()
-        .input('id', sql.Int, sourceId)
-        .query(
-          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
-                  authors, publication_date, article_title, journal_title,
-                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
-                  source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date, open_access_url, from_suggestion,
-                  sort_order, created_at, updated_at
-           FROM sources WHERE id = @id`
-        );
+      const row = await query(
+        getPool,
+        `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                authors, publication_date, article_title, journal_title,
+                volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                source_type, publisher, publisher_location, editors, book_title,
+                url, edition, access_date, open_access_url, from_suggestion,
+                sort_order, created_at, updated_at
+         FROM sources WHERE id = @id`,
+        { id: sourceId }
+      );
       const source = row.recordset[0];
       source.tags = tags;
       source.section_ids = sectionIds;
@@ -1526,97 +1482,102 @@ function createApiRouter(getPool) {
       const sourceId = parseInt(req.params.sourceId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sourceId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const b = req.body || {};
       const updates = [];
-      const rq = p.request().input('sid', sql.Int, sourceId).input('pid', sql.Int, projectId);
+      const patchParams = { sid: sourceId, pid: projectId };
 
       const textFields = [
-        { key: 'authors',            col: 'authors',            type: sql.NVarChar(sql.MAX) },
-        { key: 'publication_date',   col: 'publication_date',   type: sql.NVarChar(100) },
-        { key: 'article_title',      col: 'article_title',      type: sql.NVarChar(500) },
-        { key: 'journal_title',      col: 'journal_title',      type: sql.NVarChar(500) },
-        { key: 'volume_number',      col: 'volume_number',      type: sql.NVarChar(50) },
-        { key: 'issue_number',       col: 'issue_number',       type: sql.NVarChar(50) },
-        { key: 'page_numbers',       col: 'page_numbers',       type: sql.NVarChar(100) },
-        { key: 'doi',                col: 'doi',                type: sql.NVarChar(500) },
-        { key: 'chapter_name',       col: 'chapter_name',       type: sql.NVarChar(500) },
-        { key: 'conference_name',    col: 'conference_name',    type: sql.NVarChar(500) },
-        { key: 'source_type',        col: 'source_type',        type: sql.NVarChar(40) },
-        { key: 'publisher',          col: 'publisher',          type: sql.NVarChar(500) },
-        { key: 'publisher_location', col: 'publisher_location', type: sql.NVarChar(500) },
-        { key: 'editors',            col: 'editors',            type: sql.NVarChar(sql.MAX) },
-        { key: 'book_title',         col: 'book_title',         type: sql.NVarChar(500) },
-        { key: 'url',                col: 'url',                type: sql.NVarChar(1000) },
-        { key: 'edition',            col: 'edition',            type: sql.NVarChar(100) },
-        { key: 'access_date',        col: 'access_date',        type: sql.NVarChar(100) },
-        { key: 'citation_text',      col: 'citation_text',      type: sql.NVarChar(sql.MAX) },
-        { key: 'crucible_notes',     col: 'crucible_notes',     type: sql.NVarChar(sql.MAX) },
+        'authors',
+        'publication_date',
+        'article_title',
+        'journal_title',
+        'volume_number',
+        'issue_number',
+        'page_numbers',
+        'doi',
+        'chapter_name',
+        'conference_name',
+        'source_type',
+        'publisher',
+        'publisher_location',
+        'editors',
+        'book_title',
+        'url',
+        'edition',
+        'access_date',
+        'citation_text',
+        'crucible_notes',
       ];
-      textFields.forEach(function (f) {
-        if (b[f.key] !== undefined) {
-          const val = b[f.key] != null ? String(b[f.key]).trim() : null;
-          updates.push(f.col + ' = @' + f.col);
-          rq.input(f.col, f.type, val || null);
+      textFields.forEach(function (key) {
+        if (b[key] !== undefined) {
+          const val = b[key] != null ? String(b[key]).trim() : null;
+          updates.push(key + ' = @' + key);
+          patchParams[key] = val || null;
         }
       });
 
       if (updates.length > 0) {
-        updates.push('updated_at = GETDATE()');
-        const affected = await rq.query(
-          `UPDATE sources SET ${updates.join(', ')} WHERE id = @sid AND project_id = @pid`
+        updates.push('updated_at = NOW()');
+        const affected = await query(
+          getPool,
+          `UPDATE sources SET ${updates.join(', ')} WHERE id = @sid AND project_id = @pid`,
+          patchParams
         );
         if (!affected.rowsAffected[0]) return res.status(404).json({ error: 'Source not found' });
       }
 
       if (Array.isArray(b.tags)) {
-        await p.request().input('sid', sql.Int, sourceId).query('DELETE FROM source_tags WHERE source_id = @sid');
+        await query(getPool, 'DELETE FROM source_tags WHERE source_id = @sid', { sid: sourceId });
         const tags = b.tags.map(function (t) { return String(t).trim(); }).filter(Boolean);
         for (const tag of tags) {
-          await p
-            .request()
-            .input('source_id', sql.Int, sourceId)
-            .input('tag', sql.NVarChar(120), tag.slice(0, 120))
-            .query('INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)');
+          await query(getPool, 'INSERT INTO source_tags (source_id, tag) VALUES (@source_id, @tag)', {
+            source_id: sourceId,
+            tag: tag.slice(0, 120),
+          });
         }
       }
 
       if (Array.isArray(b.section_ids)) {
-        await p.request().input('sid', sql.Int, sourceId).query('DELETE FROM source_sections WHERE source_id = @sid');
+        await query(getPool, 'DELETE FROM source_sections WHERE source_id = @sid', { sid: sourceId });
         const sectionIds = b.section_ids.map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !Number.isNaN(n); });
         for (const secId of sectionIds) {
-          await p
-            .request()
-            .input('source_id', sql.Int, sourceId)
-            .input('section_id', sql.Int, secId)
-            .query(
-              `IF EXISTS (SELECT 1 FROM project_sections WHERE id = @section_id AND project_id = ${projectId})
-               INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)`
+          const chk = await query(
+            getPool,
+            'SELECT 1 AS ok FROM project_sections WHERE id = @section_id AND project_id = @proj_id LIMIT 1',
+            { section_id: secId, proj_id: projectId }
+          );
+          if (chk.recordset[0]) {
+            await query(
+              getPool,
+              'INSERT INTO source_sections (source_id, section_id) VALUES (@source_id, @section_id)',
+              { source_id: sourceId, section_id: secId }
             );
+          }
         }
       }
 
-      const row = await p
-        .request()
-        .input('id', sql.Int, sourceId)
-        .query(
-          `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
-                  authors, publication_date, article_title, journal_title,
-                  volume_number, issue_number, page_numbers, chapter_name, conference_name,
-                  source_type, publisher, publisher_location, editors, book_title,
-                  url, edition, access_date, open_access_url, from_suggestion,
-                  sort_order, created_at, updated_at
-           FROM sources WHERE id = @id`
-        );
+      const row = await query(
+        getPool,
+        `SELECT id, project_id, citation_text, notes, crucible_notes, doi,
+                authors, publication_date, article_title, journal_title,
+                volume_number, issue_number, page_numbers, chapter_name, conference_name,
+                source_type, publisher, publisher_location, editors, book_title,
+                url, edition, access_date, open_access_url, from_suggestion,
+                sort_order, created_at, updated_at
+         FROM sources WHERE id = @id`,
+        { id: sourceId }
+      );
       if (!row.recordset[0]) return res.status(404).json({ error: 'Source not found' });
 
-      const tRows = await p.request().input('sid', sql.Int, sourceId)
-        .query('SELECT tag FROM source_tags WHERE source_id = @sid');
-      const sRows = await p.request().input('sid', sql.Int, sourceId)
-        .query('SELECT section_id FROM source_sections WHERE source_id = @sid');
+      const tRows = await query(getPool, 'SELECT tag FROM source_tags WHERE source_id = @sid', {
+        sid: sourceId,
+      });
+      const sRows = await query(getPool, 'SELECT section_id FROM source_sections WHERE source_id = @sid', {
+        sid: sourceId,
+      });
 
       const source = row.recordset[0];
       source.tags = tRows.recordset.map(function (r) { return r.tag; });
@@ -1633,14 +1594,13 @@ function createApiRouter(getPool) {
       const sourceId = parseInt(req.params.sourceId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sourceId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
-      const del = await p
-        .request()
-        .input('sid', sql.Int, sourceId)
-        .input('pid', sql.Int, projectId)
-        .query('DELETE FROM sources WHERE id = @sid AND project_id = @pid');
+      const del = await query(
+        getPool,
+        'DELETE FROM sources WHERE id = @sid AND project_id = @pid',
+        { sid: sourceId, pid: projectId }
+      );
       if (!del.rowsAffected[0]) return res.status(404).json({ error: 'Source not found' });
       res.status(204).end();
     } catch (e) {
@@ -1654,22 +1614,20 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT id, project_id, suggestion_id, section_id, section_title,
-                  suggestion_body, passage_excerpt, keywords, research_needed,
-                  ISNULL(status, 'unresolved') AS status,
-                  created_at, updated_at
-           FROM research_plan_items
-           WHERE project_id = @pid
-           ORDER BY created_at DESC`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT id, project_id, suggestion_id, section_id, section_title,
+                suggestion_body, passage_excerpt, keywords, research_needed,
+                COALESCE(status, 'unresolved') AS status,
+                created_at, updated_at
+         FROM research_plan_items
+         WHERE project_id = @pid
+         ORDER BY created_at DESC`,
+        { pid: projectId }
+      );
       res.json({ items: rows.recordset });
     } catch (e) {
       next(e);
@@ -1680,8 +1638,7 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const b = req.body || {};
@@ -1693,32 +1650,31 @@ function createApiRouter(getPool) {
       const researchNeeded  = trimOrNull(b.research_needed);
       const status          = trimOrNull(b.status) || 'unresolved';
 
-      const ins = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('section_id', sql.Int, sectionId || 0)
-        .input('section_title', sql.NVarChar(255), sectionTitle)
-        .input('suggestion_body', sql.NVarChar(sql.MAX), suggestionBody)
-        .input('keywords', sql.NVarChar(500), keywords)
-        .input('research_needed', sql.NVarChar(500), researchNeeded)
-        .input('status', sql.NVarChar(40), status)
-        .query(
-          `INSERT INTO research_plan_items (project_id, section_id, section_title, suggestion_body, keywords, research_needed, status)
-           VALUES (@pid, @section_id, @section_title, @suggestion_body, @keywords, @research_needed, @status);
-           SELECT SCOPE_IDENTITY() AS id;`
-        );
+      const ins = await query(
+        getPool,
+        `INSERT INTO research_plan_items (project_id, section_id, section_title, suggestion_body, keywords, research_needed, status)
+         VALUES (@pid, @section_id, @section_title, @suggestion_body, @keywords, @research_needed, @status)`,
+        {
+          pid: projectId,
+          section_id: sectionId || 0,
+          section_title: sectionTitle,
+          suggestion_body: suggestionBody,
+          keywords,
+          research_needed: researchNeeded,
+          status,
+        }
+      );
 
-      const newId = ins.recordset[0].id;
-      const row = await p
-        .request()
-        .input('id', sql.Int, newId)
-        .query(
-          `SELECT id, project_id, suggestion_id, section_id, section_title,
-                  suggestion_body, passage_excerpt, keywords, research_needed,
-                  ISNULL(status, 'unresolved') AS status,
-                  created_at, updated_at
-           FROM research_plan_items WHERE id = @id`
-        );
+      const newId = ins.insertId;
+      const row = await query(
+        getPool,
+        `SELECT id, project_id, suggestion_id, section_id, section_title,
+                suggestion_body, passage_excerpt, keywords, research_needed,
+                COALESCE(status, 'unresolved') AS status,
+                created_at, updated_at
+         FROM research_plan_items WHERE id = @id`,
+        { id: newId }
+      );
       res.status(201).json({ item: row.recordset[0] });
     } catch (e) {
       next(e);
@@ -1731,36 +1687,31 @@ function createApiRouter(getPool) {
       const itemId = parseInt(req.params.itemId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(itemId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const newStatus = (req.body.status || '').trim();
       if (!['unresolved', 'resolved', 'dismissed'].includes(newStatus))
         return res.status(400).json({ error: 'Invalid status. Must be unresolved, resolved, or dismissed.' });
 
-      const upd = await p
-        .request()
-        .input('id', sql.Int, itemId)
-        .input('pid', sql.Int, projectId)
-        .input('status', sql.NVarChar(40), newStatus)
-        .query(
-          `UPDATE research_plan_items
-           SET status = @status, updated_at = GETDATE()
-           WHERE id = @id AND project_id = @pid`
-        );
+      const upd = await query(
+        getPool,
+        `UPDATE research_plan_items
+         SET status = @status, updated_at = NOW()
+         WHERE id = @id AND project_id = @pid`,
+        { id: itemId, pid: projectId, status: newStatus }
+      );
       if (!upd.rowsAffected[0]) return res.status(404).json({ error: 'Item not found' });
 
-      const row = await p
-        .request()
-        .input('id', sql.Int, itemId)
-        .query(
-          `SELECT id, project_id, suggestion_id, section_id, section_title,
-                  suggestion_body, passage_excerpt, keywords, research_needed,
-                  ISNULL(status, 'unresolved') AS status,
-                  created_at, updated_at
-           FROM research_plan_items WHERE id = @id`
-        );
+      const row = await query(
+        getPool,
+        `SELECT id, project_id, suggestion_id, section_id, section_title,
+                suggestion_body, passage_excerpt, keywords, research_needed,
+                COALESCE(status, 'unresolved') AS status,
+                created_at, updated_at
+         FROM research_plan_items WHERE id = @id`,
+        { id: itemId }
+      );
       res.json({ item: row.recordset[0] });
     } catch (e) {
       next(e);
@@ -1773,21 +1724,19 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .query(
-          `SELECT cu.id, cu.source_id, cu.section_id, cu.project_id, cu.cite_marker,
-                  cu.context_excerpt, cu.created_at, ps.title AS section_title
-           FROM citation_usages cu
-           LEFT JOIN project_sections ps ON ps.id = cu.section_id
-           WHERE cu.project_id = @pid
-           ORDER BY cu.created_at`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT cu.id, cu.source_id, cu.section_id, cu.project_id, cu.cite_marker,
+                cu.context_excerpt, cu.created_at, ps.title AS section_title
+         FROM citation_usages cu
+         LEFT JOIN project_sections ps ON ps.id = cu.section_id
+         WHERE cu.project_id = @pid
+         ORDER BY cu.created_at`,
+        { pid: projectId }
+      );
       res.json({ usages: rows.recordset });
     } catch (e) {
       next(e);
@@ -1800,22 +1749,19 @@ function createApiRouter(getPool) {
       const sourceId = parseInt(req.params.sourceId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(sourceId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      const rows = await p
-        .request()
-        .input('pid', sql.Int, projectId)
-        .input('sid', sql.Int, sourceId)
-        .query(
-          `SELECT cu.id, cu.source_id, cu.section_id, cu.cite_marker,
-                  cu.context_excerpt, cu.created_at, ps.title AS section_title
-           FROM citation_usages cu
-           LEFT JOIN project_sections ps ON ps.id = cu.section_id
-           WHERE cu.project_id = @pid AND cu.source_id = @sid
-           ORDER BY cu.created_at`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT cu.id, cu.source_id, cu.section_id, cu.cite_marker,
+                cu.context_excerpt, cu.created_at, ps.title AS section_title
+         FROM citation_usages cu
+         LEFT JOIN project_sections ps ON ps.id = cu.section_id
+         WHERE cu.project_id = @pid AND cu.source_id = @sid
+         ORDER BY cu.created_at`,
+        { pid: projectId, sid: sourceId }
+      );
       res.json({ usages: rows.recordset });
     } catch (e) {
       next(e);
@@ -1826,22 +1772,19 @@ function createApiRouter(getPool) {
     try {
       const sourceId = parseInt(req.params.sourceId, 10);
       if (Number.isNaN(sourceId)) return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      const rows = await p
-        .request()
-        .input('sid', sql.Int, sourceId)
-        .input('user_id', sql.Int, req.session.userId)
-        .query(
-          `SELECT cu.id, cu.source_id, cu.section_id, cu.project_id, cu.cite_marker,
-                  cu.context_excerpt, cu.created_at,
-                  ps.title AS section_title,
-                  pr.name  AS project_name
-           FROM citation_usages cu
-           LEFT JOIN project_sections ps ON ps.id = cu.section_id
-           INNER JOIN projects pr ON pr.id = cu.project_id
-           WHERE cu.source_id = @sid AND pr.user_id = @user_id
-           ORDER BY pr.name, cu.created_at`
-        );
+      const rows = await query(
+        getPool,
+        `SELECT cu.id, cu.source_id, cu.section_id, cu.project_id, cu.cite_marker,
+                cu.context_excerpt, cu.created_at,
+                ps.title AS section_title,
+                pr.name  AS project_name
+         FROM citation_usages cu
+         LEFT JOIN project_sections ps ON ps.id = cu.section_id
+         INNER JOIN projects pr ON pr.id = cu.project_id
+         WHERE cu.source_id = @sid AND pr.user_id = @user_id
+         ORDER BY pr.name, cu.created_at`,
+        { sid: sourceId, user_id: req.session.userId }
+      );
       res.json({ usages: rows.recordset });
     } catch (e) {
       next(e);
@@ -1852,8 +1795,7 @@ function createApiRouter(getPool) {
     try {
       const projectId = parseInt(req.params.projectId, 10);
       if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
       const b = req.body || {};
@@ -1865,19 +1807,19 @@ function createApiRouter(getPool) {
       const citeMarker = (b.cite_marker || '').trim() || null;
       const contextExcerpt = (b.context_excerpt || '').trim() || null;
 
-      const ins = await p
-        .request()
-        .input('source_id', sql.Int, sourceId)
-        .input('section_id', sql.Int, sectionId)
-        .input('pid', sql.Int, projectId)
-        .input('cite_marker', sql.NVarChar(500), citeMarker)
-        .input('context_excerpt', sql.NVarChar(sql.MAX), contextExcerpt)
-        .query(
-          `INSERT INTO citation_usages (source_id, section_id, project_id, cite_marker, context_excerpt)
-           VALUES (@source_id, @section_id, @pid, @cite_marker, @context_excerpt);
-           SELECT SCOPE_IDENTITY() AS id;`
-        );
-      res.status(201).json({ id: ins.recordset[0].id });
+      const ins = await query(
+        getPool,
+        `INSERT INTO citation_usages (source_id, section_id, project_id, cite_marker, context_excerpt)
+         VALUES (@source_id, @section_id, @pid, @cite_marker, @context_excerpt)`,
+        {
+          source_id: sourceId,
+          section_id: sectionId,
+          pid: projectId,
+          cite_marker: citeMarker,
+          context_excerpt: contextExcerpt,
+        }
+      );
+      res.status(201).json({ id: ins.insertId });
     } catch (e) {
       next(e);
     }
@@ -1889,15 +1831,13 @@ function createApiRouter(getPool) {
       const usageId = parseInt(req.params.usageId, 10);
       if (Number.isNaN(projectId) || Number.isNaN(usageId))
         return res.status(400).json({ error: 'invalid id' });
-      const p = await getPool();
-      if (!(await ownsProject(p, projectId, req.session.userId)))
+      if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return res.status(404).json({ error: 'Not found' });
 
-      await p
-        .request()
-        .input('id', sql.Int, usageId)
-        .input('pid', sql.Int, projectId)
-        .query('DELETE FROM citation_usages WHERE id = @id AND project_id = @pid');
+      await query(getPool, 'DELETE FROM citation_usages WHERE id = @id AND project_id = @pid', {
+        id: usageId,
+        pid: projectId,
+      });
       res.status(204).end();
     } catch (e) {
       next(e);

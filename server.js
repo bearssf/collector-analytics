@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const sql = require('mssql');
+const { createPool, query, queryRaw } = require('./lib/db');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
@@ -74,19 +74,12 @@ const SCORE_STRONG_THRESHOLD = parseFloat(process.env.SCORE_STRONG_THRESHOLD || 
 const SCORE_MODERATE_THRESHOLD = parseFloat(process.env.SCORE_MODERATE_THRESHOLD || '0.15') || 0.15;
 
 const dbConfig = {
-  server: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '1433', 10),
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '3306', 10),
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '30000', 10),
-  requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT_MS || '30000', 10),
-  options: {
-    encrypt: true,
-    trustServerCertificate: true,
-    enableArithAbort: true,
-  },
-  pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+  connectionLimit: 10,
 };
 
 app.set('trust proxy', 1);
@@ -256,7 +249,7 @@ let pool = null;
 
 async function getPool() {
   if (pool) return pool;
-  pool = await sql.connect(dbConfig);
+  pool = createPool(dbConfig);
   return pool;
 }
 
@@ -264,40 +257,36 @@ app.use('/api', createApiRouter(getPool));
 app.use('/api/billing', createBillingApiRouter(getPool, stripe));
 
 async function ensureUsersTable() {
-  const p = await getPool();
-  await p.request().query(`
-    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'users')
-    CREATE TABLE users (
-      id INT IDENTITY(1,1) PRIMARY KEY,
-      title NVARCHAR(20) NULL,
-      first_name NVARCHAR(100) NOT NULL,
-      last_name NVARCHAR(100) NOT NULL,
-      email NVARCHAR(255) NOT NULL UNIQUE,
-      password_hash NVARCHAR(255) NOT NULL,
-      university NVARCHAR(255) NULL,
-      research_focus NVARCHAR(MAX) NULL,
-      preferred_search_engine NVARCHAR(100) NULL,
-      created_at DATETIME2 DEFAULT GETDATE()
-    );
-  `);
+  await queryRaw(
+    getPool,
+    `CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(20) NULL,
+      first_name VARCHAR(100) NOT NULL,
+      last_name VARCHAR(100) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      university VARCHAR(255) NULL,
+      research_focus LONGTEXT NULL,
+      preferred_search_engine VARCHAR(100) NULL,
+      created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
 }
 
 async function ensureUserExtraColumns() {
-  const p = await getPool();
   const cols = [
-    { name: 'title', def: 'NVARCHAR(20) NULL' },
-    { name: 'university', def: 'NVARCHAR(255) NULL' },
-    { name: 'research_focus', def: 'NVARCHAR(MAX) NULL' },
-    { name: 'preferred_search_engine', def: 'NVARCHAR(100) NULL' },
+    { name: 'title', def: 'VARCHAR(20) NULL' },
+    { name: 'university', def: 'VARCHAR(255) NULL' },
+    { name: 'research_focus', def: 'LONGTEXT NULL' },
+    { name: 'preferred_search_engine', def: 'VARCHAR(100) NULL' },
   ];
   for (const { name, def } of cols) {
-    await p.request().query(`
-      IF NOT EXISTS (
-        SELECT 1 FROM sys.columns
-        WHERE object_id = OBJECT_ID('users') AND name = '${name}'
-      )
-      ALTER TABLE users ADD ${name} ${def};
-    `);
+    try {
+      await queryRaw(getPool, 'ALTER TABLE users ADD COLUMN `' + name + '` ' + def);
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELD_NAME') throw e;
+    }
   }
 }
 
@@ -362,14 +351,13 @@ app.get(
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = null;
     const tpl = loadTemplates();
-    const p = await getPool();
-
     const projectProgress = [];
     for (const proj of projects) {
-      const secs = await p
-        .request()
-        .input('pid', sql.Int, proj.id)
-        .query('SELECT title, body, sort_order FROM project_sections WHERE project_id = @pid ORDER BY sort_order');
+      const secs = await query(
+        getPool,
+        'SELECT title, body, sort_order FROM project_sections WHERE project_id = @pid ORDER BY sort_order',
+        { pid: proj.id }
+      );
       const def = proj.template_key && tpl[proj.template_key] ? tpl[proj.template_key] : null;
       const docTarget = def && def.projectedTotalWords ? Math.max(1, Math.round(Number(def.projectedTotalWords))) : 0;
       const tplSections = def && def.sections ? def.sections : [];
@@ -908,13 +896,11 @@ app.post('/login', async (req, res) => {
     return res.redirect(`${back}?error=missing`);
   }
   try {
-    const p = await getPool();
-    const result = await p
-      .request()
-      .input('email', sql.NVarChar(255), email.trim())
-      .query(
-        'SELECT id, first_name, last_name, email, password_hash FROM users WHERE email = @email'
-      );
+    const result = await query(
+      getPool,
+      'SELECT id, first_name, last_name, email, password_hash FROM users WHERE email = @email',
+      { email: email.trim() }
+    );
     const user = result.recordset[0];
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.redirect(`${back}?error=invalid`);
@@ -1001,28 +987,27 @@ app.post('/register', async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(pw, 10);
-    const p = await getPool();
-    await p
-      .request()
-      .input('title', sql.NVarChar(20), form.title)
-      .input('first_name', sql.NVarChar(100), form.firstName)
-      .input('last_name', sql.NVarChar(100), form.lastName)
-      .input('email', sql.NVarChar(255), form.email)
-      .input('password_hash', sql.NVarChar(255), hash)
-      .input('university', sql.NVarChar(255), uni)
-      .input('research_focus', sql.NVarChar(4000), research || null)
-      .input('preferred_search_engine', sql.NVarChar(100), engine)
-      .query(
-        `INSERT INTO users (title, first_name, last_name, email, password_hash, university, research_focus, preferred_search_engine)
-         VALUES (@title, @first_name, @last_name, @email, @password_hash, @university, @research_focus, @preferred_search_engine)`
-      );
+    await query(
+      getPool,
+      `INSERT INTO users (title, first_name, last_name, email, password_hash, university, research_focus, preferred_search_engine)
+       VALUES (@title, @first_name, @last_name, @email, @password_hash, @university, @research_focus, @preferred_search_engine)`,
+      {
+        title: form.title,
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        password_hash: hash,
+        university: uni,
+        research_focus: research || null,
+        preferred_search_engine: engine,
+      }
+    );
 
-    const result = await p
-      .request()
-      .input('email', sql.NVarChar(255), form.email)
-      .query(
-        'SELECT id, first_name, last_name, email FROM users WHERE email = @email'
-      );
+    const result = await query(
+      getPool,
+      'SELECT id, first_name, last_name, email FROM users WHERE email = @email',
+      { email: form.email }
+    );
     const user = result.recordset[0];
     req.session.userId = user.id;
     req.session.user = {
@@ -1047,7 +1032,7 @@ app.post('/register', async (req, res) => {
     }
     return res.redirect('/app/dashboard');
   } catch (err) {
-    if (err.number === 2627 || err.code === 'EREQUEST') {
+    if (err.code === 'ER_DUP_ENTRY') {
       return renderErr('An account with that email already exists.');
     }
     console.error('Register error:', err.message);
@@ -1064,7 +1049,7 @@ app.use((err, req, res, next) => {
 });
 
 async function start() {
-  if (!dbConfig.server || !dbConfig.database || !dbConfig.user || !dbConfig.password) {
+  if (!dbConfig.host || !dbConfig.database || !dbConfig.user || !dbConfig.password) {
     console.error('Missing required env: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD. Copy .env.example to .env and set values.');
     process.exit(1);
   }
@@ -1076,18 +1061,12 @@ async function start() {
     console.log('Database connected.');
   } catch (err) {
     console.error('Database startup failed:', err.message);
-    if (err.number != null) console.error('SQL error number:', err.number);
-    if (err.lineNumber != null) console.error('SQL line:', err.lineNumber);
-    if (Array.isArray(err.precedingErrors) && err.precedingErrors.length) {
-      console.error('Preceding SQL errors (root cause):');
-      err.precedingErrors.forEach((e, i) => console.error(`  [${i}]`, e.message || e, e.number != null ? `(#${e.number})` : ''));
-    }
+    if (err.code != null) console.error('MySQL error code:', err.code);
+    if (err.errno != null) console.error('MySQL errno:', err.errno);
     console.error(err);
-    if (/ETIMEOUT|ECONNREFUSED|ETIME|ETIMEDOUT|login failed|Login failed/i.test(String(err.message))) {
+    if (/ETIMEOUT|ECONNREFUSED|ETIME|ETIMEDOUT|ECONNRESET|Access denied|access denied/i.test(String(err.message))) {
       console.error(
-        'Hint: connection issues often mean Azure SQL is blocking Render. Enable public access on the SQL server, ' +
-          'add firewall rules for your Render service Outbound IP ranges (Dashboard → service → Outbound), ' +
-          'and confirm DB_HOST / DB_PORT in Render env vars.'
+        'Hint: confirm DB_HOST, DB_PORT (default 3306 for MySQL), DB_NAME, DB_USER, DB_PASSWORD, and that your host allows connections from this server (e.g. Cloud SQL authorized networks / private IP).'
       );
     }
     process.exit(1);

@@ -1,7 +1,7 @@
 {
   "name": "academiq-forge",
   "version": "1.0.0",
-  "description": "AcademiqForge — home and auth backed by SQL Server",
+  "description": "AcademiqForge \u2014 home and auth backed by MySQL",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -19,9 +19,9 @@
     "ejs": "^3.1.10",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
-    "mssql": "^10.0.2",
     "multer": "^2.1.1",
     "redis": "^4.7.1",
-    "stripe": "^17.7.0"
+    "stripe": "^17.7.0",
+    "mysql2": "^3.14.0"
   }
 }
