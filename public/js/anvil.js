@@ -42,6 +42,16 @@
   var taLastLen = 0;
 
   var feedbackRows = [];
+  var pendingChange = null;
+  var hasPendingChange = false;
+
+  var STOP_WORDS = new Set(['the','a','an','is','are','was','were','be','been','being',
+    'have','has','had','do','does','did','will','would','shall','should','may','might',
+    'can','could','must','and','but','or','nor','for','yet','so','in','on','at','to',
+    'of','by','with','from','as','into','through','during','before','after','above',
+    'below','between','out','off','over','under','again','further','then','once','that',
+    'this','these','those','it','its','not','no','all','each','every','both','few',
+    'more','most','other','some','such','only','own','same','than','too','very']);
 
   /* ── Custom Quill font whitelist ── */
   var Font = Quill.imports['formats/font'];
@@ -337,10 +347,10 @@
 
   function rebaseFeedback(documentText) {
     feedbackRows = feedbackRows.flatMap(function (row) {
-      if (row.status === 'applied' || row.status === 'dismissed') return [row];
+      if (row.status === 'applied' || row.status === 'dismissed' || row.status === 'resolved' || row.status === 'pending') return [row];
       var m = findAnchor(documentText, row.item);
       if (m) {
-        return [{ item: row.item, status: 'active', matchPosition: m }];
+        return [{ item: row.item, status: row.status || 'active', matchPosition: m }];
       }
       if (row.item.suggestion && String(row.item.suggestion).trim() && documentText.indexOf(String(row.item.suggestion)) !== -1) {
         return [{ item: row.item, status: 'applied', matchPosition: null }];
@@ -349,33 +359,26 @@
     });
   }
 
-  function setRowsFromApi(items) {
-    feedbackRows = (items || []).map(function (it) {
-      return { item: it, status: 'active', matchPosition: null };
-    });
-    rebaseFeedback(getDraftPlain());
-    renderFeedbackRail();
-  }
-
-  function appendRowsFromApi(items) {
+  function mergeRowsFromApi(items) {
     var plain = getDraftPlain();
-    var existingIds = {};
+    var existingByDbId = {};
     feedbackRows.forEach(function (r) {
-      existingIds[String(r.item.id)] = true;
+      if (r.item.dbId) existingByDbId[r.item.dbId] = r;
     });
-    var prepend = [];
+    var merged = [];
     (items || []).forEach(function (it) {
-      if (existingIds[String(it.id)]) return;
-      var row = { item: it, status: 'active', matchPosition: null };
-      var m = findAnchor(plain, row.item);
-      if (!m) return;
-      row.matchPosition = m;
-      prepend.push(row);
-      existingIds[String(it.id)] = true;
+      var existing = it.dbId ? existingByDbId[it.dbId] : null;
+      if (existing) {
+        existing.item = it;
+        merged.push(existing);
+      } else {
+        merged.push({ item: it, status: it.status || 'active', matchPosition: null });
+      }
     });
-    feedbackRows = prepend.concat(feedbackRows);
+    feedbackRows = merged;
     rebaseFeedback(plain);
     renderFeedbackRail();
+    updateScoring();
   }
 
   function itemHasReplacement(it) {
@@ -386,13 +389,14 @@
   function applyFeedbackRow(row) {
     if (!quill || !row || row.status !== 'active') return;
     if (!row.item.isActionable && !itemHasReplacement(row.item)) return;
-    if (!quill) return;
+    if (hasPendingChange) {
+      alert('Please confirm or undo the current change first.');
+      return;
+    }
     var plain = getDraftPlain();
     var m = findAnchor(plain, row.item);
     if (!m) {
-      feedbackRows = feedbackRows.filter(function (r) {
-        return r !== row;
-      });
+      feedbackRows = feedbackRows.filter(function (r) { return r !== row; });
       renderFeedbackRail();
       return;
     }
@@ -400,35 +404,46 @@
     var len = m.end - m.start;
     var docLen = quill.getLength();
     if (m.start < 0 || m.start + len > docLen) {
-      feedbackRows = feedbackRows.filter(function (r) {
-        return r !== row;
-      });
+      feedbackRows = feedbackRows.filter(function (r) { return r !== row; });
       renderFeedbackRail();
       return;
     }
+    var originalText = plain.slice(m.start, m.end);
     quill.deleteText(m.start, len, 'silent');
     quill.insertText(m.start, sug, 'silent');
-    editorDirty = true;
-    row.status = 'applied';
+    if (sug.length > 0) {
+      quill.formatText(m.start, sug.length, 'background', '#ffeeba', 'silent');
+    }
+    row.status = 'pending';
     row.matchPosition = null;
-    rebaseFeedback(getDraftPlain());
+    pendingChange = { row: row, originalText: originalText, replacementText: sug, quillStart: m.start };
+    hasPendingChange = true;
     renderFeedbackRail();
-    scheduleSave();
     charsSinceFingerprint = 0;
     recordTextFingerprint();
   }
 
   function dismissRow(itemId) {
+    var targetRow = null;
     feedbackRows = feedbackRows.map(function (row) {
       if (String(row.item.id) !== String(itemId)) return row;
-      if (row.status === 'applied' || row.status === 'dismissed') return row;
+      if (row.status === 'applied' || row.status === 'dismissed' || row.status === 'resolved') return row;
+      targetRow = row;
       return { item: row.item, status: 'dismissed', matchPosition: null };
     });
     renderFeedbackRail();
+    if (targetRow && targetRow.item.dbId) {
+      api('/projects/' + projectId + '/feedback/' + targetRow.item.dbId + '/status', 'PATCH', { status: 'dismissed' })
+        .then(function () { updateScoring(); })
+        .catch(function () {});
+    } else {
+      updateScoring();
+    }
   }
 
   var saveTimer = null;
   function scheduleSave() {
+    if (hasPendingChange) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       saveTimer = null;
@@ -465,6 +480,7 @@
   }
 
   async function saveSectionDraft() {
+    if (hasPendingChange) return;
     var savingId = selectedId;
     if (savingId == null || !bundle) return;
     if (!quill && !document.getElementById('anvil-fallback')) return;
@@ -478,6 +494,9 @@
       editorDirty = false;
       updateSaveStatus('saved', 'Saved ' + formatSaveTime());
       updateProgressDisplay();
+      var plain = getDraftPlain();
+      api('/projects/' + projectId + '/sections/' + savingId + '/feedback/rebase', 'POST', { plainText: plain })
+        .catch(function () {});
     } catch (e) {
       updateSaveStatus('unsaved', 'Unsaved');
     }
@@ -503,7 +522,13 @@
         escapeHtml(cat) +
         '</span>';
       html += '<span class="anvil2-feedback-id">' + escapeHtml(it.id) + '</span>';
-      html += '<span class="anvil2-feedback-status">' + escapeHtml(st) + '</span>';
+      if (st === 'resolved') {
+        html += '<span class="anvil2-feedback-status anvil2-feedback-status--resolved">Resolved</span>';
+      } else if (st === 'pending') {
+        html += '<span class="anvil2-feedback-status anvil2-feedback-status--pending">Pending</span>';
+      } else {
+        html += '<span class="anvil2-feedback-status">' + escapeHtml(st) + '</span>';
+      }
       html += '</div>';
       if (it.rationale) {
         html += '<p class="anvil2-feedback-rationale">' + escapeHtml(it.rationale) + '</p>';
@@ -514,22 +539,28 @@
           escapeHtml(it.anchorText) +
           '</p>';
       }
-      var canShowSuggestion = st === 'active' && itemHasReplacement(it);
+      var canShowSuggestion = (st === 'active' || st === 'pending') && itemHasReplacement(it);
       if (canShowSuggestion) {
         html +=
-          '<p class="anvil2-feedback-suggestion"><span class="anvil2-feedback-k">→</span> ' +
+          '<p class="anvil2-feedback-suggestion"><span class="anvil2-feedback-k">\u2192</span> ' +
           escapeHtml(String(it.suggestion)) +
           '</p>';
       }
       html += '<div class="anvil2-feedback-actions">';
-      var canApply = st === 'active' && (it.isActionable || itemHasReplacement(it));
-      if (canApply) {
-        html +=
-          '<button type="button" class="app-btn-primary anvil2-apply" data-fid="' +
-          escapeHtml(String(it.id)) +
-          '">Apply</button>';
-      }
-      if (st === 'active') {
+      if (st === 'pending') {
+        html += '<button type="button" class="anvil2-confirm-btn" data-fid="' + escapeHtml(String(it.id)) + '">Confirm</button>';
+        html += '<button type="button" class="anvil2-undo-btn" data-fid="' + escapeHtml(String(it.id)) + '">Undo</button>';
+      } else if (st === 'active') {
+        var canApply = it.isActionable || itemHasReplacement(it);
+        if (canApply) {
+          html +=
+            '<button type="button" class="app-btn-primary anvil2-apply" data-fid="' +
+            escapeHtml(String(it.id)) +
+            '">Apply</button>';
+        }
+        if (cat === 'evidence') {
+          html += '<button type="button" class="anvil2-research-plan-btn" data-fid="' + escapeHtml(String(it.id)) + '">+ Research Plan</button>';
+        }
         html +=
           '<button type="button" class="anvil2-dismiss" data-dismiss="' +
           escapeHtml(String(it.id)) +
@@ -539,6 +570,192 @@
     });
     html += '</ul>';
     mount.innerHTML = html;
+  }
+
+  function confirmPendingChange() {
+    if (!pendingChange || !quill) return;
+    var pc = pendingChange;
+    var sug = pc.replacementText;
+    var plain = getDraftPlain();
+    var idx = plain.indexOf(sug, Math.max(0, pc.quillStart - 20));
+    if (idx === -1) idx = plain.indexOf(sug);
+    if (idx !== -1 && sug.length > 0) {
+      quill.formatText(idx, sug.length, 'background', false, 'silent');
+    }
+    pc.row.status = 'applied';
+    pendingChange = null;
+    hasPendingChange = false;
+    editorDirty = true;
+    rebaseFeedback(getDraftPlain());
+    renderFeedbackRail();
+    scheduleSave();
+    if (pc.row.item.dbId) {
+      api('/projects/' + projectId + '/feedback/' + pc.row.item.dbId + '/status', 'PATCH', { status: 'applied' })
+        .then(function () { updateScoring(); })
+        .catch(function () {});
+    } else {
+      updateScoring();
+    }
+    updateSaveBtn();
+  }
+
+  function undoPendingChange() {
+    if (!pendingChange || !quill) return;
+    var pc = pendingChange;
+    var sug = pc.replacementText;
+    var orig = pc.originalText;
+    var plain = getDraftPlain();
+    var idx = plain.indexOf(sug, Math.max(0, pc.quillStart - 20));
+    if (idx === -1) idx = plain.indexOf(sug);
+    if (idx !== -1) {
+      if (sug.length > 0) {
+        quill.formatText(idx, sug.length, 'background', false, 'silent');
+      }
+      quill.deleteText(idx, sug.length, 'silent');
+      quill.insertText(idx, orig, 'silent');
+    }
+    pc.row.status = 'active';
+    pendingChange = null;
+    hasPendingChange = false;
+    rebaseFeedback(getDraftPlain());
+    renderFeedbackRail();
+    updateSaveBtn();
+  }
+
+  function updateSaveBtn() {
+    var btn = document.getElementById('anvil-manual-save');
+    if (!btn) return;
+    if (hasPendingChange) {
+      btn.disabled = true;
+      btn.title = 'Confirm or undo pending change first';
+    } else {
+      btn.disabled = false;
+      btn.title = '';
+    }
+  }
+
+  function extractKeywords(text) {
+    if (!text) return '';
+    var words = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+    var seen = {};
+    var result = [];
+    words.forEach(function (w) {
+      if (w.length < 3 || STOP_WORDS.has(w) || seen[w]) return;
+      seen[w] = true;
+      result.push(w);
+    });
+    return result.slice(0, 10).join(', ');
+  }
+
+  function sendToResearchPlan(row) {
+    if (!row || !row.item) return;
+    var current = sectionById(selectedId);
+    var sectionTitle = current ? current.title : '';
+    var keywords = extractKeywords(row.item.anchorText);
+    api('/projects/' + projectId + '/research-plan', 'POST', {
+      section_id: selectedId,
+      section_title: sectionTitle,
+      context: row.item.anchorText,
+      suggestion_body: row.item.rationale || row.item.anchorText,
+      keywords: keywords,
+      research_needed: 'Evidence/Citation',
+      status: 'unresolved',
+    })
+      .then(function () {
+        row.status = 'resolved';
+        renderFeedbackRail();
+        if (row.item.dbId) {
+          api('/projects/' + projectId + '/feedback/' + row.item.dbId + '/status', 'PATCH', { status: 'resolved' })
+            .then(function () { updateScoring(); })
+            .catch(function () {});
+        } else {
+          updateScoring();
+        }
+      })
+      .catch(function (e) {
+        console.error('Failed to create research plan item:', e);
+      });
+  }
+
+  function mapScoringCategory(cat) {
+    var c = (cat || '').toLowerCase();
+    if (c === 'spelling' || c === 'formatting') return 'grammar';
+    return c;
+  }
+
+  function computeSectionScores() {
+    var cats = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+    feedbackRows.forEach(function (row) {
+      if (row.status !== 'applied' && row.status !== 'dismissed' && row.status !== 'resolved') return;
+      var mapped = mapScoringCategory(row.item.category);
+      if (cats[mapped] !== undefined) {
+        cats[mapped] += (row.item.anchorWordCount || countAnchorWords(row.item.anchorText));
+      }
+    });
+    return cats;
+  }
+
+  function countAnchorWords(text) {
+    if (!text) return 0;
+    var t = String(text).replace(/\s+/g, ' ').trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
+
+  function ratingForRatio(flagged, total) {
+    if (total === 0) return 'strong';
+    var ratio = flagged / total;
+    var strongT = parseFloat(root.dataset.scoreStrong || '0.05');
+    var modT = parseFloat(root.dataset.scoreModerate || '0.15');
+    if (ratio <= strongT) return 'strong';
+    if (ratio <= modT) return 'moderate';
+    return 'low';
+  }
+
+  function updateScoring() {
+    var panel = document.getElementById('anvil-scoring-panel');
+    if (!panel) return;
+    var sectionScores = computeSectionScores();
+    var current = sectionById(selectedId);
+    var sectionWords = current ? countWords(current.body || getDraftHtml()) : 0;
+    var sectionHtml = buildScoringGroupHtml('Section Quality', sectionScores, sectionWords);
+
+    api('/projects/' + projectId + '/feedback-scores?sectionId=' + selectedId, 'GET')
+      .then(function (data) {
+        var projectHtml = '';
+        if (data && data.project) {
+          var projCats = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+          var projTotal = 0;
+          ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
+            if (data.project[cat]) {
+              projCats[cat] = data.project[cat].flaggedWords || 0;
+              projTotal = data.project[cat].totalWords || projTotal;
+            }
+          });
+          projectHtml = buildScoringGroupHtml('Project Quality', projCats, projTotal);
+        }
+        panel.innerHTML = sectionHtml + projectHtml;
+      })
+      .catch(function () {
+        panel.innerHTML = sectionHtml;
+      });
+  }
+
+  function buildScoringGroupHtml(title, cats, totalWords) {
+    var html = '<div class="anvil-scoring-group"><div class="anvil-scoring-title">' + escapeHtml(title) + '</div>';
+    ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
+      var flagged = cats[cat] || 0;
+      var rating = ratingForRatio(flagged, totalWords);
+      var fillPct = rating === 'strong' ? 100 : rating === 'moderate' ? 66 : 33;
+      var label = cat.charAt(0).toUpperCase() + cat.slice(1);
+      var ratingLabel = rating.charAt(0).toUpperCase() + rating.slice(1);
+      html += '<div class="anvil-score-row">' +
+        '<span class="anvil-score-label">' + label + '</span>' +
+        '<div class="anvil-score-bar"><div class="anvil-score-fill anvil-score-fill--' + rating + '" style="width:' + fillPct + '%"></div></div>' +
+        '<span class="anvil-score-rating anvil-score-rating--' + rating + '">' + ratingLabel + '</span>' +
+      '</div>';
+    });
+    html += '</div>';
+    return html;
   }
 
   function scheduleInitialReview() {
@@ -608,10 +825,8 @@
           }
           return;
         }
-        if (isIncremental) {
-          appendRowsFromApi(items);
-        } else {
-          setRowsFromApi(items);
+        mergeRowsFromApi(items);
+        if (!isIncremental) {
           hasCompletedInitialReview = true;
         }
         charsSinceFingerprint = 0;
@@ -653,10 +868,10 @@
     editorDirty = true;
     var changeSize = deltaChangeSize(delta);
     charsSinceLastSave += changeSize;
-    if (charsSinceLastSave >= autosaveChars) {
+    if (!hasPendingChange && charsSinceLastSave >= autosaveChars) {
       saveSectionDraft();
     }
-    scheduleSave();
+    if (!hasPendingChange) scheduleSave();
     if (!hasCompletedInitialReview) {
       scheduleInitialReview();
       return;
@@ -1208,6 +1423,28 @@
     }
   }
 
+  function loadFeedbackFromDb() {
+    if (selectedId == null) return;
+    api('/projects/' + projectId + '/sections/' + selectedId + '/feedback', 'GET')
+      .then(function (data) {
+        var items = (data && data.items) || [];
+        if (items.length) {
+          mergeRowsFromApi(items);
+        }
+        var plain = getDraftPlain();
+        if (plain.length >= MIN_PLAIN_CHARS) {
+          api('/projects/' + projectId + '/sections/' + selectedId + '/feedback/rebase', 'POST', { plainText: plain })
+            .then(function (d) {
+              if (d && d.items) {
+                mergeRowsFromApi(d.items);
+              }
+            })
+            .catch(function () {});
+        }
+      })
+      .catch(function () {});
+  }
+
   function render() {
     if (!bundle) return;
     delete root.dataset.fpChars;
@@ -1236,7 +1473,10 @@
     root.innerHTML =
       '<div class="anvil-panel--writing">' +
       '<div class="anvil-layout--single">' +
-      progressHtml +
+      '<div class="anvil-top-metrics">' +
+      '<div class="anvil-top-metrics__progress">' + progressHtml + '</div>' +
+      '<div class="anvil-top-metrics__scoring" id="anvil-scoring-panel"></div>' +
+      '</div>' +
       '<div id="anvil-analyze-banner" class="anvil-analyze-banner" hidden aria-live="polite"></div>' +
       '<div class="anvil-editor">' +
       '<div id="anvil-quill-wrap" class="anvil-quill-wrap"><div id="anvil-editor" class="anvil-quill"></div></div>' +
@@ -1275,6 +1515,8 @@
     mountEditor(draft);
     restoreManuscriptMode();
     feedbackRows = [];
+    pendingChange = null;
+    hasPendingChange = false;
     lastPlainSent = '';
     hasCompletedInitialReview = false;
     charsSinceFingerprint = 0;
@@ -1285,6 +1527,7 @@
     renderFeedbackRail();
     loadSectionSources();
     loadCitationUsages();
+    loadFeedbackFromDb();
 
     document.getElementById('anvil-manual-save').addEventListener('click', function () { saveSectionDraft(); });
     document.getElementById('anvil-paper-toggle').addEventListener('click', togglePaperMode);
@@ -1349,6 +1592,26 @@
       if (row) applyFeedbackRow(row);
       return;
     }
+    var conf = e.target.closest('.anvil2-confirm-btn');
+    if (conf) {
+      e.preventDefault();
+      confirmPendingChange();
+      return;
+    }
+    var undo = e.target.closest('.anvil2-undo-btn');
+    if (undo) {
+      e.preventDefault();
+      undoPendingChange();
+      return;
+    }
+    var rp = e.target.closest('.anvil2-research-plan-btn');
+    if (rp) {
+      e.preventDefault();
+      var rpFid = rp.getAttribute('data-fid');
+      var rpRow = feedbackRows.find(function (r) { return String(r.item.id) === String(rpFid); });
+      if (rpRow) sendToResearchPlan(rpRow);
+      return;
+    }
     var dis = e.target.closest('.anvil2-dismiss');
     if (dis) {
       e.preventDefault();
@@ -1357,6 +1620,9 @@
   });
 
   function flushPendingSave() {
+    if (hasPendingChange && pendingChange && quill) {
+      undoPendingChange();
+    }
     var hadTimer = !!saveTimer;
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     if (!editorDirty && !hadTimer) return;

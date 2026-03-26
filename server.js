@@ -70,6 +70,8 @@ const AUTOSAVE_CHAR_THRESHOLD = Math.max(
   1,
   parseInt(process.env.AUTOSAVE_CHAR_THRESHOLD || '250', 10) || 250
 );
+const SCORE_STRONG_THRESHOLD = parseFloat(process.env.SCORE_STRONG_THRESHOLD || '0.05') || 0.05;
+const SCORE_MODERATE_THRESHOLD = parseFloat(process.env.SCORE_MODERATE_THRESHOLD || '0.15') || 0.15;
 
 const dbConfig = {
   server: process.env.DB_HOST,
@@ -872,6 +874,8 @@ app.get(
       anvilInitialIdleMs: ANVIL_INITIAL_IDLE_MS,
       anvilIncrementalChars: ANVIL_INCREMENTAL_CHARS,
       autosaveCharThreshold: AUTOSAVE_CHAR_THRESHOLD,
+      scoreStrongThreshold: SCORE_STRONG_THRESHOLD,
+      scoreModerateThreshold: SCORE_MODERATE_THRESHOLD,
     });
   })
 );

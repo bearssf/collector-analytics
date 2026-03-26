@@ -782,7 +782,7 @@ function createApiRouter(getPool) {
     }
   );
 
-  /** The Anvil: structured anchor-based feedback — does not persist to anvil_suggestions. */
+  /** The Anvil: structured anchor-based feedback — persists to anvil_feedback table. */
   router.post('/projects/:projectId/sections/:sectionId/review-structured', async (req, res, next) => {
     try {
       if (!isBedrockConfigured()) {
@@ -830,13 +830,334 @@ function createApiRouter(getPool) {
         return res.status(502).json({ error: msg, bedrockConfigured: true });
       }
 
-      const items = reviewResult.items || [];
-      res.json({
-        items,
-        skipped: Boolean(reviewResult.skipped),
-        shortDraft: Boolean(reviewResult.shortDraft),
-        bedrockConfigured: true,
+      if (reviewResult.skipped || reviewResult.shortDraft) {
+        return res.json({
+          items: [],
+          skipped: true,
+          shortDraft: Boolean(reviewResult.shortDraft),
+          bedrockConfigured: true,
+        });
+      }
+
+      const newItems = reviewResult.items || [];
+
+      const p = await getPool();
+      const existing = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('sid', sql.Int, sectionId)
+        .query(
+          `SELECT id, fb_id, category, anchor_text, status
+           FROM anvil_feedback
+           WHERE project_id = @pid AND section_id = @sid`
+        );
+
+      const existingSet = new Set();
+      for (const row of existing.recordset) {
+        existingSet.add((row.anchor_text || '').toLowerCase() + '||' + (row.category || '').toLowerCase());
+      }
+
+      let insertedCount = 0;
+      for (const it of newItems) {
+        const key = (it.anchorText || '').toLowerCase() + '||' + (it.category || '').toLowerCase();
+        if (existingSet.has(key)) continue;
+        existingSet.add(key);
+        const awc = countWordsPlain(it.anchorText);
+        await p
+          .request()
+          .input('pid', sql.Int, projectId)
+          .input('sid', sql.Int, sectionId)
+          .input('fb_id', sql.NVarChar(100), String(it.id || '').slice(0, 100))
+          .input('category', sql.NVarChar(50), String(it.category || '').slice(0, 50))
+          .input('anchor_text', sql.NVarChar(sql.MAX), it.anchorText || '')
+          .input('context_before', sql.NVarChar(500), (it.contextBefore || '').slice(0, 500))
+          .input('context_after', sql.NVarChar(500), (it.contextAfter || '').slice(0, 500))
+          .input('suggestion', sql.NVarChar(sql.MAX), it.suggestion || '')
+          .input('rationale', sql.NVarChar(sql.MAX), it.rationale || '')
+          .input('is_actionable', sql.Bit, it.isActionable ? 1 : 0)
+          .input('awc', sql.Int, awc)
+          .query(
+            `INSERT INTO anvil_feedback
+              (project_id, section_id, fb_id, category, anchor_text, context_before, context_after,
+               suggestion, rationale, is_actionable, status, anchor_word_count)
+             VALUES
+              (@pid, @sid, @fb_id, @category, @anchor_text, @context_before, @context_after,
+               @suggestion, @rationale, @is_actionable, 'active', @awc)`
+          );
+        insertedCount++;
+      }
+
+      const allRows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('sid', sql.Int, sectionId)
+        .query(
+          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                  context_before, context_after, suggestion, rationale,
+                  is_actionable, status, anchor_word_count, created_at, updated_at
+           FROM anvil_feedback
+           WHERE project_id = @pid AND section_id = @sid
+           ORDER BY created_at DESC`
+        );
+      const allItems = allRows.recordset.map(function (r) {
+        return {
+          dbId: r.id,
+          id: r.fb_id,
+          category: r.category,
+          anchorText: r.anchor_text,
+          contextBefore: r.context_before || '',
+          contextAfter: r.context_after || '',
+          suggestion: r.suggestion || '',
+          rationale: r.rationale || '',
+          isActionable: !!r.is_actionable,
+          status: r.status || 'active',
+          anchorWordCount: r.anchor_word_count || 0,
+        };
       });
+
+      res.json({
+        items: allItems,
+        skipped: false,
+        shortDraft: false,
+        bedrockConfigured: true,
+        inserted: insertedCount,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  /* ── Anvil feedback persistence ───────────────────────────────────── */
+
+  function countWordsPlain(text) {
+    if (!text) return 0;
+    var t = String(text).replace(/\s+/g, ' ').trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
+
+  router.get('/projects/:projectId/sections/:sectionId/feedback', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sectionId = parseInt(req.params.sectionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sectionId))
+        return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const rows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('sid', sql.Int, sectionId)
+        .query(
+          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                  context_before, context_after, suggestion, rationale,
+                  is_actionable, status, anchor_word_count, created_at, updated_at
+           FROM anvil_feedback
+           WHERE project_id = @pid AND section_id = @sid
+           ORDER BY created_at DESC`
+        );
+      const items = rows.recordset.map(function (r) {
+        return {
+          dbId: r.id,
+          id: r.fb_id,
+          category: r.category,
+          anchorText: r.anchor_text,
+          contextBefore: r.context_before || '',
+          contextAfter: r.context_after || '',
+          suggestion: r.suggestion || '',
+          rationale: r.rationale || '',
+          isActionable: !!r.is_actionable,
+          status: r.status || 'active',
+          anchorWordCount: r.anchor_word_count || 0,
+        };
+      });
+      res.json({ items });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.patch('/projects/:projectId/feedback/:itemId/status', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const itemId = parseInt(req.params.itemId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(itemId))
+        return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const newStatus = (req.body.status || '').trim().toLowerCase();
+      const allowed = ['active', 'applied', 'dismissed', 'resolved', 'pending'];
+      if (!allowed.includes(newStatus))
+        return res.status(400).json({ error: 'Invalid status' });
+
+      const upd = await p
+        .request()
+        .input('id', sql.Int, itemId)
+        .input('pid', sql.Int, projectId)
+        .input('status', sql.NVarChar(20), newStatus)
+        .query(
+          `UPDATE anvil_feedback
+           SET status = @status, updated_at = GETDATE()
+           WHERE id = @id AND project_id = @pid`
+        );
+      if (!upd.rowsAffected[0]) return res.status(404).json({ error: 'Item not found' });
+      res.json({ ok: true, status: newStatus });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/sections/:sectionId/feedback/rebase', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      const sectionId = parseInt(req.params.sectionId, 10);
+      if (Number.isNaN(projectId) || Number.isNaN(sectionId))
+        return res.status(400).json({ error: 'invalid id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const plainText = req.body.plainText != null ? String(req.body.plainText) : '';
+      const rows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('sid', sql.Int, sectionId)
+        .query(
+          `SELECT id, anchor_text, suggestion, status
+           FROM anvil_feedback
+           WHERE project_id = @pid AND section_id = @sid`
+        );
+
+      const staleIds = [];
+      for (const r of rows.recordset) {
+        if (r.status === 'applied' || r.status === 'dismissed' || r.status === 'resolved') continue;
+        const anchor = r.anchor_text || '';
+        if (!anchor || !plainText.includes(anchor)) {
+          const sug = (r.suggestion || '').trim();
+          if (sug && plainText.includes(sug)) continue;
+          staleIds.push(r.id);
+        }
+      }
+      if (staleIds.length) {
+        await p.request().query(
+          `DELETE FROM anvil_feedback WHERE id IN (${staleIds.join(',')})`
+        );
+      }
+
+      const remaining = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .input('sid', sql.Int, sectionId)
+        .query(
+          `SELECT id, project_id, section_id, fb_id, category, anchor_text,
+                  context_before, context_after, suggestion, rationale,
+                  is_actionable, status, anchor_word_count, created_at, updated_at
+           FROM anvil_feedback
+           WHERE project_id = @pid AND section_id = @sid
+           ORDER BY created_at DESC`
+        );
+      const items = remaining.recordset.map(function (r) {
+        return {
+          dbId: r.id,
+          id: r.fb_id,
+          category: r.category,
+          anchorText: r.anchor_text,
+          contextBefore: r.context_before || '',
+          contextAfter: r.context_after || '',
+          suggestion: r.suggestion || '',
+          rationale: r.rationale || '',
+          isActionable: !!r.is_actionable,
+          status: r.status || 'active',
+          anchorWordCount: r.anchor_word_count || 0,
+        };
+      });
+      res.json({ items, removed: staleIds.length });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.get('/projects/:projectId/feedback-scores', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const p = await getPool();
+      if (!(await ownsProject(p, projectId, req.session.userId)))
+        return res.status(404).json({ error: 'Not found' });
+
+      const sectionIdParam = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+
+      const scoreRows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .query(
+          `SELECT section_id, category, SUM(anchor_word_count) AS flagged_words
+           FROM anvil_feedback
+           WHERE project_id = @pid AND status IN ('applied','dismissed','resolved')
+           GROUP BY section_id, category`
+        );
+
+      const wordRows = await p
+        .request()
+        .input('pid', sql.Int, projectId)
+        .query(
+          `SELECT id, body FROM project_sections WHERE project_id = @pid`
+        );
+      const sectionWords = {};
+      let totalProjectWords = 0;
+      for (const wr of wordRows.recordset) {
+        const text = wr.body ? String(wr.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+        const wc = text ? text.split(/\s+/).length : 0;
+        sectionWords[wr.id] = wc;
+        totalProjectWords += wc;
+      }
+
+      function mapCat(cat) {
+        var c = (cat || '').toLowerCase();
+        if (c === 'spelling' || c === 'formatting') return 'grammar';
+        return c;
+      }
+
+      var sectionScores = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+      var projectScores = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+
+      for (const row of scoreRows.recordset) {
+        var mapped = mapCat(row.category);
+        if (projectScores[mapped] !== undefined) {
+          projectScores[mapped] += row.flagged_words || 0;
+        }
+        if (sectionIdParam && row.section_id === sectionIdParam) {
+          if (sectionScores[mapped] !== undefined) {
+            sectionScores[mapped] += row.flagged_words || 0;
+          }
+        }
+      }
+
+      var sectionTotalWords = sectionIdParam ? (sectionWords[sectionIdParam] || 0) : 0;
+
+      const strongThreshold = parseFloat(process.env.SCORE_STRONG_THRESHOLD || '0.05');
+      const moderateThreshold = parseFloat(process.env.SCORE_MODERATE_THRESHOLD || '0.15');
+
+      function ratingFor(flagged, total) {
+        if (total === 0) return { flaggedWords: flagged, totalWords: total, ratio: 0, rating: 'strong' };
+        var ratio = flagged / total;
+        var rating = ratio <= strongThreshold ? 'strong' : ratio <= moderateThreshold ? 'moderate' : 'low';
+        return { flaggedWords: flagged, totalWords: total, ratio: Math.round(ratio * 10000) / 10000, rating: rating };
+      }
+
+      var result = {
+        section: {},
+        project: {},
+      };
+      ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
+        result.section[cat] = ratingFor(sectionScores[cat], sectionTotalWords);
+        result.project[cat] = ratingFor(projectScores[cat], totalProjectWords);
+      });
+
+      res.json(result);
     } catch (e) {
       next(e);
     }

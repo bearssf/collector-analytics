@@ -37,6 +37,8 @@
           data-initial-idle-ms="<%= typeof anvilInitialIdleMs !== 'undefined' ? anvilInitialIdleMs : 1800 %>"
           data-incremental-chars="<%= typeof anvilIncrementalChars !== 'undefined' ? anvilIncrementalChars : 40 %>"
           data-autosave-chars="<%= typeof autosaveCharThreshold !== 'undefined' ? autosaveCharThreshold : 250 %>"
+          data-score-strong="<%= typeof scoreStrongThreshold !== 'undefined' ? scoreStrongThreshold : 0.05 %>"
+          data-score-moderate="<%= typeof scoreModerateThreshold !== 'undefined' ? scoreModerateThreshold : 0.15 %>"
         ></div>
       <% } else if (phaseSlug === 'crucible') { %>
         <div id="crucible-root" class="crucible"
