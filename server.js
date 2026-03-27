@@ -1089,7 +1089,11 @@ async function start() {
     if (err.code != null) console.error('MySQL error code:', err.code);
     if (err.errno != null) console.error('MySQL errno:', err.errno);
     console.error(err);
-    if (/ETIMEOUT|ECONNREFUSED|ETIME|ETIMEDOUT|ECONNRESET|Access denied|access denied/i.test(String(err.message))) {
+    if (err.code === 'ER_BAD_DB_ERROR' || err.errno === 1049) {
+      console.error(
+        "Hint: DB_NAME must be a MySQL database (schema) you created inside the instance, e.g. academiq_forge — not the Cloud SQL 'instance connection name' (project:region:instance). Create the database in Cloud SQL if it does not exist."
+      );
+    } else if (/ETIMEOUT|ECONNREFUSED|ETIME|ETIMEDOUT|ECONNRESET|Access denied|access denied/i.test(String(err.message))) {
       console.error(
         'Hint: confirm DB_HOST, DB_PORT (default 3306 for MySQL), DB_NAME, DB_USER, DB_PASSWORD, Cloud SQL authorized networks / static outbound IP on Render, and DB_SSL=true (plus DB_SSL_CA_PEM or DB_SSL_CA_PATH) if the instance requires TLS.'
       );
