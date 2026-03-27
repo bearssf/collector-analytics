@@ -215,6 +215,40 @@
                 <% } %>
               <% } %>
             </section>
+
+            <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
+            <hr class="account-section-rule" aria-hidden="true" />
+            <section class="account-rail-section" aria-label="Payment history">
+              <h2 class="account-h2">Payment history</h2>
+              <p class="account-meta">Completed charges on your membership (via Stripe). Official receipts are sent to your email when a payment succeeds.</p>
+              <% if (typeof billingHistory !== 'undefined' && billingHistory.length) { %>
+                <div class="account-table-scroll" role="region" aria-label="Past charges table">
+                  <table class="account-billing-history-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Amount</th>
+                        <th scope="col">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% billingHistory.forEach(function (row) { %>
+                        <tr>
+                          <td><%= row.dateLabel %></td>
+                          <td><%= row.description %></td>
+                          <td><%= row.amountLabel %></td>
+                          <td><%= row.statusLabel %></td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } else { %>
+                <p class="account-meta">No paid invoices on file yet. After your first successful payment, entries will appear here.</p>
+              <% } %>
+            </section>
+            <% } %>
           </div>
         </div>
       </div>

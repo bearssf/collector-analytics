@@ -41,6 +41,7 @@ const {
   isWithinDaysBeforePeriodEnd,
   formatLongDate,
 } = require('./lib/billingAccountDisplay');
+const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
 
 const app = express();
@@ -677,6 +678,18 @@ app.get(
       ? formatLongDate(subscriptionRow.current_period_end)
       : null;
     const subscriptionSuccessReturn = subQ === 'success';
+    let billingHistory = [];
+    if (isStripeBillingConfigured(stripe) && subscriptionRow && subscriptionRow.stripe_customer_id) {
+      try {
+        billingHistory = await fetchBillingHistoryForCustomer(
+          stripe,
+          subscriptionRow.stripe_customer_id,
+          30
+        );
+      } catch (err) {
+        console.error('[account] billing history:', err.message || err);
+      }
+    }
     res.render('app/account', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -685,6 +698,7 @@ app.get(
       billingFlash,
       subscriptionSuccessReturn,
       subscriptionRow,
+      billingHistory,
       billingSummary,
       within30DaysOfRenewal,
       renewalDateLabel,

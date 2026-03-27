@@ -3390,10 +3390,47 @@
   color: #fff;
 }
 
+.account-table-scroll {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+.account-billing-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.account-billing-history-table th,
+.account-billing-history-table td {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
+}
+.account-billing-history-table th {
+  color: var(--blue);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.account-billing-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.account-billing-history-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
 @media (max-width: 520px) {
   .account-billing-summary-row {
     grid-template-columns: 1fr;
     gap: 0.15rem;
+  }
+  .account-billing-history-table {
+    font-size: 0.84rem;
+  }
+  .account-billing-history-table th,
+  .account-billing-history-table td {
+    padding: 0.45rem 0.4rem;
   }
 }
 
