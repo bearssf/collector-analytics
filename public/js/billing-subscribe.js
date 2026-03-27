@@ -109,7 +109,34 @@
       },
     });
     if (error) {
-      showError(error.message || 'Payment could not be completed.');
+      console.warn(
+        '[billing] confirmPayment',
+        error.type,
+        error.code,
+        error.decline_code,
+        error.message
+      );
+      let msg = error.message || 'Payment could not be completed.';
+      const lastPi =
+        error.payment_intent && error.payment_intent.last_payment_error
+          ? error.payment_intent.last_payment_error.message
+          : null;
+      if (lastPi && String(lastPi).trim()) {
+        msg = lastPi;
+      }
+      const vague = /^a processing error occurred\.?$/i.test(String(msg).trim());
+      if (vague) {
+        const parts = [];
+        if (error.decline_code) {
+          parts.push(error.decline_code.replace(/_/g, ' '));
+        } else if (error.code) {
+          parts.push(error.code);
+        }
+        msg = parts.length
+          ? `Payment failed (${parts.join('; ')}). Try another card or contact your bank.`
+          : 'Payment failed. Check the card details, try another card, or confirm your bank allows the charge. If you use test keys, use Stripe test cards (e.g. 4242…).';
+      }
+      showError(msg);
       submitBtn.disabled = false;
     }
   });
