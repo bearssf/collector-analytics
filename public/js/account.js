@@ -196,7 +196,7 @@
   const modalCancelRenewal = document.getElementById('account-modal-cancel-renewal');
   const modalCancelRenewalConfirm = document.getElementById('account-modal-cancel-renewal-confirm');
   const modalYearlyPlan = document.getElementById('account-modal-yearly-plan');
-  const modalYearlyEstimate = document.getElementById('account-modal-yearly-estimate');
+  const modalYearlyAmount = document.getElementById('account-modal-yearly-amount');
   const modalYearlyConfirm = document.getElementById('account-modal-yearly-confirm');
 
   let pendingCancelRenewalBtn = null;
@@ -312,7 +312,7 @@
         planPreviewEstimate.textContent =
           'Estimated charge today if you switch: ' +
             due +
-            ' (collected now, not on your next renewal). Taxes may still apply; Stripe sets the final total.';
+            ' (charged now; estimate only, subject to adjustment and taxes).';
         planPreviewEstimate.setAttribute('data-amount-due-formatted', due);
       } catch (err) {
         planPreviewEstimate.textContent =
@@ -357,9 +357,17 @@
 
       if (interval === 'year') {
         pendingYearlyPlanBtn = btn;
-        if (modalYearlyEstimate) {
-          var t = planPreviewEstimate && planPreviewEstimate.textContent ? planPreviewEstimate.textContent.trim() : '';
-          modalYearlyEstimate.textContent = t;
+        if (modalYearlyAmount) {
+          var dueFmt =
+            planPreviewEstimate && planPreviewEstimate.getAttribute('data-amount-due-formatted');
+          if (dueFmt) {
+            modalYearlyAmount.textContent = dueFmt;
+          } else {
+            var fallback = planPreviewEstimate && planPreviewEstimate.textContent
+              ? planPreviewEstimate.textContent.trim()
+              : '';
+            modalYearlyAmount.textContent = fallback || '—';
+          }
         }
         openAccountModal(modalYearlyPlan);
         return;

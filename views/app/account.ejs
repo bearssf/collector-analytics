@@ -270,9 +270,10 @@
   <div id="account-modal-yearly-plan" class="account-modal-overlay" hidden>
     <div class="account-modal-overlay__backdrop" data-account-modal-dismiss="yearly-plan" tabindex="-1" aria-hidden="true"></div>
     <div class="account-modal-overlay__panel" role="dialog" aria-modal="true" aria-labelledby="account-modal-yearly-title">
-      <h3 id="account-modal-yearly-title" class="account-modal-overlay__title">Confirm the Change to Annual Plan</h3>
-      <p class="account-modal-overlay__text">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
-      <p id="account-modal-yearly-estimate" class="account-modal-overlay__text account-modal-overlay__text--estimate"></p>
+      <h3 id="account-modal-yearly-title" class="account-modal-overlay__title">Confirm the Change to an Annual Plan</h3>
+      <p class="account-modal-overlay__text">We will prorate the rest of this billing period. As a result, the estimated charge today, if you switch is:</p>
+      <p id="account-modal-yearly-amount" class="account-modal-overlay__text account-modal-overlay__text--estimate-amount" aria-live="polite"></p>
+      <p class="account-modal-overlay__text">This will be charged now, and is only an estimate of the prorated amount (subject to adjustment and taxes).</p>
       <div class="account-modal-overlay__actions">
         <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--secondary" data-account-modal-dismiss="yearly-plan">Cancel</button>
         <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint" id="account-modal-yearly-confirm">Confirm</button>
