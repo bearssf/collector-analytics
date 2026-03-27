@@ -294,6 +294,12 @@
   flex-direction: column;
   overflow: hidden;
 }
+/* HTML hidden must win over display:flex above (otherwise both rails show). */
+.app-insight.app-anvil-rail .app-anvil-rail__inner[hidden],
+#anvil-rail-mode-default[hidden],
+#anvil-rail-mode-reference[hidden] {
+  display: none !important;
+}
 .app-anvil-rail__top {
   flex: 1 1 50%;
   min-height: 0;
@@ -354,15 +360,8 @@
   width: 100%;
   box-sizing: border-box;
 }
-.app-anvil-rail__bottom--reference {
-  flex: 1 1 42%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 .app-anvil-rail__research-plan-block {
-  flex: 1 1 42%;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;

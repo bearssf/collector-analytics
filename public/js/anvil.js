@@ -254,7 +254,8 @@
 
   function sectionSlugKey(sec) {
     if (!sec) return '';
-    return String(sec.slug != null ? sec.slug : '')
+    var raw = sec.slug != null ? sec.slug : sec.section_slug;
+    return String(raw != null ? raw : '')
       .trim()
       .toLowerCase();
   }
@@ -498,11 +499,16 @@
     return ap.replace('</p>', countNote + '</p>');
   }
 
+  function usageSourceId(u) {
+    if (!u) return null;
+    return u.source_id != null ? u.source_id : u.sourceId;
+  }
+
   function ieeeFirstUseOrder(usages, sourceIds) {
     var order = [];
     var seen = {};
     (usages || []).forEach(function (u) {
-      var sid = u.source_id;
+      var sid = usageSourceId(u);
       if (sid == null || seen[sid]) return;
       if (sourceIds.indexOf(sid) === -1) return;
       seen[sid] = true;
@@ -566,10 +572,6 @@
   }
 
   function getCitationsMountEl() {
-    var refRail = document.getElementById('anvil-rail-mode-reference');
-    if (refRail && !refRail.hidden) {
-      return document.getElementById('anvil-citations-mount-ref');
-    }
     return document.getElementById('anvil-citations-mount');
   }
 
@@ -582,7 +584,6 @@
     ref.hidden = !isRef;
     if (isRef) {
       loadAnvilResearchPlan();
-      renderCitationRail();
     } else {
       renderCitationRail();
     }
@@ -647,24 +648,43 @@
       });
   }
 
+  function fetchJsonOrThrow(url) {
+    return fetch(url, { credentials: 'same-origin' }).then(function (r) {
+      return r.text().then(function (text) {
+        var data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (parseErr) {
+          data = null;
+        }
+        if (!r.ok) {
+          var msg = (data && data.error) || text || r.statusText || 'Request failed';
+          throw new Error(msg);
+        }
+        return data || {};
+      });
+    });
+  }
+
   function applyReferenceSectionBody(force) {
-    if (!isReferenceSection(sectionById(selectedId)) || !quill) return;
+    var sec = sectionById(selectedId);
+    if (!isReferenceSection(sec) || !quill) return;
+    var sectionIdAtStart = selectedId;
     Promise.all([
-      fetch('/api/projects/' + projectId + '/sources', { credentials: 'same-origin' }).then(function (r) {
-        return r.json();
-      }),
-      fetch('/api/projects/' + projectId + '/citation-usages', { credentials: 'same-origin' }).then(function (r) {
-        return r.json();
-      }),
+      fetchJsonOrThrow('/api/projects/' + projectId + '/sources'),
+      fetchJsonOrThrow('/api/projects/' + projectId + '/citation-usages'),
     ])
       .then(function (pair) {
+        if (selectedId !== sectionIdAtStart || !isReferenceSection(sectionById(selectedId))) return;
+        if (!quill) return;
         var d0 = pair[0];
         var d1 = pair[1];
         var allSources = d0.sources || [];
         var usages = d1.usages || [];
         var counts = {};
         usages.forEach(function (u) {
-          counts[u.source_id] = (counts[u.source_id] || 0) + 1;
+          var sid = u.source_id != null ? u.source_id : u.sourceId;
+          if (sid != null) counts[sid] = (counts[sid] || 0) + 1;
         });
         if (!force && !isHtmlBodyEmpty(getDraftHtml())) return;
         var html = buildReferencePageHtml(getProjectCitationStyle(), allSources, usages, counts);
@@ -683,6 +703,7 @@
       })
       .catch(function (e) {
         console.error('[Anvil] reference rebuild failed', e);
+        window.alert('Could not update references: ' + (e.message || 'unknown error'));
       });
   }
 
@@ -1721,15 +1742,20 @@
         citationUsagesList = d.usages || [];
         citationUsageCounts = {};
         citationUsagesList.forEach(function (u) {
-          citationUsageCounts[u.source_id] = (citationUsageCounts[u.source_id] || 0) + 1;
+          var sid = u.source_id != null ? u.source_id : u.sourceId;
+          if (sid != null) citationUsageCounts[sid] = (citationUsageCounts[sid] || 0) + 1;
         });
-        renderCitationRail();
+        if (!isReferenceSection(sectionById(selectedId))) renderCitationRail();
       })
       .catch(function () {});
   }
 
   function loadSectionSources() {
     if (selectedId == null) return;
+    if (isReferenceSection(sectionById(selectedId))) {
+      sectionSources = [];
+      return;
+    }
     fetch('/api/projects/' + projectId + '/sources', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -1747,6 +1773,7 @@
   }
 
   function renderCitationRail() {
+    if (isReferenceSection(sectionById(selectedId))) return;
     var mount = getCitationsMountEl();
     if (!mount) return;
     if (!sectionSources.length) {
@@ -1781,6 +1808,7 @@
 
   function insertCitation(src) {
     if (!quill || selectedId == null) return;
+    if (isReferenceSection(sectionById(selectedId))) return;
     var marker = formatInTextCitation(src, getProjectCitationStyle());
     var range = quill.getSelection(true);
     var index = range ? range.index : quill.getLength() - 1;
@@ -2148,7 +2176,7 @@
 
   document.addEventListener('click', function (e) {
     if (!document.getElementById('anvil-root')) return;
-    var addSrc = e.target.closest('#anvil-add-source-btn, #anvil-add-source-btn-ref');
+    var addSrc = e.target.closest('#anvil-add-source-btn');
     if (addSrc) {
       e.preventDefault();
       flushPendingSave();
