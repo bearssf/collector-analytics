@@ -181,11 +181,11 @@
                   <% if (billingPriceMode === 'dual') { %>
                     <div class="account-billing-choices">
                       <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
-                        <a class="app-btn-primary" href="/billing/subscribe?interval=month">Monthly</a>
-                        <a class="app-btn-primary account-btn-yearly" href="/billing/subscribe?interval=year">Yearly</a>
+                        <a class="app-btn-primary" href="/billing/subscribe?interval=month">Subscribe to Monthly Plan</a>
+                        <a class="app-btn-primary account-btn-yearly" href="/billing/subscribe?interval=year">Subscribe to Annual Plan</a>
                       <% } else { %>
-                        <a class="app-btn-primary" href="/billing/checkout?interval=month">Monthly</a>
-                        <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Yearly</a>
+                        <a class="app-btn-primary" href="/billing/checkout?interval=month">Subscribe to Monthly Plan</a>
+                        <a class="app-btn-primary account-btn-yearly" href="/billing/checkout?interval=year">Subscribe to Annual Plan</a>
                       <% } %>
                     </div>
                     <% if (typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured) { %>
