@@ -78,7 +78,7 @@
               </label>
               <div id="account-profile-msg" class="account-form-msg" role="status" aria-live="polite" hidden></div>
               <div class="app-form-actions app-form-actions--account-save">
-                <button type="submit" class="app-btn-primary" id="account-profile-submit">Save profile</button>
+                <button type="submit" class="app-btn-primary" id="account-profile-submit">Save Profile</button>
               </div>
               <p class="account-form-required-note"><abbr class="account-required-star" title="required">*</abbr> Required Fields</p>
             </form>
@@ -117,7 +117,7 @@
                 </label>
                 <div id="account-password-msg" class="account-form-msg" role="status" aria-live="polite" hidden></div>
                 <div class="app-form-actions app-form-actions--account-save">
-                  <button type="submit" class="app-btn-primary" id="account-password-submit">Update password</button>
+                  <button type="submit" class="app-btn-primary" id="account-password-submit">Update Password</button>
                 </div>
               </form>
             </section>
@@ -155,10 +155,10 @@
                   <% if (showSubMaintain) { %>
                     <div class="account-billing-maintain" id="account-subscription-actions">
                       <% if (capEnd) { %>
-                        <button type="button" class="app-btn-primary" data-action="resume-subscription">Resume auto-renewal</button>
+                        <button type="button" class="app-btn-primary" data-action="resume-subscription">Resume Auto-Renewal</button>
                         <p class="account-meta">Restores renewal after the date above. You can turn auto-renew off again anytime.</p>
                       <% } else { %>
-                        <button type="button" class="app-btn-primary account-btn-yearly" data-action="cancel-at-period-end">Turn off auto-renewal</button>
+                        <button type="button" class="app-btn-primary account-btn-yearly" data-action="cancel-at-period-end">Turn Off Auto-Renewal</button>
                       <% } %>
                       <div id="account-subscription-msg" class="account-form-msg" hidden></div>
                     </div>
@@ -166,7 +166,7 @@
                   <% if (showPlanSwitch) { %>
                     <div class="account-plan-switch" id="account-plan-switch">
                       <% if (currentPlanInterval === 'month') { %>
-                        <button type="button" class="app-btn-primary account-btn-yearly" data-action="switch-plan" data-interval="year">Switch to yearly billing</button>
+                        <button type="button" class="app-btn-primary account-btn-yearly" data-action="switch-plan" data-interval="year">Switch to Annual Billing</button>
                       <% } else { %>
                         <button type="button" class="app-btn-primary" data-action="switch-plan" data-interval="month">Switch to monthly billing</button>
                         <p class="account-meta">Stripe will prorate the rest of this billing period (charge or credit on your next invoice).</p>
@@ -183,7 +183,7 @@
               <% if (stripeConfigured && subscriptionRow && subscriptionRow.stripe_customer_id) { %>
                 <p class="account-payment-links">
                   <a href="/billing/payment-method" class="app-link-cta">Update Payment Method</a>
-                  <button type="button" class="account-open-billing-history-btn" id="account-open-billing-history">Payment history</button>
+                  <button type="button" class="account-open-billing-history-btn" id="account-open-billing-history">Payment History</button>
                 </p>
               <% } %>
 
@@ -244,7 +244,7 @@
   <div id="account-modal-billing-history" class="account-modal-overlay" hidden>
     <div class="account-modal-overlay__backdrop" data-account-modal-dismiss="billing-history" tabindex="-1" aria-hidden="true"></div>
     <div class="account-modal-overlay__panel account-modal-overlay__panel--billing-history" role="dialog" aria-modal="true" aria-labelledby="account-modal-billing-history-title">
-      <h3 id="account-modal-billing-history-title" class="account-modal-overlay__title">Payment history</h3>
+      <h3 id="account-modal-billing-history-title" class="account-modal-overlay__title">Payment History</h3>
       <p class="account-modal-overlay__text">Completed charges on your membership (via Stripe). Official receipts are sent to your email when a payment succeeds.</p>
       <% if (typeof billingHistory !== 'undefined' && billingHistory.length) { %>
         <div class="account-table-scroll account-modal-billing-history-scroll" role="region" aria-label="Past charges table">
