@@ -19,6 +19,13 @@ body {
   margin: 0 auto;
   padding: 1.5rem 1.5rem 3.5rem;
 }
+/* Home: 100px breathing room above the top bar and above the hero / badge */
+body.home-page .shell {
+  padding-top: 100px;
+}
+body.home-page .hero {
+  padding: 100px 0.1rem 4rem;
+}
 .top {
   display: flex;
   align-items: center;

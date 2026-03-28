@@ -8,7 +8,7 @@
   <div class="actions">
     <% if (user) { %>
       <span class="welcome">Welcome, <%= user.firstName %></span>
-      <form action="/logout" method="post" style="display:inline;"><button type="submit" class="signout">Sign out</button></form>
+      <form action="/logout" method="post" style="display:inline;"><button type="submit" class="signout">Sign Out</button></form>
     <% } else { %>
       <button type="button" class="btn btn-outline" id="open-signin">Sign In</button>
     <% } %>

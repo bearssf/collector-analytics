@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/academiq.css" />
 </head>
-<body>
+<body class="home-page">
   <%
     const pillars = [
       { title: "Shaped by Experience", body: "Built from real doctoral workflows so the path from concept to completed paper feels guided, not improvised." },
@@ -29,7 +29,7 @@
           <p class="lead">Shaped by experience, hardened for usability, and polished to carry researchers from scattered notes to structured, defensible writing.</p>
           <div class="hero-actions">
             <a href="/app/dashboard" class="btn btn-blue">Start Forging</a>
-            <a href="<%= user ? '/app/account' : '/register' %>" class="btn btn-trial">Claim your free 7 day trial</a>
+            <a href="<%= user ? '/app/account' : '/register' %>" class="btn btn-trial">Claim Your 7 Day Free Trial</a>
           </div>
           <div class="meta">
             <div>Managed Writing Environment</div><div class="dot"></div><div>Effectively Manage Sources and Notes</div><div class="dot"></div><div>Feedback and Suggestions on Writing from the Latest AI Models</div>
