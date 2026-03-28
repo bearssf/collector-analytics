@@ -1382,16 +1382,20 @@
 }
 
 .anvil-top-metrics {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1rem 1.25rem;
   margin-bottom: 0.5rem;
 }
 .anvil-top-metrics__progress {
-  flex: 1;
+  grid-column: 1;
   min-width: 0;
 }
 .anvil-top-metrics__scoring {
+  grid-column: 2;
+  justify-self: end;
+  align-self: start;
   display: flex;
   gap: 1.25rem;
   flex-shrink: 0;
@@ -2216,16 +2220,18 @@
 }
 .anvil-progress-row {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1.25rem 1.75rem;
   padding: 0.4rem 0.2rem 0.5rem;
   margin-bottom: 0.25rem;
 }
 .anvil-progress-item {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
 }
 .anvil-progress-label {
   font-size: 0.76rem;
@@ -2237,12 +2243,13 @@
   color: var(--muted);
 }
 .anvil-progress-track {
-  width: 100%;
+  width: 175px;
+  max-width: 100%;
   height: 4px;
   background: rgba(255,255,255,0.1);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
 }
 .anvil-progress-fill {
   height: 100%;
@@ -3350,7 +3357,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem 1.25rem;
-  margin: 0.65rem 0 0;
+  margin: 25px 0 0;
 }
 .account-open-billing-history-btn {
   font: inherit;
@@ -3370,15 +3377,14 @@
 
 .account-subscription-actions-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.75rem 1.25rem;
-  margin-top: 0.5rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 1rem 1.25rem;
+  margin-top: 25px;
 }
 .account-subscription-actions-row .account-billing-maintain,
 .account-subscription-actions-row .account-plan-switch {
-  flex: 1 1 220px;
-  max-width: 100%;
+  flex: 0 0 auto;
   margin-top: 0;
 }
 .account-subscription-actions-row .account-plan-switch {
@@ -3386,6 +3392,12 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.35rem;
+}
+@media (max-width: 560px) {
+  .account-subscription-actions-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
 }
 .account-plan-preview-estimate {
   margin-top: 0.5rem;

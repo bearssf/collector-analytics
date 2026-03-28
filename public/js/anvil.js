@@ -870,7 +870,7 @@
     quill.deleteText(m.start, len, 'silent');
     quill.insertText(m.start, sug, 'silent');
     if (sug.length > 0) {
-      quill.formatText(m.start, sug.length, 'background', '#ffeeba', 'silent');
+      quill.formatText(m.start, sug.length, 'background', '#64d7ec', 'silent');
     }
     row.status = 'pending';
     row.matchPosition = null;
