@@ -35,6 +35,7 @@ const { isBedrockConfigured, invokeClaudeMessages } = require('../lib/bedrockRev
 const { runStructuredSectionReview } = require('../lib/bedrockStructuredReview');
 const { applySuggestionToDraftHtml } = require('../lib/bedrockApplySuggestion');
 const { searchPapers } = require('../lib/semanticScholar');
+const { markPageCompleted, resetPageCompletion } = require('../lib/trainingWalkthrough');
 
 function mapSuggestionRow(r) {
   if (!r) return null;
@@ -260,6 +261,28 @@ function createApiRouter(getPool) {
         }
       );
       res.status(201).json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/me/training/complete', async (req, res, next) => {
+    try {
+      const pageSlug = String((req.body && req.body.pageSlug) || '').trim().slice(0, 80);
+      if (!pageSlug) return res.status(400).json({ error: 'pageSlug is required.' });
+      await markPageCompleted(getPool, req.session.userId, pageSlug);
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/me/training/reset', async (req, res, next) => {
+    try {
+      const pageSlug = String((req.body && req.body.pageSlug) || '').trim().slice(0, 80);
+      if (!pageSlug) return res.status(400).json({ error: 'pageSlug is required.' });
+      await resetPageCompletion(getPool, req.session.userId, pageSlug);
+      res.json({ ok: true });
     } catch (e) {
       next(e);
     }

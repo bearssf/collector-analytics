@@ -1484,6 +1484,10 @@
   padding-top: 1rem;
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.38);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 .app-sidebar-home {
   color: #1cb9c5;
@@ -1492,6 +1496,21 @@
 .app-sidebar-home:hover {
   color: #3dd4e0;
   text-decoration: underline;
+}
+.app-sidebar-training {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  color: #2f80ee;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.app-sidebar-training:hover {
+  color: #5a9ef8;
 }
 .app-body--anvil .app-sidebar-project-name {
   color: #1eb8c6;

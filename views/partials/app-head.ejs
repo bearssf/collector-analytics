@@ -5,3 +5,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/app-shell.css" />
+<link rel="stylesheet" href="/css/training-walkthrough.css" />
+<script>
+  window.__TRANS_TRAIN__ = <%= typeof transTrainOpacity !== 'undefined' ? Number(transTrainOpacity) : 0.4 %>;
+  window.__TRAINING_INIT__ = <%- typeof trainingClientPayload !== 'undefined' && trainingClientPayload ? JSON.stringify(trainingClientPayload).replace(/</g, '\\u003c') : 'null' %>;
+</script>
+<script src="/js/training-walkthrough.js" defer></script>

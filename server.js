@@ -42,6 +42,15 @@ const {
   formatLongDate,
 } = require('./lib/billingAccountDisplay');
 const { buildDashboardProjectProgress, dashboardCategory } = require('./lib/dashboardProgress');
+const {
+  parseTransTrainOpacity,
+  loadTrainingClientPayload,
+  listAllStepsForAdmin,
+  adminUpsertStep,
+  adminDeleteStep,
+  TRAINING_PAGE_OPTIONS,
+  ensureTrainingWalkthroughSchema,
+} = require('./lib/trainingWalkthrough');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
 
@@ -235,6 +244,51 @@ app.post('/admin/project-templates', requireAdminTemplateEditorToken, postAdminP
 app.get('/admin/project-templates/:token', requireAdminTemplateEditorToken, renderAdminProjectTemplatesPage);
 app.post('/admin/project-templates/:token', requireAdminTemplateEditorToken, postAdminProjectTemplatesSave);
 
+function requireAdminTrainingEditorToken(req, res, next) {
+  const secret = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
+  if (!secret || secret.length < ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
+    return sendAdminGateNotFound(res);
+  }
+  const token = trimAdminTemplateToken(adminTemplateTokenFromReq(req));
+  if (token !== secret) {
+    return sendAdminGateNotFound(res);
+  }
+  next();
+}
+
+async function renderAdminTrainingWalkthroughPage(req, res, next) {
+  try {
+    const rows = await listAllStepsForAdmin(getPool);
+    const payload = { pages: TRAINING_PAGE_OPTIONS, steps: rows };
+    const data = JSON.stringify(payload);
+    const safe = data.replace(/</g, '\\u003c');
+    res.render('admin-training-walkthrough', { trainingAdminJson: safe });
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function postAdminTrainingUpsert(req, res) {
+  const result = await adminUpsertStep(getPool, req.body || {});
+  if (!result.ok) return res.status(400).json(result);
+  res.json(result);
+}
+
+async function postAdminTrainingDelete(req, res) {
+  const id = parseInt(String((req.body && req.body.id) || ''), 10);
+  const result = await adminDeleteStep(getPool, id);
+  if (!result.ok) return res.status(400).json(result);
+  res.json({ ok: true });
+}
+
+app.get(
+  '/admin/training-walkthrough',
+  requireAdminTrainingEditorToken,
+  asyncHandler(renderAdminTrainingWalkthroughPage)
+);
+app.post('/admin/training-walkthrough/step', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingUpsert));
+app.post('/admin/training-walkthrough/delete', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingDelete));
+
 function asyncHandler(fn) {
   return function (req, res, next) {
     Promise.resolve(fn(req, res, next)).catch(next);
@@ -282,6 +336,31 @@ async function getPool() {
 
 app.use('/api', createApiRouter(getPool));
 app.use('/api/billing', createBillingApiRouter(getPool, stripe));
+
+async function attachTrainingWalkthroughLocals(req, res, next) {
+  res.locals.trainingClientPayload = null;
+  res.locals.trainingReplayAvailable = false;
+  res.locals.transTrainOpacity = parseTransTrainOpacity(process.env.TRANS_TRAIN);
+  if (!req.session || !req.session.userId) return next();
+  try {
+    const payload = await loadTrainingClientPayload(
+      getPool,
+      req.session.userId,
+      req.path,
+      res.locals.transTrainOpacity
+    );
+    if (payload) {
+      res.locals.trainingClientPayload = payload;
+      res.locals.trainingReplayAvailable = true;
+    }
+  } catch (e) {
+    console.error('Training walkthrough locals:', e.message);
+  }
+  next();
+}
+
+app.use('/app', asyncHandler(attachTrainingWalkthroughLocals));
+app.use('/billing', asyncHandler(attachTrainingWalkthroughLocals));
 
 async function ensureUsersTable() {
   await queryRaw(
@@ -1105,6 +1184,7 @@ async function start() {
     await ensureUsersTable();
     await ensureUserExtraColumns();
     await ensureCoreSchema(getPool);
+    await ensureTrainingWalkthroughSchema(getPool);
     console.log('Database connected.');
   } catch (err) {
     console.error('Database startup failed:', err.message);

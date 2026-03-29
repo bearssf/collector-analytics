@@ -61,5 +61,8 @@
 
   <div class="app-sidebar-footer">
     <a href="/" class="app-sidebar-home">Home</a>
+    <% if (typeof trainingReplayAvailable !== 'undefined' && trainingReplayAvailable && typeof trainingClientPayload !== 'undefined' && trainingClientPayload && trainingClientPayload.pageSlug) { %>
+    <button type="button" class="app-sidebar-training" id="app-sidebar-training-replay" data-page-slug="<%= trainingClientPayload.pageSlug %>">Page tour</button>
+    <% } %>
   </div>
 </aside>

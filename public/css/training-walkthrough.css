@@ -1,0 +1,93 @@
+/* Onboarding / page tour — modal with pointer toward focus element */
+
+.tw-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  pointer-events: none;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.tw-root.tw-root--active {
+  pointer-events: auto;
+}
+
+.tw-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.tw-card {
+  position: fixed;
+  z-index: 100001;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem 1.1rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  pointer-events: auto;
+  /* background + opacity from inline style (TRANS_TRAIN) */
+}
+
+.tw-card__text {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(20, 24, 32, 0.92);
+}
+
+.tw-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.tw-btn {
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  background: #2f80ee;
+  color: #fff;
+}
+
+.tw-btn:hover {
+  background: #256fd0;
+}
+
+.tw-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  pointer-events: none;
+  z-index: 100002;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.06));
+}
+
+/* Arrow below card, points up toward target */
+.tw-arrow--bottom {
+  top: -10px;
+  border-bottom: 12px solid rgba(255, 255, 255, 0.95);
+  transform: translateX(-50%);
+}
+
+/* Arrow above card, points down */
+.tw-arrow--top {
+  bottom: -10px;
+  border-top: 12px solid rgba(255, 255, 255, 0.95);
+  transform: translateX(-50%);
+}
+
+.tw-target-pulse {
+  outline: 2px solid #2f80ee;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

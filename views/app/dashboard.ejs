@@ -22,16 +22,16 @@
       <% var portfolioPct = portfolioTarget > 0 ? Math.min(100, Math.round((portfolioWords / portfolioTarget) * 100)) : 0; %>
       <% var foundryHref = typeof foundryProjectId !== 'undefined' && foundryProjectId ? '/app/project/' + foundryProjectId + '/foundry' : '#'; %>
 
-      <div class="dash-canvas-head">
+      <div class="dash-canvas-head" id="tw-portfolio-head">
         <div class="dash-canvas-head__titles">
           <h1>Forge portfolio</h1>
           <p class="sub">Your projects and quick entry into each workspace.</p>
         </div>
-        <a href="/app/projects/new" class="app-btn-primary dash-add-project-btn">Add New Project</a>
+        <a href="/app/projects/new" class="app-btn-primary dash-add-project-btn" id="tw-portfolio-add-project">Add New Project</a>
       </div>
 
       <% if (recentProject && progressData.length) { %>
-      <div class="dash-recent-bar">
+      <div class="dash-recent-bar" id="tw-portfolio-active-project">
         <label class="dash-recent-bar__label" for="dash-active-project-select">Active Project:</label>
         <select id="dash-active-project-select" class="dash-active-project-select" aria-label="Select active project">
           <% projects.forEach(function(p) { %>
@@ -41,7 +41,7 @@
       </div>
       <% } %>
 
-      <div class="dash-visuals">
+      <div class="dash-visuals" id="tw-portfolio-metrics">
         <% if (recentProject && progressData.length) { %>
         <% var recentProg = progressData.find(function(pp) { return pp.id === recentProject.id; }); %>
         <div class="dash-visual-card" id="dash-active-visual" data-project-id="<%= recentProject.id %>">
@@ -128,7 +128,7 @@
 
       <% var researchIdeasList = typeof researchIdeas !== 'undefined' && researchIdeas ? researchIdeas : []; %>
       <% var publishedWorkList = typeof publishedWork !== 'undefined' && publishedWork ? publishedWork : []; %>
-      <div class="dash-ideas-tile dash-ideas-tile--with-list">
+      <div class="dash-ideas-tile dash-ideas-tile--with-list" id="tw-portfolio-ideas">
         <div class="dash-ideas-tile__head">
           <div class="dash-ideas-tile__text">
             <div class="dash-ideas-tile__title">Project &amp; Future Research Ideas</div>
