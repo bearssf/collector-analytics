@@ -33,6 +33,11 @@
     .train-page-anchors ul { margin: 0.35rem 0 0; padding-left: 1.15rem; }
     .train-page-anchors li { margin: 0.25rem 0; color: #c9d1d9; }
     .train-empty { margin: 0.25rem 0 0; font-size: 0.8rem; color: #6e7681; }
+    button.train-move-btn { margin-top: 0; padding: 0.28rem 0.5rem; font-size: 0.72rem; font-weight: 600; background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; cursor: pointer; }
+    button.train-move-btn:hover:not(:disabled) { background: #30363d; }
+    button.train-move-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .train-move-cell { white-space: nowrap; vertical-align: middle; }
+    .train-move-cell .train-move-btn + .train-move-btn { margin-left: 0.35rem; }
   </style>
 </head>
 <body>

@@ -56,33 +56,48 @@
 
     var rows = steps.length
       ? steps
-          .map(function (s) {
-        return (
-          '<tr data-id="' +
-          s.id +
-          '">' +
-          '<td class="mono">' +
-          esc(s.page_slug) +
-          '</td>' +
-          '<td class="mono">' +
-          esc(s.focus_selector) +
-          '</td>' +
-          '<td>' +
-          esc(s.body_text).slice(0, 200) +
-          (s.body_text && s.body_text.length > 200 ? '…' : '') +
-          '</td>' +
-          '<td>' +
-          s.sort_order +
-          '</td>' +
-          '<td>' +
-          (s.enabled ? 'yes' : 'no') +
-          '</td>' +
-          '<td><button type="button" class="btn-danger train-del" data-id="' +
-          s.id +
-          '">Delete</button></td>' +
-          '</tr>'
-        );
-      })
+          .map(function (s, i) {
+            var slug = s.page_slug;
+            var canUp = i > 0 && steps[i - 1].page_slug === slug;
+            var canDown = i < steps.length - 1 && steps[i + 1].page_slug === slug;
+            return (
+              '<tr data-id="' +
+              s.id +
+              '">' +
+              '<td class="mono">' +
+              esc(slug) +
+              '</td>' +
+              '<td class="mono">' +
+              esc(s.focus_selector) +
+              '</td>' +
+              '<td>' +
+              esc(s.body_text).slice(0, 200) +
+              (s.body_text && s.body_text.length > 200 ? '…' : '') +
+              '</td>' +
+              '<td>' +
+              s.sort_order +
+              '</td>' +
+              '<td>' +
+              (s.enabled ? 'yes' : 'no') +
+              '</td>' +
+              '<td class="train-move-cell">' +
+              '<button type="button" class="train-move-btn train-move-up" data-id="' +
+              s.id +
+              '" ' +
+              (canUp ? '' : 'disabled ') +
+              'title="Move earlier on this page">↑</button>' +
+              '<button type="button" class="train-move-btn train-move-down" data-id="' +
+              s.id +
+              '" ' +
+              (canDown ? '' : 'disabled ') +
+              'title="Move later on this page">↓</button>' +
+              '</td>' +
+              '<td><button type="button" class="btn-danger train-del" data-id="' +
+              s.id +
+              '">Delete</button></td>' +
+              '</tr>'
+            );
+          })
           .join('')
       : '';
 
@@ -106,11 +121,48 @@
       '<span id="admin-train-status"></span>' +
       '</div>' +
       '<h2 style="font-size:1rem;margin:1.5rem 0 0.5rem">All steps</h2>' +
-      '<table><thead><tr><th>Page</th><th>Selector</th><th>Text</th><th>Order</th><th>On</th><th></th></tr></thead><tbody>' +
-      (steps.length ? rows : '<tr><td colspan="6">No steps yet.</td></tr>') +
+      '<table><thead><tr><th>Page</th><th>Selector</th><th>Text</th><th>Order</th><th>On</th><th>Reorder</th><th></th></tr></thead><tbody>' +
+      (steps.length ? rows : '<tr><td colspan="7">No steps yet.</td></tr>') +
       '</tbody></table>';
 
     statusEl = document.getElementById('admin-train-status');
+
+    function postReorder(stepId, direction) {
+      fetch(apiUrl('/admin/training-walkthrough/reorder'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stepId: stepId, direction: direction }),
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error(j.error || 'Failed');
+            return j;
+          });
+        })
+        .then(function () {
+          location.reload();
+        })
+        .catch(function (e) {
+          setStatus(e.message || 'Error', 'err');
+        });
+    }
+
+    root.querySelectorAll('.train-move-up').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.disabled) return;
+        var id = parseInt(b.getAttribute('data-id'), 10);
+        if (!id) return;
+        postReorder(id, 'up');
+      });
+    });
+    root.querySelectorAll('.train-move-down').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.disabled) return;
+        var id = parseInt(b.getAttribute('data-id'), 10);
+        if (!id) return;
+        postReorder(id, 'down');
+      });
+    });
 
     root.querySelectorAll('.train-del').forEach(function (b) {
       b.addEventListener('click', function () {

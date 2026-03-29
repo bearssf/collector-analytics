@@ -50,6 +50,7 @@ const {
   listAllStepsForAdmin,
   adminUpsertStep,
   adminDeleteStep,
+  reorderTrainingStep,
   TRAINING_PAGE_OPTIONS,
   trainingAnchorsForAdmin,
   ensureTrainingWalkthroughSchema,
@@ -288,6 +289,14 @@ async function postAdminTrainingDelete(req, res) {
   res.json({ ok: true });
 }
 
+async function postAdminTrainingReorder(req, res) {
+  const stepId = parseInt(String((req.body && req.body.stepId) || ''), 10);
+  const direction = (req.body && req.body.direction) || '';
+  const result = await reorderTrainingStep(getPool, stepId, direction);
+  if (!result.ok) return res.status(400).json(result);
+  res.json({ ok: true });
+}
+
 app.get(
   '/admin/training-walkthrough',
   requireAdminTrainingEditorToken,
@@ -295,6 +304,7 @@ app.get(
 );
 app.post('/admin/training-walkthrough/step', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingUpsert));
 app.post('/admin/training-walkthrough/delete', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingDelete));
+app.post('/admin/training-walkthrough/reorder', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingReorder));
 
 function asyncHandler(fn) {
   return function (req, res, next) {
