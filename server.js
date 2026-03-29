@@ -41,6 +41,7 @@ const {
   isWithinDaysBeforePeriodEnd,
   formatLongDate,
 } = require('./lib/billingAccountDisplay');
+const { buildDashboardProjectProgress, dashboardCategory } = require('./lib/dashboardProgress');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
 
@@ -380,49 +381,32 @@ app.get(
   asyncHandler(async (req, res) => {
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = null;
-    const tpl = loadTemplates();
-    const projectProgress = [];
-    for (const proj of projects) {
-      const secs = await query(
-        getPool,
-        'SELECT title, body, sort_order FROM project_sections WHERE project_id = @pid ORDER BY sort_order',
-        { pid: proj.id }
-      );
-      const def = proj.template_key && tpl[proj.template_key] ? tpl[proj.template_key] : null;
-      const docTarget = def && def.projectedTotalWords ? Math.max(1, Math.round(Number(def.projectedTotalWords))) : 0;
-      const tplSections = def && def.sections ? def.sections : [];
-
-      let totalWords = 0;
-      const sections = [];
-      for (let i = 0; i < secs.recordset.length; i++) {
-        const row = secs.recordset[i];
-        let words = 0;
-        if (row.body) {
-          const text = String(row.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (text) words = text.split(/\s+/).length;
-        }
-        totalWords += words;
-        const tplSec = tplSections[i] || {};
-        const secPct = tplSec.percent || 0;
-        const secTarget = docTarget > 0 && secPct > 0 ? Math.round((docTarget * secPct) / 100) : 0;
-        const secCompletePct = secTarget > 0 ? Math.min(100, Math.round((words / secTarget) * 100)) : 0;
-        sections.push({ title: row.title, words, target: secTarget, pct: secCompletePct });
-      }
-      const pct = docTarget > 0 ? Math.min(100, Math.round((totalWords / docTarget) * 100)) : 0;
-      projectProgress.push({ id: proj.id, name: proj.name, totalWords, target: docTarget, pct, sections });
-    }
+    const projectProgress = await buildDashboardProjectProgress(getPool, projects);
+    const projectsForView = projects.map((p) => ({
+      ...p,
+      dashCat: dashboardCategory(p),
+    }));
+    const firstNonCanceled = projects.find((p) => dashboardCategory(p) !== 'canceled');
+    const foundryProjectId = firstNonCanceled ? firstNonCanceled.id : null;
 
     const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
     const priceCfg = getStripePriceConfig();
     const billingSummary = buildBillingSummaryLines(subscriptionRow, priceCfg);
 
+    const dashboardClientJson = JSON.stringify({
+      projectProgress,
+      projects: projectsForView.map((p) => ({ id: p.id, name: p.name, dashCat: p.dashCat })),
+    });
+
     res.render('app/dashboard', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
-      projects,
+      projects: projectsForView,
       currentProjectId,
       projectProgress,
       billingSummary,
+      foundryProjectId,
+      dashboardClientJson,
     });
   })
 );

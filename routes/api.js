@@ -14,6 +14,7 @@ const {
   createProject,
   updateProjectSettings,
   deleteProject,
+  cancelProject,
   attachTemplateMeta,
 } = require('../lib/projectService');
 const {
@@ -238,6 +239,60 @@ function createApiRouter(getPool) {
     }
   });
 
+  router.post('/me/research-ideas', async (req, res, next) => {
+    try {
+      const b = req.body || {};
+      const researchTopic = String(b.researchTopic || b.research_topic || '').trim();
+      if (!researchTopic) {
+        return res.status(400).json({ error: 'Research topic is required.' });
+      }
+      const keywords = b.keywords != null ? String(b.keywords).trim().slice(0, 500) : null;
+      const notes = b.notes != null ? String(b.notes).slice(0, 20000) : null;
+      await query(
+        getPool,
+        `INSERT INTO user_research_ideas (user_id, research_topic, keywords, notes)
+         VALUES (@user_id, @research_topic, @keywords, @notes)`,
+        {
+          user_id: req.session.userId,
+          research_topic: researchTopic.slice(0, 500),
+          keywords,
+          notes,
+        }
+      );
+      res.status(201).json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/me/published-work', async (req, res, next) => {
+    try {
+      const b = req.body || {};
+      const title = String(b.title || '').trim();
+      if (!title) {
+        return res.status(400).json({ error: 'Title is required.' });
+      }
+      const datePublished = b.datePublished != null ? String(b.datePublished).trim().slice(0, 100) : null;
+      const wherePublished = b.wherePublished != null ? String(b.wherePublished).trim().slice(0, 500) : null;
+      const link = b.link != null ? String(b.link).trim().slice(0, 1000) : null;
+      await query(
+        getPool,
+        `INSERT INTO user_published_work (user_id, title, date_published, where_published, link)
+         VALUES (@user_id, @title, @date_published, @where_published, @link)`,
+        {
+          user_id: req.session.userId,
+          title: title.slice(0, 500),
+          date_published: datePublished,
+          where_published: wherePublished,
+          link,
+        }
+      );
+      res.status(201).json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.get('/templates', (req, res) => {
     const tpl = loadTemplates();
     const templates = Object.keys(tpl)
@@ -293,6 +348,20 @@ function createApiRouter(getPool) {
         return res.status(result.status).json({ error: result.error });
       }
       res.status(204).end();
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/projects/:projectId/cancel', async (req, res, next) => {
+    try {
+      const projectId = parseInt(req.params.projectId, 10);
+      if (Number.isNaN(projectId)) return res.status(400).json({ error: 'invalid project id' });
+      const result = await cancelProject(getPool, req.session.userId, projectId);
+      if (!result.ok) {
+        return res.status(result.status).json({ error: result.error });
+      }
+      res.json({ ok: true });
     } catch (e) {
       next(e);
     }

@@ -10,71 +10,83 @@
       <% if (appAccess.trialing && !appAccess.paid && appAccess.trialEndsLabel) { %>
         <div class="app-trial-bar">Free trial active — ends <%= appAccess.trialEndsLabel %>. Upgrade to unlock <strong>The Foundry</strong> and full membership.</div>
       <% } %>
-      <h1>Forge portfolio</h1>
-      <p class="sub">Your projects and quick entry into each workspace.</p>
-
-      <% var recentProject = projects && projects.length ? projects[0] : null; %>
       <% var progressData = typeof projectProgress !== 'undefined' ? projectProgress : []; %>
+      <% var recentProject = projects && projects.length ? projects[0] : null; %>
+      <% var portfolioRows = []; %>
+      <% progressData.forEach(function(pp) { %>
+        <% var pr = projects.find(function(x) { return x.id === pp.id; }); %>
+        <% if (pr && pr.dashCat !== 'canceled') portfolioRows.push(pp); %>
+      <% }); %>
+      <% var portfolioWords = 0, portfolioTarget = 0; %>
+      <% portfolioRows.forEach(function(pp) { portfolioWords += pp.totalWords; portfolioTarget += pp.target; }); %>
+      <% var portfolioPct = portfolioTarget > 0 ? Math.min(100, Math.round((portfolioWords / portfolioTarget) * 100)) : 0; %>
+      <% var foundryHref = typeof foundryProjectId !== 'undefined' && foundryProjectId ? '/app/project/' + foundryProjectId + '/foundry' : '#'; %>
 
-      <% if (recentProject) { %>
+      <div class="dash-canvas-head">
+        <div class="dash-canvas-head__titles">
+          <h1>Forge portfolio</h1>
+          <p class="sub">Your projects and quick entry into each workspace.</p>
+        </div>
+        <a href="/app/projects/new" class="app-btn-primary dash-add-project-btn">Add New Project</a>
+      </div>
+
+      <% if (recentProject && progressData.length) { %>
       <div class="dash-recent-bar">
-        <span class="dash-recent-bar__label">Most recent project:</span>
-        <a href="/app/project/<%= recentProject.id %>/anvil" class="dash-recent-bar__link"><%= recentProject.name %></a>
+        <label class="dash-recent-bar__label" for="dash-active-project-select">Active Project:</label>
+        <select id="dash-active-project-select" class="dash-active-project-select" aria-label="Select active project">
+          <% projects.forEach(function(p) { %>
+            <option value="<%= p.id %>" <%= p.id === recentProject.id ? 'selected' : '' %>><%= p.name %></option>
+          <% }); %>
+        </select>
       </div>
       <% } %>
 
       <div class="dash-visuals">
         <% if (recentProject && progressData.length) { %>
         <% var recentProg = progressData.find(function(pp) { return pp.id === recentProject.id; }); %>
-        <div class="dash-visual-card">
+        <div class="dash-visual-card" id="dash-active-visual" data-project-id="<%= recentProject.id %>">
           <div class="dash-visual-card__title"><%= recentProject.name %></div>
           <div class="dash-ring-wrap">
-            <svg class="dash-ring" viewBox="0 0 120 120">
+            <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
               <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
-              <circle class="dash-ring__fill" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * (recentProg ? recentProg.pct : 0) / 100) %> 327" />
+              <circle class="dash-ring__fill dash-ring__fill--active" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * (recentProg ? recentProg.pct : 0) / 100) %> 327" />
               <text class="dash-ring__text" x="60" y="66"><%= recentProg ? recentProg.pct : 0 %>%</text>
             </svg>
           </div>
           <div class="dash-visual-card__sub">Project completion</div>
-          <% if (recentProg && recentProg.sections && recentProg.sections.length) { %>
-          <div class="dash-section-bars">
+          <div class="dash-section-bars" id="dash-active-section-bars">
+            <% if (recentProg && recentProg.sections && recentProg.sections.length) { %>
             <% recentProg.sections.forEach(function(sec) { %>
             <div class="dash-section-bar">
-              <span class="dash-section-bar__label"><%= sec.title %></span>
+              <span class="dash-section-bar__label" title="<%= sec.title %>"><%= sec.title %></span>
               <div class="dash-section-bar__track"><div class="dash-section-bar__fill" style="width:<%= sec.pct %>%"></div></div>
               <span class="dash-section-bar__pct"><%= sec.pct %>%</span>
+              <span class="dash-section-bar__stats"><%= sec.words.toLocaleString() %> w · <%= sec.researchOpen %> open</span>
             </div>
             <% }); %>
+            <% } %>
           </div>
-          <% } %>
         </div>
         <% } %>
 
-        <%
-          var portfolioWords = 0, portfolioTarget = 0;
-          progressData.forEach(function(pp) {
-            portfolioWords += pp.totalWords;
-            portfolioTarget += pp.target;
-          });
-          var portfolioPct = portfolioTarget > 0 ? Math.min(100, Math.round((portfolioWords / portfolioTarget) * 100)) : 0;
-        %>
-        <% if (progressData.length) { %>
-        <div class="dash-visual-card">
+        <% if (portfolioRows.length) { %>
+        <div class="dash-visual-card" id="dash-portfolio-visual">
           <div class="dash-visual-card__title">All Projects</div>
           <div class="dash-ring-wrap">
-            <svg class="dash-ring" viewBox="0 0 120 120">
+            <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
               <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
-              <circle class="dash-ring__fill" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * portfolioPct / 100) %> 327" />
+              <circle class="dash-ring__fill dash-ring__fill--portfolio" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * portfolioPct / 100) %> 327" />
               <text class="dash-ring__text" x="60" y="66"><%= portfolioPct %>%</text>
             </svg>
           </div>
           <div class="dash-visual-card__sub">Portfolio completion</div>
           <div class="dash-section-bars">
-            <% progressData.forEach(function(pp) { %>
+            <% portfolioRows.forEach(function(pp) { %>
             <div class="dash-section-bar">
-              <span class="dash-section-bar__label"><%= pp.name %></span>
+              <span class="dash-section-bar__label" title="<%= pp.name %>"><%= pp.name %></span>
               <div class="dash-section-bar__track"><div class="dash-section-bar__fill" style="width:<%= pp.pct %>%"></div></div>
               <span class="dash-section-bar__pct"><%= pp.pct %>%</span>
+              <span class="dash-section-bar__stats"><%= pp.totalWords.toLocaleString() %> w · <%= pp.researchOpenTotal %> open</span>
             </div>
             <% }); %>
           </div>
@@ -82,20 +94,43 @@
         <% } %>
       </div>
 
-      <div class="dash-actions-placeholder">
-        <div class="dash-actions-placeholder__label">Actions / Follow Ups</div>
-        <p class="dash-actions-placeholder__hint">Upcoming actions and follow-ups will appear here.</p>
+      <div class="dash-ideas-tile">
+        <div class="dash-ideas-tile__head">
+          <div class="dash-ideas-tile__text">
+            <div class="dash-ideas-tile__title">Project &amp; Future Research Ideas</div>
+            <p class="dash-ideas-tile__hint">Track your research ideas by adding here, or cultivating with the <a href="<%= foundryHref %>" class="dash-ideas-tile__link">Foundry</a>.</p>
+          </div>
+          <button type="button" class="app-btn-primary dash-ideas-tile__btn" id="dash-open-research-modal">Track Project/Research Ideas</button>
+        </div>
+      </div>
+
+      <div class="dash-ideas-tile dash-published-tile">
+        <div class="dash-ideas-tile__head">
+          <div class="dash-ideas-tile__text">
+            <div class="dash-ideas-tile__title dash-ideas-tile__title--published">Published Work</div>
+            <p class="dash-ideas-tile__hint">Record your published work for inclusion in your CV.</p>
+          </div>
+          <button type="button" class="app-btn-primary dash-ideas-tile__btn" id="dash-open-published-modal">Record Published Work</button>
+        </div>
       </div>
     </main>
 
     <aside class="app-insight app-insight--dashboard">
       <div class="dash-rail-top">
-        <div class="insight-h">Projects in Portfolio</div>
-        <a href="/app/projects/new" class="dash-rail-add">+ Add New Project</a>
-        <div class="dash-rail-projects">
+        <div class="dash-rail-head-row">
+          <div class="insight-h">Projects in Portfolio</div>
+          <select id="dash-project-filter" class="dash-project-filter" aria-label="Filter projects by status">
+            <option value="active-completed" selected>Active/Completed</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="canceled">Canceled</option>
+          </select>
+        </div>
+        <div class="dash-rail-projects" id="dash-rail-projects">
           <% if (projects && projects.length) { %>
             <% projects.forEach(function(p) { %>
-              <div class="dash-rail-project-tile">
+              <div class="dash-rail-project-tile" data-dash-cat="<%= p.dashCat %>">
+                <button type="button" class="dash-rail-tile-cancel" aria-label="Cancel project" title="Cancel project" data-project-id="<%= p.id %>" data-project-name="<%= encodeURIComponent(p.name) %>">×</button>
                 <a href="/app/project/<%= p.id %>/anvil" class="dash-rail-project-tile__name"><%= p.name %></a>
                 <div class="dash-rail-project-tile__row">
                   <span class="dash-rail-project-tile__meta"><%= p.purpose %> · <%= p.citation_style %></span>
@@ -130,6 +165,65 @@
       </div>
     </aside>
   </div>
-  <script src="/js/dashboard.js"></script>
+
+  <div id="dash-modal-research" class="account-modal-overlay" hidden>
+    <div class="account-modal-overlay__backdrop dash-modal-backdrop" tabindex="-1" aria-hidden="true"></div>
+    <div class="account-modal-overlay__panel dash-modal-panel" role="dialog" aria-modal="true" aria-labelledby="dash-modal-research-title">
+      <h3 id="dash-modal-research-title" class="dash-modal-title-blue">Track Research Ideas</h3>
+      <p class="dash-modal-muted">Plan to forge in the future, capture your research ideas here or in the <a href="<%= foundryHref %>" class="dash-modal-link-foundry">Foundry</a>.</p>
+      <form id="dash-form-research" class="dash-modal-form">
+        <label class="dash-modal-label">Research Topic:</label>
+        <input type="text" name="researchTopic" class="dash-modal-input" required maxlength="500" />
+        <label class="dash-modal-label">Keywords:</label>
+        <input type="text" name="keywords" class="dash-modal-input" maxlength="500" />
+        <label class="dash-modal-label">Notes:</label>
+        <textarea name="notes" class="dash-modal-textarea" rows="4" maxlength="20000"></textarea>
+        <p id="dash-research-form-msg" class="dash-modal-msg" hidden></p>
+        <div class="account-modal-overlay__actions">
+          <button type="submit" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint">Save</button>
+          <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--secondary dash-modal-close">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="dash-modal-published" class="account-modal-overlay" hidden>
+    <div class="account-modal-overlay__backdrop dash-modal-backdrop" tabindex="-1" aria-hidden="true"></div>
+    <div class="account-modal-overlay__panel dash-modal-panel" role="dialog" aria-modal="true" aria-labelledby="dash-modal-published-title">
+      <h3 id="dash-modal-published-title" class="dash-modal-title-blue">Record Published Work</h3>
+      <p class="dash-modal-muted">Add publication details for your CV.</p>
+      <form id="dash-form-published" class="dash-modal-form">
+        <label class="dash-modal-label">Title:</label>
+        <input type="text" name="title" class="dash-modal-input" required maxlength="500" />
+        <label class="dash-modal-label">Date Published:</label>
+        <input type="text" name="datePublished" class="dash-modal-input" maxlength="100" placeholder="e.g. March 2025" />
+        <label class="dash-modal-label">Where Published:</label>
+        <input type="text" name="wherePublished" class="dash-modal-input" maxlength="500" />
+        <label class="dash-modal-label">Link:</label>
+        <input type="url" name="link" class="dash-modal-input" maxlength="1000" placeholder="https://..." />
+        <p id="dash-published-form-msg" class="dash-modal-msg" hidden></p>
+        <div class="account-modal-overlay__actions">
+          <button type="submit" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint">Save</button>
+          <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--secondary dash-modal-close">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="dash-modal-cancel-project" class="account-modal-overlay" hidden>
+    <div class="account-modal-overlay__backdrop dash-modal-backdrop" tabindex="-1" aria-hidden="true"></div>
+    <div class="account-modal-overlay__panel dash-modal-panel dash-modal-panel--narrow" role="dialog" aria-modal="true" aria-labelledby="dash-modal-cancel-title">
+      <h3 id="dash-modal-cancel-title" class="account-modal-overlay__title">Are you sure you wish to cancel this project?</h3>
+      <div class="account-modal-overlay__actions dash-cancel-actions">
+        <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--keep" id="dash-cancel-project-dismiss">Cancel Action</button>
+        <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-cancel" id="dash-cancel-project-confirm">Yes, Cancel Project</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__DASHBOARD__ = <%- typeof dashboardClientJson !== 'undefined' ? dashboardClientJson : '{}' %>;
+  </script>
+  <script src="/js/dashboard.js" defer></script>
 </body>
 </html>

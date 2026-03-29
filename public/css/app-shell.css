@@ -3797,10 +3797,31 @@
 .app-body--dashboard .app-canvas .sub {
   color: #1cb9c5;
 }
+.dash-canvas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.dash-canvas-head__titles h1 {
+  margin: 0;
+}
+.dash-add-project-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .dash-recent-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   padding: 0.6rem 1rem;
   margin-bottom: 1.25rem;
   border-radius: 10px;
@@ -3811,30 +3832,36 @@
   font-size: 0.82rem;
   color: var(--muted);
 }
-.dash-recent-bar__link {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #2f80ec;
-  text-decoration: none;
+.dash-active-project-select {
+  flex: 1;
+  min-width: 12rem;
+  max-width: 28rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 0.86rem;
+  font-family: inherit;
 }
-.dash-recent-bar__link:hover { text-decoration: underline; }
 
 .dash-visuals {
   display: flex;
   gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  min-height: 280px;
+  margin-bottom: 1rem;
+  align-items: stretch;
 }
 .dash-visual-card {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 1rem;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
+  min-width: 0;
 }
 .dash-visual-card__title {
   font-size: 0.78rem;
@@ -3921,28 +3948,128 @@
 .dash-section-bar__pct {
   font-size: 0.72rem;
   color: var(--muted);
-  width: 32px;
+  width: 36px;
   text-align: right;
   flex-shrink: 0;
 }
+.dash-section-bar__stats {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 5.5rem;
+  text-align: right;
+}
 
-.dash-actions-placeholder {
-  flex: 1;
-  padding: 1.25rem;
+.dash-ideas-tile {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.65rem;
   border-radius: 12px;
   border: 1px dashed var(--line);
   background: rgba(255, 255, 255, 0.02);
+  max-height: 5.5rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
 }
-.dash-actions-placeholder__label {
+.dash-published-tile {
+  margin-bottom: 1rem;
+}
+.dash-ideas-tile__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  width: 100%;
+}
+.dash-ideas-tile__text {
+  flex: 1;
+  min-width: 0;
+}
+.dash-ideas-tile__title {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #2f80ec;
-  margin-bottom: 0.35rem;
+  color: #2f80ee;
+  margin-bottom: 0.2rem;
 }
-.dash-actions-placeholder__hint {
+.dash-ideas-tile__title--published {
+  color: #2f80ee;
+}
+.dash-ideas-tile__hint {
   font-size: 0.75rem;
-  color: var(--muted);
+  color: #acacac;
   margin: 0;
+  line-height: 1.45;
+}
+.dash-ideas-tile__link {
+  color: #2f80ee;
+  text-decoration: none;
+}
+.dash-ideas-tile__link:hover {
+  text-decoration: underline;
+}
+.dash-ideas-tile__btn {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.75rem;
+  margin-top: 0;
+}
+
+.dash-modal-title-blue {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2f80ee;
+}
+.dash-modal-muted {
+  margin: 0 0 1rem;
+  font-size: 0.86rem;
+  color: #acacac;
+  line-height: 1.5;
+}
+.dash-modal-muted .dash-modal-link-foundry {
+  color: #2f80ee;
+  text-decoration: none;
+}
+.dash-modal-muted .dash-modal-link-foundry:hover {
+  text-decoration: underline;
+}
+.dash-modal-form .dash-modal-label {
+  display: block;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0.65rem 0 0.25rem;
+}
+.dash-modal-form .dash-modal-label:first-of-type {
+  margin-top: 0;
+}
+.dash-modal-input,
+.dash-modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+.dash-modal-textarea {
+  resize: vertical;
+  min-height: 4rem;
+}
+.dash-modal-msg {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: #f88;
+}
+.dash-modal-panel--narrow {
+  max-width: 22rem;
+}
+.dash-cancel-actions {
+  justify-content: space-between;
 }
 
 /* Dashboard right rail */
@@ -3957,20 +4084,30 @@
   flex-direction: column;
   overflow: hidden;
 }
-.dash-rail-top .insight-h {
-  flex-shrink: 0;
-  margin-bottom: 15px;
+.dash-rail-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
 }
-.dash-rail-add {
+.dash-rail-head-row .insight-h {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.dash-project-filter {
   flex-shrink: 0;
-  display: inline-block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #2f80ec;
-  text-decoration: none;
-  margin-bottom: 15px;
+  font-family: inherit;
+  max-width: 11rem;
 }
-.dash-rail-add:hover { text-decoration: underline; }
 .dash-rail-projects {
   flex: 1;
   overflow-y: auto;
@@ -3981,14 +4118,39 @@
   padding-right: 0.25rem;
 }
 .dash-rail-project-tile {
-  padding: 0.55rem 0.65rem;
-  min-height: 52px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  position: relative;
+  padding: 0.55rem 1.75rem 0.55rem 0.65rem;
+  min-height: 4.5rem;
+  height: 4.5rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+.dash-rail-tile-cancel {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  line-height: 1;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-rail-tile-cancel:hover {
+  background: rgba(229, 85, 85, 0.2);
+  color: #e55;
 }
 .dash-rail-project-tile__name {
   display: block;
