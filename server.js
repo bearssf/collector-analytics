@@ -44,6 +44,7 @@ const {
 const { buildDashboardProjectProgress, dashboardCategory } = require('./lib/dashboardProgress');
 const {
   parseTransTrainOpacity,
+  pathFromRequest,
   loadTrainingClientPayload,
   listAllStepsForAdmin,
   adminUpsertStep,
@@ -337,6 +338,14 @@ async function getPool() {
 app.use('/api', createApiRouter(getPool));
 app.use('/api/billing', createBillingApiRouter(getPool, stripe));
 
+function trainingRenderLocals(res) {
+  return {
+    trainingClientPayload: res.locals.trainingClientPayload,
+    trainingReplayAvailable: res.locals.trainingReplayAvailable,
+    transTrainOpacity: res.locals.transTrainOpacity,
+  };
+}
+
 async function attachTrainingWalkthroughLocals(req, res, next) {
   res.locals.trainingClientPayload = null;
   res.locals.trainingReplayAvailable = false;
@@ -346,7 +355,7 @@ async function attachTrainingWalkthroughLocals(req, res, next) {
     const payload = await loadTrainingClientPayload(
       getPool,
       req.session.userId,
-      req.path,
+      pathFromRequest(req),
       res.locals.transTrainOpacity
     );
     if (payload) {
@@ -506,6 +515,7 @@ app.get(
       dashboardClientJson,
       researchIdeas,
       publishedWork,
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -597,6 +607,7 @@ app.get(
       billingPriceMode: cfg.mode,
       intervalLabel,
       promoPrefill,
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -680,6 +691,7 @@ app.get(
       projects,
       currentProjectId,
       stripePublishableKey: getStripePublishableKey(),
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -794,6 +806,7 @@ app.get(
       billingEnvMissing,
       billingPriceMode: priceCfg.mode,
       currentPlanInterval,
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -817,6 +830,7 @@ app.get(
       error: null,
       errorNotice: false,
       form: {},
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -849,6 +863,7 @@ app.post(
           citationStyle: body.citationStyle || '',
           templateKey: body.templateKey || '',
         },
+        ...trainingRenderLocals(res),
       });
     }
     res.redirect(`/app/project/${result.bundle.project.id}/anvil`);
@@ -881,6 +896,7 @@ app.get(
       citationStyles: CITATION_STYLES,
       error: null,
       query: req.query || {},
+      ...trainingRenderLocals(res),
     });
   })
 );
@@ -914,6 +930,7 @@ app.post(
         citationStyles: CITATION_STYLES,
         error: result.error,
         query: {},
+        ...trainingRenderLocals(res),
       });
     }
     res.redirect(`/app/project/${projectId}/settings?saved=1`);
@@ -990,6 +1007,7 @@ app.get(
       autosaveCharThreshold: AUTOSAVE_CHAR_THRESHOLD,
       scoreStrongThreshold: SCORE_STRONG_THRESHOLD,
       scoreModerateThreshold: SCORE_MODERATE_THRESHOLD,
+      ...trainingRenderLocals(res),
     });
   })
 );

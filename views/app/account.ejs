@@ -3,7 +3,8 @@
 <head>
   <!-- billing: <%= typeof stripeElementsConfigured !== 'undefined' && stripeElementsConfigured ? 'subscribe-on-site' : 'checkout-redirect' %> -->
   <!-- deploy: git <%= process.env.RENDER_GIT_COMMIT || 'unknown' %> -->
-  <%- include('../partials/app-head', { title: 'Account' }) %>
+  <% var title = 'Account'; %>
+  <%- include('../partials/app-head') %>
 </head>
 <body class="app-body app-body--account-page" data-subscription-success="<%= typeof subscriptionSuccessReturn !== 'undefined' && subscriptionSuccessReturn ? '1' : '' %>">
   <div class="app-grid app-grid--account">
