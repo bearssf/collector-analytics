@@ -45,15 +45,18 @@
         <% if (recentProject && progressData.length) { %>
         <% var recentProg = progressData.find(function(pp) { return pp.id === recentProject.id; }); %>
         <div class="dash-visual-card" id="dash-active-visual" data-project-id="<%= recentProject.id %>">
-          <div class="dash-visual-card__title"><%= recentProject.name %></div>
-          <div class="dash-ring-wrap">
-            <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
-              <circle class="dash-ring__fill dash-ring__fill--active" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * (recentProg ? recentProg.pct : 0) / 100) %> 327" />
-              <text class="dash-ring__text" x="60" y="66"><%= recentProg ? recentProg.pct : 0 %>%</text>
-            </svg>
+          <div class="dash-visual-card__header">
+            <div class="dash-visual-card__title"><%= recentProject.name %></div>
+            <div class="dash-ring-wrap">
+              <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
+                <circle class="dash-ring__fill dash-ring__fill--active" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * (recentProg ? recentProg.pct : 0) / 100) %> 327" />
+                <text class="dash-ring__text" x="60" y="66"><%= recentProg ? recentProg.pct : 0 %>%</text>
+              </svg>
+            </div>
+            <div class="dash-visual-card__sub">Project completion</div>
           </div>
-          <div class="dash-visual-card__sub">Project completion</div>
+          <div class="dash-visual-card__metrics-scroll">
           <div class="dash-section-bars" id="dash-active-section-bars">
             <% if (recentProg && recentProg.sections && recentProg.sections.length) { %>
             <% recentProg.sections.forEach(function(sec) { %>
@@ -77,20 +80,24 @@
             <% }); %>
             <% } %>
           </div>
+          </div>
         </div>
         <% } %>
 
         <% if (portfolioRows.length) { %>
         <div class="dash-visual-card" id="dash-portfolio-visual">
-          <div class="dash-visual-card__title">All Projects</div>
-          <div class="dash-ring-wrap">
-            <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
-              <circle class="dash-ring__fill dash-ring__fill--portfolio" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * portfolioPct / 100) %> 327" />
-              <text class="dash-ring__text" x="60" y="66"><%= portfolioPct %>%</text>
-            </svg>
+          <div class="dash-visual-card__header">
+            <div class="dash-visual-card__title">All Projects</div>
+            <div class="dash-ring-wrap">
+              <svg class="dash-ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="dash-ring__bg" cx="60" cy="60" r="52" />
+                <circle class="dash-ring__fill dash-ring__fill--portfolio" cx="60" cy="60" r="52" stroke-dasharray="<%= Math.round(326.7 * portfolioPct / 100) %> 327" />
+                <text class="dash-ring__text" x="60" y="66"><%= portfolioPct %>%</text>
+              </svg>
+            </div>
+            <div class="dash-visual-card__sub">Portfolio completion</div>
           </div>
-          <div class="dash-visual-card__sub">Portfolio completion</div>
+          <div class="dash-visual-card__metrics-scroll">
           <div class="dash-section-bars">
             <% portfolioRows.forEach(function(pp) { %>
             <div class="dash-section-bar">
@@ -111,6 +118,7 @@
               </div>
             </div>
             <% }); %>
+          </div>
           </div>
         </div>
         <% } %>
