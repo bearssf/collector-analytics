@@ -3848,7 +3848,7 @@
 .dash-visuals {
   display: flex;
   gap: 1.5rem;
-  margin-bottom: 25px;
+  margin-bottom: 0;
   align-items: stretch;
   min-height: 0;
 }
@@ -4083,10 +4083,11 @@
   overflow: hidden;
 }
 .dash-ideas-tile--with-list:not(.dash-published-tile) {
+  margin-top: 25px;
   margin-bottom: 25px;
 }
 .dash-published-tile.dash-ideas-tile--with-list {
-  min-height: 150px;
+  min-height: 125px;
 }
 .dash-saved-tiles {
   flex: 1 1 auto;
