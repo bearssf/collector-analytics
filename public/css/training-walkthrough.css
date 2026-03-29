@@ -1,14 +1,15 @@
 /* Onboarding / page tour — modal with pointer toward focus element */
 
 .tw-root {
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 100000;
-  pointer-events: none;
   font-family: Inter, system-ui, sans-serif;
 }
 
 .tw-root.tw-root--active {
+  display: block;
   pointer-events: auto;
 }
 

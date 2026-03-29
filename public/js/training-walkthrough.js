@@ -222,13 +222,10 @@
 
   function onContinue() {
     if (stepIndex >= steps.length - 1) {
-      postJson('/api/me/training/complete', { pageSlug: pageSlug })
-        .then(function () {
-          closeTour();
-        })
-        .catch(function () {
-          closeTour();
-        });
+      closeTour();
+      postJson('/api/me/training/complete', { pageSlug: pageSlug }).catch(function () {
+        /* completion is best-effort; tour already dismissed */
+      });
       return;
     }
     stepIndex += 1;
