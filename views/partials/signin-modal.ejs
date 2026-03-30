@@ -3,6 +3,9 @@
   <div class="modal">
     <button type="button" class="modal-close" id="close-signin" aria-label="Close">&times;</button>
     <h2 id="signin-title" style="margin:0 0 1rem;">Sign in</h2>
+    <% if (typeof resetSuccess !== 'undefined' && resetSuccess) { %>
+      <p class="success-msg">Your password was reset. Sign in with your new password.</p>
+    <% } %>
     <% if (typeof error !== 'undefined' && error === 'missing') { %>
       <p class="error-msg">Please enter email and password.</p>
     <% } else if (typeof error !== 'undefined' && error === 'invalid') { %>
@@ -18,6 +21,7 @@
         <button type="submit" class="btn btn-blue">Sign in</button>
         <a href="/register" class="create-link">Create an account</a>
       </div>
+      <p class="modal-forgot"><a href="/forgot-password">Forgot password?</a></p>
     </form>
   </div>
 </div>
@@ -35,6 +39,6 @@
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });
-    <% if ((typeof error !== 'undefined' && error && !user) || (typeof openSignin !== 'undefined' && openSignin)) { %>openModal();<% } %>
+    <% if ((typeof error !== 'undefined' && error && !user) || (typeof openSignin !== 'undefined' && openSignin) || (typeof resetSuccess !== 'undefined' && resetSuccess)) { %>openModal();<% } %>
   })();
 </script>

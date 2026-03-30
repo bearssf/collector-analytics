@@ -3372,6 +3372,16 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+.account-meta--password-reset {
+  margin: 0 0 0.85rem;
+}
+.account-meta--password-reset a {
+  color: #2f80ee;
+  text-decoration: none;
+}
+.account-meta--password-reset a:hover {
+  text-decoration: underline;
+}
 .account-meta--warn {
   color: rgba(255, 200, 120, 0.9);
 }

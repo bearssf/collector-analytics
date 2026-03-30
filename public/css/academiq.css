@@ -424,7 +424,23 @@ h2 {
 }
 .modal-actions { margin-top: 1rem; display: grid; gap: 0.7rem; }
 .error-msg { color: #f87171; font-size: 0.85rem; margin-bottom: 0.7rem; }
+.success-msg { color: #4ade80; font-size: 0.85rem; margin-bottom: 0.75rem; line-height: 1.45; }
+.modal-forgot { margin: 0.85rem 0 0; text-align: center; font-size: 0.88rem; }
+.modal-forgot a { color: var(--blue); text-decoration: none; }
+.modal-forgot a:hover { text-decoration: underline; }
+.hint-msg { color: rgba(255, 255, 255, 0.55); font-size: 0.82rem; margin-bottom: 0.75rem; line-height: 1.45; }
 .create-link { text-align: center; color: var(--blue); font-size: 0.88rem; }
+.auth-page-shell { max-width: 420px; margin: 2rem auto 3rem; padding: 0 0.25rem; }
+.auth-page-card { border: 1px solid var(--line); border-radius: 16px; padding: 1.5rem; background: rgba(255, 255, 255, 0.03); }
+.auth-page-card h1 { font-size: 1.2rem; font-weight: 600; margin: 0 0 1rem; letter-spacing: -0.02em; }
+.auth-page-card .field { margin-bottom: 1rem; }
+.auth-page-card .field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; }
+.auth-page-card input { width: 100%; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.25); color: #fff; font-size: 0.92rem; }
+.auth-page-card .btn-row { margin-top: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; }
+.auth-page-card .btn-row a { color: var(--blue); font-size: 0.9rem; text-decoration: none; }
+.auth-page-card .btn-row a:hover { text-decoration: underline; }
+.auth-page-meta { margin-top: 1rem; font-size: 0.9rem; }
+.auth-page-meta a { color: var(--blue); }
 
 @media (min-width: 900px) {
   .nav { display: flex; }

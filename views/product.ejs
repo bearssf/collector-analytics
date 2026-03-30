@@ -105,6 +105,6 @@
     </section>
   </div>
 
-  <%- include('partials/signin-modal', { user: user, error: error, returnTo: typeof returnTo !== 'undefined' ? returnTo : '/product', openSignin: typeof openSignin !== 'undefined' && openSignin }) %>
+  <%- include('partials/signin-modal', { user: user, error: error, returnTo: typeof returnTo !== 'undefined' ? returnTo : '/product', openSignin: typeof openSignin !== 'undefined' && openSignin, resetSuccess: typeof resetSuccess !== 'undefined' && resetSuccess }) %>
 </body>
 </html>

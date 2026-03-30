@@ -57,6 +57,14 @@ const {
 } = require('./lib/trainingWalkthrough');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
+const {
+  ensurePasswordResetSchema,
+  createPasswordResetToken,
+  findUserIdByEmail,
+  findValidTokenRow,
+  resetPasswordWithToken,
+} = require('./lib/passwordReset');
+const { isMailConfigured, sendPasswordResetEmail } = require('./lib/mail');
 
 const app = express();
 
@@ -443,6 +451,12 @@ function safeReturnTo(val) {
   return s.split('?')[0] || '/';
 }
 
+function publicAppOrigin() {
+  const b = String(process.env.PUBLIC_BASE_URL || '').trim();
+  if (!b) return '';
+  return b.replace(/\/$/, '');
+}
+
 app.get('/', (req, res) => {
   const next = req.query.next ? safeReturnTo(req.query.next) : '/';
   res.render('home', {
@@ -450,6 +464,7 @@ app.get('/', (req, res) => {
     error: req.query.error || null,
     returnTo: next,
     openSignin: req.query.signin === '1',
+    resetSuccess: req.query.reset === 'success',
   });
 });
 
@@ -461,6 +476,7 @@ app.get('/product', (req, res) => {
     navActive: 'product',
     returnTo: next,
     openSignin: req.query.signin === '1',
+    resetSuccess: req.query.reset === 'success',
   });
 });
 
@@ -1088,6 +1104,106 @@ app.post('/logout', (req, res) => {
   res.redirect('/');
 });
 
+app.get('/forgot-password', (req, res) => {
+  const sent = req.query.sent === '1';
+  const err = req.query.error || null;
+  const prefill = req.session && req.session.user && req.session.user.email ? req.session.user.email : '';
+  res.render('forgot-password', {
+    user: req.session.user || null,
+    prefillEmail: prefill,
+    sent,
+    error: err,
+    mailConfigured: isMailConfigured(),
+  });
+});
+
+app.post('/forgot-password', async (req, res) => {
+  const email = String((req.body && req.body.email) || '').trim();
+  const next = '/forgot-password';
+  if (!email) {
+    return res.redirect(`${next}?error=missing`);
+  }
+  try {
+    const userId = await findUserIdByEmail(getPool, email);
+    if (userId) {
+      const base = publicAppOrigin();
+      if (!base) {
+        console.error('forgot-password: PUBLIC_BASE_URL is not set; cannot build reset link.');
+        return res.redirect(`${next}?error=config`);
+      }
+      const { rawToken } = await createPasswordResetToken(getPool, userId);
+      const resetUrl = `${base}/reset-password?token=${encodeURIComponent(rawToken)}`;
+      const mailResult = await sendPasswordResetEmail({ to: email, resetUrl });
+      if (mailResult.skipped) {
+        console.warn(
+          'Password reset: email not sent (configure SMTP_HOST, MAIL_FROM, SMTP_USER/SMTP_PASS as needed).'
+        );
+        return res.redirect(`${next}?error=mail`);
+      }
+      if (!mailResult.ok) {
+        console.error('Password reset mail error:', mailResult.error);
+        return res.redirect(`${next}?error=send`);
+      }
+    }
+    return res.redirect(`${next}?sent=1`);
+  } catch (err) {
+    console.error('forgot-password:', err.message);
+    return res.redirect(`${next}?error=server`);
+  }
+});
+
+app.get('/reset-password', async (req, res, next) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    const locals = {
+      user: req.session.user || null,
+      mailConfigured: isMailConfigured(),
+    };
+    if (!token) {
+      return res.render('reset-password', { ...locals, token: '', invalid: true, error: null });
+    }
+    const row = await findValidTokenRow(getPool, token);
+    if (!row) {
+      return res.render('reset-password', { ...locals, token: '', invalid: true, error: 'expired' });
+    }
+    res.render('reset-password', { ...locals, token, invalid: false, error: null });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.post('/reset-password', async (req, res, next) => {
+  try {
+    const token = String((req.body && req.body.token) || '').trim();
+    const pw = String((req.body && req.body.password) || '');
+    const pw2 = String((req.body && req.body.passwordConfirm) || '');
+    const locals = { user: req.session.user || null, mailConfigured: isMailConfigured() };
+    if (!token) {
+      return res.render('reset-password', { ...locals, token: '', invalid: true, error: null });
+    }
+    if (pw !== pw2) {
+      const row = await findValidTokenRow(getPool, token);
+      if (!row) {
+        return res.render('reset-password', { ...locals, token: '', invalid: true, error: 'expired' });
+      }
+      return res.render('reset-password', { ...locals, token, invalid: false, error: 'mismatch' });
+    }
+    const result = await resetPasswordWithToken(getPool, token, pw);
+    if (!result.ok) {
+      return res.render('reset-password', {
+        ...locals,
+        token,
+        invalid: false,
+        error: 'invalid',
+        message: result.error,
+      });
+    }
+    return res.redirect('/?signin=1&reset=success');
+  } catch (e) {
+    next(e);
+  }
+});
+
 app.post('/register', async (req, res) => {
   const {
     title,
@@ -1222,6 +1338,7 @@ async function start() {
     await ensureUserExtraColumns();
     await ensureCoreSchema(getPool);
     await ensureTrainingWalkthroughSchema(getPool);
+    await ensurePasswordResetSchema(getPool);
     console.log('Database connected.');
   } catch (err) {
     console.error('Database startup failed:', err.message);
