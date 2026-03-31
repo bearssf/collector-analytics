@@ -4,6 +4,7 @@
   const statusEl = document.getElementById('admin-status');
   const saveBtn = document.getElementById('admin-save');
   const reloadBtn = document.getElementById('admin-reload');
+  const addTplBtn = document.getElementById('admin-add-template');
   if (!elJson || !root) return;
 
   let state = {};
@@ -62,6 +63,16 @@
     const p = parseFloat(percent);
     if (Number.isNaN(t) || t <= 0 || Number.isNaN(p)) return '—';
     return Math.round((t * p) / 100).toLocaleString();
+  }
+
+  function slugifyTemplateKey(raw) {
+    if (raw == null) return '';
+    return String(raw)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
   }
 
   function render() {
@@ -276,6 +287,50 @@
   reloadBtn.addEventListener('click', function () {
     window.location.reload();
   });
+
+  if (addTplBtn) {
+    addTplBtn.addEventListener('click', function () {
+      const raw = window.prompt(
+        'Unique template key (lowercase letters, numbers, hyphens). Example: my-white-paper',
+        ''
+      );
+      if (raw == null) return;
+      const key = slugifyTemplateKey(raw);
+      if (!key) {
+        setStatus('Enter a valid key (letters, numbers, hyphens).', 'err');
+        return;
+      }
+      if (key === 'other') {
+        setStatus('The key "other" is reserved for custom projects.', 'err');
+        return;
+      }
+      if (state[key]) {
+        setStatus('A template with that key already exists.', 'err');
+        return;
+      }
+      state[key] = {
+        label: 'New template',
+        sections: [
+          { title: 'Introduction', slug: 'introduction', percent: 50 },
+          { title: 'Conclusion', slug: 'conclusion', percent: 50 },
+        ],
+        projectedTotalWords: 8000,
+      };
+      render();
+      setStatus('Template added — edit the label and sections, then save.', 'ok');
+      try {
+        const cards = root.querySelectorAll('.tpl-card');
+        for (let i = 0; i < cards.length; i += 1) {
+          if (cards[i].dataset.templateKey === key) {
+            cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            break;
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
 
   render();
 })();
