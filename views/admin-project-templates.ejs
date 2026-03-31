@@ -19,8 +19,6 @@
     #admin-status.ok { color: #81c995; }
     .tpl-card { border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem 1rem 1.1rem; margin-bottom: 1rem; background: rgba(255,255,255,0.03); max-width: 56rem; }
     .tpl-card h2 { font-size: 1.05rem; margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .badge { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); }
-    .badge.dep { background: rgba(234,179,8,0.2); color: #fcd34d; }
     .field-row { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; margin-bottom: 0.75rem; }
     .field-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; color: rgba(255,255,255,0.55); }
     .field-row input[type="text"], .field-row input[type="number"] { padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.35); color: #fff; font: inherit; min-width: 8rem; }
@@ -42,7 +40,8 @@
   <h1>Project templates</h1>
   <p class="sub">
     Set each section&rsquo;s share of the document (must total 100%) and a <strong>projected total word count</strong> for the whole piece.
-    Per-section targets and estimated document completion in the Anvil use these values. This page is not linked in the app &mdash; bookmark your secret URL.
+    Per-section targets and estimated document completion in the Anvil use these values. Templates marked <code>deprecated</code> in the JSON file are hidden here but stay on disk for existing projects.
+    This page is not linked in the app &mdash; bookmark your secret URL.
   </p>
   <div class="toolbar">
     <button type="button" id="admin-save">Save to server</button>

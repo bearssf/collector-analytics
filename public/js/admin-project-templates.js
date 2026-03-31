@@ -70,6 +70,7 @@
     keys.forEach(function (key) {
       const t = state[key];
       if (!t || typeof t !== 'object') return;
+      if (t.deprecated) return;
       const card = document.createElement('div');
       card.className = 'tpl-card';
       card.dataset.templateKey = key;
@@ -84,12 +85,6 @@
         t.label = labelInput.value;
       });
       h.appendChild(labelInput);
-      if (t.deprecated) {
-        const b = document.createElement('span');
-        b.className = 'badge dep';
-        b.textContent = 'Deprecated';
-        h.appendChild(b);
-      }
 
       card.appendChild(h);
 
