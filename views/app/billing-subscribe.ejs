@@ -4,12 +4,12 @@
   <% var title = 'Subscribe'; %>
   <%- include('../partials/app-head') %>
 </head>
-<body class="app-body app-body--workspace-shell">
-  <div class="app-grid">
+<body class="app-body app-body--account-page">
+  <div class="app-grid app-grid--account">
     <%- include('../partials/app-sidebar', { user: user, navActive: 'account', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
     <main class="app-canvas">
-      <h1>Complete membership</h1>
-      <p class="sub"><%= intervalLabel %> plan — secure payment on AcademiqForge.</p>
+      <h1>Subscribe</h1>
+      <p class="sub">Complete your membership — <%= intervalLabel %> plan, secure payment on AcademiqForge.</p>
 
       <div class="app-placeholder account-block billing-subscribe-card">
         <p class="account-meta" style="margin-top:0">Card details are collected by Stripe and never touch our servers.</p>
@@ -31,7 +31,6 @@
         <p class="account-meta"><a href="/app/account" class="app-link-cta">← Back to Account</a></p>
       </div>
     </main>
-    <%- include('../partials/app-insight-panel', { insightHint: 'After payment, member access usually activates within seconds.' }) %>
   </div>
   <script src="https://js.stripe.com/v3/"></script>
   <script>
