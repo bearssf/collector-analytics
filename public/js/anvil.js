@@ -8,6 +8,23 @@
     return (o && o[key]) || fb;
   }
 
+  function anvilTv(key, vars, fb) {
+    var s = anvilT(key, fb);
+    if (vars && typeof vars === 'object') {
+      for (var k in vars) {
+        if (Object.prototype.hasOwnProperty.call(vars, k)) {
+          s = s.split('{' + k + '}').join(String(vars[k]));
+        }
+      }
+    }
+    return s;
+  }
+
+  function commonT(key, fb) {
+    var o = window.__I18N__ && window.__I18N__.common;
+    return (o && o[key]) || fb;
+  }
+
   var root = document.getElementById('anvil-root');
   if (!root) return;
 
@@ -301,8 +318,9 @@
   }
 
   function projectDisplayTitle(proj) {
-    if (!proj) return 'Project title';
-    return String(proj.name || proj.title || 'Project title').trim() || 'Project title';
+    var fb = anvilT('projectTitleFallback', 'Project title');
+    if (!proj) return fb;
+    return String(proj.name || proj.title || fb).trim() || fb;
   }
 
   function buildTitlePageHtml(styleKey, user, project) {
@@ -383,13 +401,26 @@
     var missingUni =
       !anvilUserProfile || !String(anvilUserProfile.university || '').trim();
     var parts = [
-      'We prefilled this page using your project title and your Account name and university when available.',
-      'Course, instructor, and due date are not stored in your profile—replace the bracketed placeholders in the document.',
+      anvilT(
+        'titleModalPrefill',
+        'We prefilled this page using your project title and your Account name and university when available.'
+      ),
+      anvilT(
+        'titleModalCourseHint',
+        'Course, instructor, and due date are not stored in your profile—replace the bracketed placeholders in the document.'
+      ),
     ];
     if (missingUni) {
-      parts.push('Your university is missing from Account; add it under Account for a stronger default title page.');
+      parts.push(
+        anvilT(
+          'titleModalUniMissing',
+          'Your university is missing from Account; add it under Account for a stronger default title page.'
+        )
+      );
     }
-    parts.push('You can open Account anytime to update your name or university.');
+    parts.push(
+      anvilT('titleModalFooter', 'You can open Account anytime to update your name or university.')
+    );
     bodyEl.textContent = parts.join(' ');
     modal.hidden = false;
   }
@@ -401,11 +432,11 @@
 
   function bibliographyHeading(styleKey) {
     var sk = (styleKey || 'APA').trim().toUpperCase();
-    if (sk === 'MLA') return 'Works Cited';
-    if (sk === 'CHICAGO' || sk === 'TURABIAN') return 'Bibliography';
-    if (sk === 'IEEE' || sk === 'AMA' || sk === 'VANCOUVER') return 'References';
-    if (sk === 'HARVARD') return 'Reference List';
-    return 'References';
+    if (sk === 'MLA') return anvilT('bibWorksCited', 'Works Cited');
+    if (sk === 'CHICAGO' || sk === 'TURABIAN') return anvilT('bibBibliography', 'Bibliography');
+    if (sk === 'IEEE' || sk === 'AMA' || sk === 'VANCOUVER') return anvilT('bibReferences', 'References');
+    if (sk === 'HARVARD') return anvilT('bibReferenceList', 'Reference List');
+    return anvilT('bibReferences', 'References');
   }
 
   function refYear(src) {
@@ -555,7 +586,14 @@
     if (!usedIds.length) {
       return (
         '<h2 class="ql-align-center"><strong>' + heading + '</strong></h2>' +
-        '<p><em>No in-text citations have been recorded for this project yet. Insert citations from the Crucible or Anvil source cards.</em></p>'
+        '<p><em>' +
+        escapeHtml(
+          anvilT(
+            'noCitationsHint',
+            'No in-text citations have been recorded for this project yet. Insert citations from the Crucible or Anvil source cards.'
+          )
+        ) +
+        '</em></p>'
       );
     }
     var byId = {};
@@ -608,24 +646,64 @@
       return it.status !== 'dismissed';
     });
     if (!visible.length) {
-      panel.innerHTML = '<div class="crucible-rp-empty">No research plan items.</div>';
+      panel.innerHTML =
+        '<div class="crucible-rp-empty">' +
+        escapeHtml(anvilT('noResearchPlanItems', 'No research plan items.')) +
+        '</div>';
       return;
     }
     var html = '';
     visible.forEach(function (it) {
       var statusClass = it.status === 'resolved' ? 'crucible-rp-tile--resolved' : '';
       html += '<div class="crucible-rp-tile ' + statusClass + '" data-anvil-rp-id="' + it.id + '">';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Section:</span> ' + escapeHtml(it.section_title || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Context:</span> ' + escapeHtml(it.suggestion_body || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Key Words:</span> ' + escapeHtml(it.keywords || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Research Needed:</span> ' + escapeHtml(it.research_needed || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Status:</span> <span class="crucible-rp-status crucible-rp-status--' + escapeHtml(it.status) + '">' + escapeHtml(it.status.charAt(0).toUpperCase() + it.status.slice(1)) + '</span></div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escapeHtml(anvilT('rpSection', 'Section:')) +
+        '</span> ' +
+        escapeHtml(it.section_title || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escapeHtml(anvilT('rpContext', 'Context:')) +
+        '</span> ' +
+        escapeHtml(it.suggestion_body || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escapeHtml(anvilT('rpKeywords', 'Key Words:')) +
+        '</span> ' +
+        escapeHtml(it.keywords || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escapeHtml(anvilT('rpResearchNeeded', 'Research Needed:')) +
+        '</span> ' +
+        escapeHtml(it.research_needed || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escapeHtml(anvilT('rpStatus', 'Status:')) +
+        '</span> <span class="crucible-rp-status crucible-rp-status--' +
+        escapeHtml(it.status) +
+        '">' +
+        escapeHtml(it.status.charAt(0).toUpperCase() + it.status.slice(1)) +
+        '</span></div>';
       html += '<div class="crucible-rp-tile__actions">';
       if (it.status !== 'resolved') {
-        html += '<button type="button" class="crucible-rp-btn crucible-rp-btn--resolve anvil-rp-resolve" data-anvil-rp-id="' + it.id + '">Resolve</button>';
+        html +=
+          '<button type="button" class="crucible-rp-btn crucible-rp-btn--resolve anvil-rp-resolve" data-anvil-rp-id="' +
+          it.id +
+          '">' +
+          escapeHtml(anvilT('rpResolve', 'Resolve')) +
+          '</button>';
       }
       if (it.status !== 'dismissed') {
-        html += '<button type="button" class="crucible-rp-btn crucible-rp-btn--dismiss anvil-rp-dismiss" data-anvil-rp-id="' + it.id + '">Dismiss</button>';
+        html +=
+          '<button type="button" class="crucible-rp-btn crucible-rp-btn--dismiss anvil-rp-dismiss" data-anvil-rp-id="' +
+          it.id +
+          '">' +
+          escapeHtml(anvilT('rpDismiss', 'Dismiss')) +
+          '</button>';
       }
       html += '</div></div>';
     });
@@ -644,7 +722,13 @@
         renderAnvilResearchPlan();
       })
       .catch(function (e) {
-        window.alert('Could not update research plan: ' + (e.message || 'unknown error'));
+        window.alert(
+          anvilTv(
+            'researchPlanUpdateFailed',
+            { message: e.message || 'unknown error' },
+            'Could not update research plan: {message}'
+          )
+        );
       });
   }
 
@@ -715,7 +799,13 @@
       })
       .catch(function (e) {
         console.error('[Anvil] reference rebuild failed', e);
-        window.alert('Could not update references: ' + (e.message || 'unknown error'));
+        window.alert(
+          anvilTv(
+            'referencesUpdateFailed',
+            { message: e.message || 'unknown error' },
+            'Could not update references: {message}'
+          )
+        );
       });
   }
 
@@ -790,7 +880,7 @@
     if (!el) return;
     if (visible) {
       el.hidden = false;
-      el.textContent = text || 'Analyzing new text…';
+      el.textContent = text || anvilT('analyzingNewText', 'Analyzing new text…');
     } else {
       el.hidden = true;
       el.textContent = '';
@@ -938,15 +1028,8 @@
   }
 
   function formatSaveTime() {
-    var d = new Date();
-    var month = d.getMonth() + 1;
-    var day = d.getDate();
-    var year = d.getFullYear();
-    var h = d.getHours();
-    var m = d.getMinutes();
-    var ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return month + '/' + day + '/' + year + ' ' + h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    var loc = typeof window.__LOCALE__ !== 'undefined' && window.__LOCALE__ ? String(window.__LOCALE__) : 'en';
+    return new Date().toLocaleString(loc, { dateStyle: 'short', timeStyle: 'short' });
   }
 
   async function saveSectionDraft() {
@@ -954,7 +1037,7 @@
     var savingId = selectedId;
     if (savingId == null || !bundle) return;
     if (!quill && !document.getElementById('anvil-fallback')) return;
-    updateSaveStatus('saving', 'Saving\u2026');
+    updateSaveStatus('saving', anvilT('savingStatus', 'Saving\u2026'));
     try {
       var html = getDraftHtml();
       await api('/projects/' + projectId + '/sections/' + savingId, 'PATCH', { body: html });
@@ -962,13 +1045,13 @@
       if (sec) sec.body = html;
       charsSinceLastSave = 0;
       editorDirty = false;
-      updateSaveStatus('saved', 'Saved ' + formatSaveTime());
+      updateSaveStatus('saved', anvilTv('savedAt', { time: formatSaveTime() }, 'Saved {time}'));
       updateProgressDisplay();
       var plain = getDraftPlain();
       api('/projects/' + projectId + '/sections/' + savingId + '/feedback/rebase', 'POST', { plainText: plain })
         .catch(function () {});
     } catch (e) {
-      updateSaveStatus('unsaved', 'Unsaved');
+      updateSaveStatus('unsaved', anvilT('unsavedStatus', 'Unsaved'));
     }
   }
 
@@ -998,9 +1081,15 @@
         '</span>';
       html += '<span class="anvil2-feedback-id">' + escapeHtml(it.id) + '</span>';
       if (st === 'resolved') {
-        html += '<span class="anvil2-feedback-status anvil2-feedback-status--resolved">Resolved</span>';
+        html +=
+          '<span class="anvil2-feedback-status anvil2-feedback-status--resolved">' +
+          anvilT('resolved', 'Resolved') +
+          '</span>';
       } else if (st === 'pending') {
-        html += '<span class="anvil2-feedback-status anvil2-feedback-status--pending">Pending</span>';
+        html +=
+          '<span class="anvil2-feedback-status anvil2-feedback-status--pending">' +
+          anvilT('pending', 'Pending') +
+          '</span>';
       } else {
         html += '<span class="anvil2-feedback-status">' + escapeHtml(st) + '</span>';
       }
@@ -1010,7 +1099,9 @@
       }
       if (it.anchorText) {
         html +=
-          '<p class="anvil2-feedback-anchor"><span class="anvil2-feedback-k">Anchor</span> ' +
+          '<p class="anvil2-feedback-anchor"><span class="anvil2-feedback-k">' +
+          anvilT('anchorLabel', 'Anchor') +
+          '</span> ' +
           escapeHtml(it.anchorText) +
           '</p>';
       }
@@ -1023,23 +1114,42 @@
       }
       html += '<div class="anvil2-feedback-actions">';
       if (st === 'pending') {
-        html += '<button type="button" class="anvil2-confirm-btn" data-fid="' + escapeHtml(String(it.id)) + '">Confirm</button>';
-        html += '<button type="button" class="anvil2-undo-btn" data-fid="' + escapeHtml(String(it.id)) + '">Undo</button>';
+        html +=
+          '<button type="button" class="anvil2-confirm-btn" data-fid="' +
+          escapeHtml(String(it.id)) +
+          '">' +
+          anvilT('confirmBtn', 'Confirm') +
+          '</button>';
+        html +=
+          '<button type="button" class="anvil2-undo-btn" data-fid="' +
+          escapeHtml(String(it.id)) +
+          '">' +
+          anvilT('undoBtn', 'Undo') +
+          '</button>';
       } else if (st === 'active') {
         var canApply = it.isActionable || itemHasReplacement(it);
         if (canApply) {
           html +=
             '<button type="button" class="app-btn-primary anvil2-apply" data-fid="' +
             escapeHtml(String(it.id)) +
-            '">Apply</button>';
+            '">' +
+            anvilT('applyBtn', 'Apply') +
+            '</button>';
         }
         if (cat === 'evidence') {
-          html += '<button type="button" class="anvil2-research-plan-btn" data-fid="' + escapeHtml(String(it.id)) + '">+ Research Plan</button>';
+          html +=
+            '<button type="button" class="anvil2-research-plan-btn" data-fid="' +
+            escapeHtml(String(it.id)) +
+            '">' +
+            anvilT('researchPlanBtn', '+ Research Plan') +
+            '</button>';
         }
         html +=
           '<button type="button" class="anvil2-dismiss" data-dismiss="' +
           escapeHtml(String(it.id)) +
-          '">Dismiss</button>';
+          '">' +
+          anvilT('dismissBtn', 'Dismiss') +
+          '</button>';
       }
       html += '</div></li>';
     });
@@ -1102,7 +1212,7 @@
     if (!btn) return;
     if (hasPendingChange) {
       btn.disabled = true;
-      btn.title = 'Confirm or undo pending change first';
+      btn.title = anvilT('confirmUndoPendingFirst', 'Confirm or undo pending change first');
     } else {
       btn.disabled = false;
       btn.title = '';
@@ -1133,7 +1243,7 @@
       context: row.item.anchorText,
       suggestion_body: row.item.rationale || row.item.anchorText,
       keywords: keywords,
-      research_needed: 'Evidence/Citation',
+      research_needed: anvilT('categoryEvidenceCitation', 'Evidence/Citation'),
       status: 'unresolved',
     })
       .then(function () {
@@ -1193,7 +1303,7 @@
     var sectionScores = computeSectionScores();
     var current = sectionById(selectedId);
     var sectionWords = current ? countWords(current.body || getDraftHtml()) : 0;
-    var sectionHtml = buildScoringGroupHtml('Section Quality', sectionScores, sectionWords);
+    var sectionHtml = buildScoringGroupHtml(anvilT('sectionQuality', 'Section Quality'), sectionScores, sectionWords);
 
     api('/projects/' + projectId + '/feedback-scores?sectionId=' + selectedId, 'GET')
       .then(function (data) {
@@ -1207,7 +1317,7 @@
               projTotal = data.project[cat].totalWords || projTotal;
             }
           });
-          projectHtml = buildScoringGroupHtml('Project Quality', projCats, projTotal);
+          projectHtml = buildScoringGroupHtml(anvilT('projectQuality', 'Project Quality'), projCats, projTotal);
         }
         panel.innerHTML = sectionHtml + projectHtml;
       })
@@ -1217,13 +1327,24 @@
   }
 
   function buildScoringGroupHtml(title, cats, totalWords) {
+    var catLabel = {
+      logic: anvilT('scoreLogic', 'Logic'),
+      clarity: anvilT('scoreClarity', 'Clarity'),
+      evidence: anvilT('scoreEvidence', 'Evidence'),
+      grammar: anvilT('scoreGrammar', 'Grammar'),
+    };
+    var ratingLabelMap = {
+      strong: anvilT('scoreStrong', 'Strong'),
+      moderate: anvilT('scoreModerate', 'Moderate'),
+      low: anvilT('scoreLow', 'Low'),
+    };
     var html = '<div class="anvil-scoring-group"><div class="anvil-scoring-title">' + escapeHtml(title) + '</div>';
     ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
       var flagged = cats[cat] || 0;
       var rating = ratingForRatio(flagged, totalWords);
       var fillPct = rating === 'strong' ? 100 : rating === 'moderate' ? 66 : 33;
-      var label = cat.charAt(0).toUpperCase() + cat.slice(1);
-      var ratingLabel = rating.charAt(0).toUpperCase() + rating.slice(1);
+      var label = catLabel[cat] || cat;
+      var ratingLabel = ratingLabelMap[rating] || rating;
       html += '<div class="anvil-score-row">' +
         '<span class="anvil-score-label">' + label + '</span>' +
         '<div class="anvil-score-bar"><div class="anvil-score-fill anvil-score-fill--' + rating + '" style="width:' + fillPct + '%"></div></div>' +
@@ -1285,7 +1406,7 @@
     var mount = document.getElementById('anvil-feedback-mount');
 
     if (isIncremental) {
-      setAnalyzeBanner(true, 'Analyzing new text…');
+      setAnalyzeBanner(true, anvilT('analyzingNewText', 'Analyzing new text…'));
     } else if (mount) {
       mount.innerHTML =
         '<p class="anvil2-feedback-placeholder">' +
@@ -1424,6 +1545,38 @@
     };
   }
 
+  function localizeQuillToolbarItems() {
+    var tb = document.querySelector('#anvil-quill-wrap .ql-toolbar');
+    if (!tb) return;
+    tb.querySelectorAll('.ql-header .ql-picker-item').forEach(function (el) {
+      var v = el.getAttribute('data-value');
+      if (v === '1') el.textContent = anvilT('quillHeading1', 'Heading 1');
+      else if (v === '2') el.textContent = anvilT('quillHeading2', 'Heading 2');
+      else if (v === '3') el.textContent = anvilT('quillHeading3', 'Heading 3');
+      else el.textContent = anvilT('quillNormal', 'Normal');
+    });
+    var tt = [
+      ['.ql-bold', 'quillBold', 'Bold'],
+      ['.ql-italic', 'quillItalic', 'Italic'],
+      ['.ql-underline', 'quillUnderline', 'Underline'],
+      ['.ql-strike', 'quillStrike', 'Strikethrough'],
+      ['.ql-blockquote', 'quillBlockquote', 'Blockquote'],
+      ['.ql-link', 'quillLink', 'Link'],
+      ['.ql-image', 'quillImage', 'Image'],
+      ['.ql-clean', 'quillClean', 'Remove formatting'],
+    ];
+    tt.forEach(function (pair) {
+      var btn = tb.querySelector(pair[0]);
+      if (btn) btn.setAttribute('title', anvilT(pair[1], pair[2]));
+    });
+    var fontLabel = tb.querySelector('.ql-font .ql-picker-label');
+    if (fontLabel) fontLabel.setAttribute('title', anvilT('quillFont', 'Font'));
+    var sizeLabel = tb.querySelector('.ql-size .ql-picker-label');
+    if (sizeLabel) sizeLabel.setAttribute('title', anvilT('quillSize', 'Size'));
+    var headLabel = tb.querySelector('.ql-header .ql-picker-label');
+    if (headLabel) headLabel.setAttribute('title', anvilT('quillNormal', 'Normal'));
+  }
+
   function mountEditor(rawDraft) {
     var wrap = document.getElementById('anvil-quill-wrap');
     var host = document.getElementById('anvil-editor');
@@ -1513,6 +1666,7 @@
     }
 
     setTimeout(attachImageResizeHandlers, 200);
+    setTimeout(localizeQuillToolbarItems, 0);
   }
 
   /* ── Paper (light) / Dark mode toggle ── */
@@ -1530,7 +1684,7 @@
     if (btn) {
       btn.setAttribute('aria-checked', paperMode ? 'true' : 'false');
       var hint = document.getElementById('anvil-paper-hint');
-      if (hint) hint.textContent = paperMode ? 'LIGHT MODE' : 'DARK MODE';
+      if (hint) hint.textContent = paperMode ? anvilT('lightMode', 'Light mode') : anvilT('darkMode', 'Dark mode');
     }
     try {
       localStorage.setItem('anvil-paper-mode', paperMode ? '1' : '0');
@@ -1721,7 +1875,7 @@
       }),
     })
       .then(function (r) {
-        if (!r.ok) throw new Error('Export failed');
+        if (!r.ok) throw new Error(anvilT('exportFailed', 'Export failed'));
         return r.blob();
       })
       .then(function (blob) {
@@ -1765,7 +1919,7 @@
       }),
     })
       .then(function (r) {
-        if (!r.ok) throw new Error('Export failed');
+        if (!r.ok) throw new Error(anvilT('exportFailed', 'Export failed'));
         return r.blob();
       })
       .then(function (blob) {
@@ -1790,7 +1944,7 @@
   }
 
   function authorInText(lastNames, style) {
-    if (!lastNames.length) return 'Unknown';
+    if (!lastNames.length) return anvilT('unknownAuthor', 'Unknown');
     if (lastNames.length === 1) return lastNames[0];
     if (lastNames.length === 2) {
       var sep = (style === 'APA' || style === 'HARVARD') ? ' & ' : ' and ';
@@ -1883,7 +2037,10 @@
     var mount = getCitationsMountEl();
     if (!mount) return;
     if (!sectionSources.length) {
-      mount.innerHTML = '<p class="app-anvil-rail__citations-placeholder">No sources tagged to this section.</p>';
+      mount.innerHTML =
+        '<p class="app-anvil-rail__citations-placeholder">' +
+        escapeHtml(anvilT('noSourcesTaggedSection', 'No sources tagged to this section.')) +
+        '</p>';
       return;
     }
     var html = '';
@@ -1892,12 +2049,18 @@
         return '<span class="anvil-cite-tag">' + escapeHtml(t) + '</span>';
       }).join('');
       html += '<div class="anvil-citation-card" data-source-id="' + src.id + '">' +
-        '<div class="anvil-citation-card__title">' + escapeHtml(src.article_title || src.citation_text || '(Untitled)') + '</div>' +
+        '<div class="anvil-citation-card__title">' +
+        escapeHtml(src.article_title || src.citation_text || anvilT('untitledSource', '(Untitled)')) +
+        '</div>' +
         '<div class="anvil-citation-card__authors">' + escapeHtml(src.authors || '') + '</div>' +
         '<div class="anvil-citation-card__date">' + escapeHtml(src.publication_date || '') + '</div>' +
         (tags ? '<div class="anvil-citation-card__tags">' + tags + '</div>' : '') +
         '<div class="anvil-citation-card__footer">' +
-          '<button type="button" class="anvil-citation-insert-btn" data-source-id="' + src.id + '">Insert</button>' +
+          '<button type="button" class="anvil-citation-insert-btn" data-source-id="' +
+          src.id +
+          '">' +
+          escapeHtml(anvilT('insertCitation', 'Insert')) +
+          '</button>' +
         '</div>' +
       '</div>';
     });
@@ -1988,16 +2151,26 @@
       sectionPct = sectionTarget > 0 ? Math.min(100, Math.round((sectionWords / sectionTarget) * 100)) : 0;
     }
 
-    return '<div id="tw-anvil-progress-charts" class="anvil-progress-row">' +
+    return (
+      '<div id="tw-anvil-progress-charts" class="anvil-progress-row">' +
       '<div class="anvil-progress-item">' +
-        '<span class="anvil-progress-label">Section: ' + sectionPct + '% complete</span>' +
-        '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' + sectionPct + '%"></div></div>' +
+      '<span class="anvil-progress-label">' +
+      anvilTv('sectionProgress', { pct: sectionPct }, 'Section: {pct}% complete') +
+      '</span>' +
+      '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' +
+      sectionPct +
+      '%"></div></div>' +
       '</div>' +
       '<div class="anvil-progress-item">' +
-        '<span class="anvil-progress-label">Project: ' + projectPct + '% complete</span>' +
-        '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' + projectPct + '%"></div></div>' +
+      '<span class="anvil-progress-label">' +
+      anvilTv('projectProgress', { pct: projectPct }, 'Project: {pct}% complete') +
+      '</span>' +
+      '<div class="anvil-progress-track"><div class="anvil-progress-fill" style="width:' +
+      projectPct +
+      '%"></div></div>' +
       '</div>' +
-    '</div>';
+      '</div>'
+    );
   }
 
   function updateProgressDisplay() {
@@ -2045,7 +2218,9 @@
     var sections = bundle.sections || [];
     if (!sections.length) {
       root.innerHTML =
-        '<div class="anvil-panel--writing"><p class="anvil-muted">No sections in this project.</p></div>';
+        '<div class="anvil-panel--writing"><p class="anvil-muted">' +
+        anvilT('noSectionsProject', 'No sections in this project.') +
+        '</p></div>';
       return;
     }
     if (selectedId == null) selectedId = Number(sections[0].id);
@@ -2075,31 +2250,53 @@
       '<div id="anvil-quill-wrap" class="anvil-quill-wrap"><div id="anvil-editor" class="anvil-quill"></div></div>' +
       '<div class="anvil-editor-footer">' +
       '<div class="anvil-editor-footer__left">' +
-        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">' + (draft ? (lastSavedLabel || 'Saved') : 'Unsaved') + '</span>' +
+        '<span id="anvil-save-status" class="anvil-save-status" style="color:#a5a5a5">' +
+        (draft ? lastSavedLabel || anvilT('savedShort', 'Saved') : anvilT('unsavedStatus', 'Unsaved')) +
+        '</span>' +
       '</div>' +
       '<div class="anvil-editor-footer__mid">' +
       '<div class="anvil-paper-toggle-wrap">' +
-      '<button type="button" id="anvil-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' + (paperMode ? 'true' : 'false') + '" title="Toggle light/dark writing mode">' +
+      '<button type="button" id="anvil-paper-toggle" class="anvil-paper-toggle" role="switch" aria-checked="' +
+      (paperMode ? 'true' : 'false') +
+      '" title="' +
+      escapeHtml(anvilT('togglePaperMode', 'Toggle light/dark writing mode')) +
+      '">' +
       '<span class="anvil-paper-toggle__track"><span class="anvil-paper-toggle__thumb"></span></span>' +
       '</button>' +
-      '<span id="anvil-paper-hint" class="anvil-paper-toggle__hint">' + (paperMode ? 'LIGHT MODE' : 'DARK MODE') + '</span>' +
+      '<span id="anvil-paper-hint" class="anvil-paper-toggle__hint">' +
+      (paperMode ? anvilT('lightMode', 'Light mode') : anvilT('darkMode', 'Dark mode')) +
+      '</span>' +
       '</div>' +
       '</div>' +
       '<div class="anvil-editor-footer__right">' +
-        '<button type="button" class="anvil-save-btn" id="anvil-manual-save">Save</button>' +
+        '<button type="button" class="anvil-save-btn" id="anvil-manual-save">' +
+        escapeHtml(commonT('save', 'Save')) +
+        '</button>' +
       '</div>' +
       '</div>' +
       '</div>' +
       '<div class="anvil-export-bar">' +
       '<div class="anvil-export-bar__row">' +
-      '<span class="anvil-export-label">Actions</span>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-apply-style">Apply ' + escapeHtml(citStyle) + ' style</button>' +
+      '<span class="anvil-export-label">' +
+      escapeHtml(anvilT('actionsLabel', 'Actions')) +
+      '</span>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-apply-style">' +
+      escapeHtml(anvilTv('applyStyleBtn', { style: citStyle }, 'Apply {style} style')) +
+      '</button>' +
       '<span class="anvil-export-sep">|</span>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-section-rtf">Export Section (RTF)</button>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">Export Section (Word)</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-section-rtf">' +
+      escapeHtml(anvilT('exportSectionRtf', 'Export Section (RTF)')) +
+      '</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-section-docx">' +
+      escapeHtml(anvilT('exportSectionWord', 'Export Section (Word)')) +
+      '</button>' +
       '<span class="anvil-export-sep">|</span>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-all-rtf">Export Document (RTF)</button>' +
-      '<button type="button" class="anvil-export-btn" id="anvil-export-all-docx">Export Document (Word)</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-all-rtf">' +
+      escapeHtml(anvilT('exportDocRtf', 'Export Document (RTF)')) +
+      '</button>' +
+      '<button type="button" class="anvil-export-btn" id="anvil-export-all-docx">' +
+      escapeHtml(anvilT('exportDocWord', 'Export Document (Word)')) +
+      '</button>' +
       '</div>' +
       '</div>' +
       '</div>' +
@@ -2247,7 +2444,7 @@
 
   async function load() {
     loadPaperPref();
-    root.innerHTML = '<p class="anvil-loading">Loading…</p>';
+    root.innerHTML = '<p class="anvil-loading">' + escapeHtml(commonT('loading', 'Loading…')) + '</p>';
     try {
       bundle = await api('/projects/' + projectId, 'GET');
       try {
@@ -2271,7 +2468,9 @@
       }
     } catch (e) {
       root.innerHTML =
-        '<p class="anvil-error-banner" role="alert">Could not load project. ' + escapeHtml(e.message) + '</p>';
+        '<p class="anvil-error-banner" role="alert">' +
+        escapeHtml(anvilTv('loadProjectFailed', { message: e.message || '' }, 'Could not load project. {message}')) +
+        '</p>';
       return;
     }
     render();

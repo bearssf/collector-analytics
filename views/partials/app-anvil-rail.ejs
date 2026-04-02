@@ -2,29 +2,29 @@
   The Anvil: structured AI feedback + citations placeholder.
   Reference sections (slug reference) swap to refresh + research plan layout via anvil.js.
 %>
-<aside class="app-insight app-anvil-rail" aria-label="Forge Write Assist and sources">
+<aside class="app-insight app-anvil-rail" aria-label="<%= t('client.anvil.railAriaLabel') %>">
   <div id="anvil-rail-mode-default" class="app-anvil-rail__inner">
     <div class="app-anvil-rail__top" id="tw-anvil-feedback-rail">
-      <div class="insight-h insight-h--feedback">Forge Write Assist <button type="button" class="anvil-refresh-feedback-btn" id="anvil-refresh-feedback" title="Refresh Forge Write Assist">&#x21bb;</button></div>
+      <div class="insight-h insight-h--feedback"><%= t('client.anvil.forgeWriteAssistTitle') %> <button type="button" class="anvil-refresh-feedback-btn" id="anvil-refresh-feedback" title="<%= t('client.anvil.refreshForgeWriteAssist') %>">&#x21bb;</button></div>
       <div id="anvil-feedback-mount" class="app-anvil-rail__scroll" aria-live="polite">
-        <p class="anvil2-feedback-placeholder">Forge Write Assist will appear here as you make progress with your writing.</p>
+        <p class="anvil2-feedback-placeholder"><%= t('client.anvil.forgeWriteEmpty') %></p>
       </div>
     </div>
     <div class="app-anvil-rail__bottom" id="tw-anvil-sources-rail">
-      <div class="insight-h insight-h--citations">Sources <button type="button" class="anvil-add-source-btn" id="anvil-add-source-btn">+ Add a Source</button></div>
+      <div class="insight-h insight-h--citations"><%= t('client.anvil.sourcesTitle') %> <button type="button" class="anvil-add-source-btn" id="anvil-add-source-btn"><%= t('client.anvil.addSource') %></button></div>
       <div id="anvil-citations-mount" class="app-anvil-rail__scroll">
-        <p class="app-anvil-rail__citations-placeholder">Select a section to view tagged sources.</p>
+        <p class="app-anvil-rail__citations-placeholder"><%= t('client.anvil.sourcesPlaceholder') %></p>
       </div>
     </div>
   </div>
   <div id="anvil-rail-mode-reference" class="app-anvil-rail__inner app-anvil-rail__inner--reference" hidden>
     <div class="app-anvil-rail__reference-top">
-      <div class="insight-h insight-h--reference">Reference list</div>
-      <p class="anvil-ref-rail-hint">Rebuild the reference section from every in-text citation recorded in this project (Crucible usage counts).</p>
-      <button type="button" class="app-btn-primary anvil-refresh-references-btn" id="anvil-refresh-references-btn">Update references from project</button>
+      <div class="insight-h insight-h--reference"><%= t('client.anvil.referenceTitle') %></div>
+      <p class="anvil-ref-rail-hint"><%= t('client.anvil.referenceHint') %></p>
+      <button type="button" class="app-btn-primary anvil-refresh-references-btn" id="anvil-refresh-references-btn"><%= t('client.anvil.updateReferences') %></button>
     </div>
     <div class="app-anvil-rail__research-plan-block">
-      <div class="insight-h">Research plan</div>
+      <div class="insight-h"><%= t('client.anvil.researchPlan') %></div>
       <div id="anvil-reference-research-plan" class="app-anvil-rail__scroll app-anvil-rail__scroll--research-plan"></div>
     </div>
   </div>
@@ -33,10 +33,10 @@
 <div id="anvil-pending-change-modal" class="account-modal-overlay" hidden>
   <div class="account-modal-overlay__backdrop" id="anvil-pending-change-modal-backdrop" tabindex="-1" aria-hidden="true"></div>
   <div class="account-modal-overlay__panel" role="dialog" aria-modal="true" aria-labelledby="anvil-pending-change-modal-title">
-    <h3 id="anvil-pending-change-modal-title" class="account-modal-overlay__title">Confirm or undo first</h3>
-    <p class="account-modal-overlay__text">Please confirm or undo the current change before applying another suggestion.</p>
+    <h3 id="anvil-pending-change-modal-title" class="account-modal-overlay__title"><%= t('client.anvil.pendingChangeTitle') %></h3>
+    <p class="account-modal-overlay__text"><%= t('client.anvil.pendingChangeText') %></p>
     <div class="account-modal-overlay__actions">
-      <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint" id="anvil-pending-change-modal-dismiss">OK</button>
+      <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint" id="anvil-pending-change-modal-dismiss"><%= t('client.common.ok') %></button>
     </div>
   </div>
 </div>
@@ -44,11 +44,11 @@
 <div id="anvil-title-profile-modal" class="account-modal-overlay" hidden>
   <div class="account-modal-overlay__backdrop" id="anvil-title-profile-modal-backdrop" tabindex="-1" aria-hidden="true"></div>
   <div class="account-modal-overlay__panel" role="dialog" aria-modal="true" aria-labelledby="anvil-title-profile-modal-title">
-    <h3 id="anvil-title-profile-modal-title" class="account-modal-overlay__title">Title page</h3>
+    <h3 id="anvil-title-profile-modal-title" class="account-modal-overlay__title"><%= t('client.anvil.titlePage') %></h3>
     <p class="account-modal-overlay__text" id="anvil-title-profile-modal-text"></p>
     <div class="account-modal-overlay__actions">
-      <a href="/app/account" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint">Open Account</a>
-      <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--secondary" id="anvil-title-profile-modal-dismiss">Got it</button>
+      <a href="/app/account" class="account-modal-overlay__btn account-modal-overlay__btn--confirm-mint"><%= t('client.anvil.openAccount') %></a>
+      <button type="button" class="account-modal-overlay__btn account-modal-overlay__btn--secondary" id="anvil-title-profile-modal-dismiss"><%= t('client.anvil.gotIt') %></button>
     </div>
   </div>
 </div>

@@ -146,6 +146,54 @@
   if (passwordForm) {
     passwordForm.addEventListener('submit', async function (e) {
       e.preventDefault();
+      var cur = passwordForm.querySelector('[name="currentPassword"]');
+      var nw = passwordForm.querySelector('[name="newPassword"]');
+      var cf = passwordForm.querySelector('[name="confirmPassword"]');
+      function clearValidity() {
+        if (cur) cur.setCustomValidity('');
+        if (nw) nw.setCustomValidity('');
+        if (cf) cf.setCustomValidity('');
+      }
+      clearValidity();
+      var reqMsg = A('fillFieldRequired', 'Please fill out this field.');
+      if (!cur || !(cur.value || '').trim()) {
+        if (cur) {
+          cur.setCustomValidity(reqMsg);
+          cur.reportValidity();
+        }
+        return;
+      }
+      if (!nw || !(nw.value || '').trim()) {
+        if (nw) {
+          nw.setCustomValidity(reqMsg);
+          nw.reportValidity();
+        }
+        return;
+      }
+      if (!cf || !(cf.value || '').trim()) {
+        if (cf) {
+          cf.setCustomValidity(reqMsg);
+          cf.reportValidity();
+        }
+        return;
+      }
+      var minMsg = A('passwordMinLengthClient', 'Password must be at least 8 characters.');
+      if ((nw.value || '').length < 8) {
+        nw.setCustomValidity(minMsg);
+        nw.reportValidity();
+        return;
+      }
+      if ((cf.value || '').length < 8) {
+        cf.setCustomValidity(minMsg);
+        cf.reportValidity();
+        return;
+      }
+      var misMsg = A('passwordMismatchClient', 'New password and confirmation do not match.');
+      if (nw.value !== cf.value) {
+        cf.setCustomValidity(misMsg);
+        cf.reportValidity();
+        return;
+      }
       showMsg(passwordMsg, A('saving', 'Saving…'), 'pending');
       if (passwordSubmit) passwordSubmit.disabled = true;
       const fd = new FormData(passwordForm);

@@ -1,4 +1,9 @@
 (function () {
+  function trn(key, fallback) {
+    var o = window.__I18N__ && window.__I18N__.training;
+    return (o && o[key]) || fallback;
+  }
+
   var cfg = typeof window.__TRAINING_INIT__ !== 'undefined' ? window.__TRAINING_INIT__ : null;
   var alpha =
     typeof window.__TRANS_TRAIN__ === 'number' && !Number.isNaN(window.__TRANS_TRAIN__)
@@ -41,11 +46,11 @@
     skipBtn = document.createElement('button');
     skipBtn.type = 'button';
     skipBtn.className = 'tw-btn tw-btn--skip';
-    skipBtn.textContent = 'Skip this Overview';
+    skipBtn.textContent = trn('skipOverview', 'Skip this Overview');
     btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tw-btn';
-    btn.textContent = 'Next';
+    btn.textContent = trn('next', 'Next');
     actions.appendChild(skipBtn);
     actions.appendChild(btn);
     card.appendChild(arrow);
@@ -177,7 +182,7 @@
     if (!steps.length || i < 0 || i >= steps.length) return;
     var s = steps[i];
     textEl.textContent = s.text || '';
-    btn.textContent = i >= steps.length - 1 ? 'Finish' : 'Next';
+    btn.textContent = i >= steps.length - 1 ? trn('finish', 'Finish') : trn('next', 'Next');
 
     clearTarget();
     var el = null;

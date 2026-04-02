@@ -1,4 +1,9 @@
 (function () {
+  function B(key, fallback) {
+    var o = window.__I18N__ && window.__I18N__.billing;
+    return (o && o[key]) || fallback;
+  }
+
   const cfg = window.__BILLING_PM__;
   const form = document.getElementById('billing-pm-form');
   const mountEl = document.getElementById('billing-pm-payment');
@@ -12,10 +17,7 @@
   }
 
   if (!cfg || !cfg.publishableKey || !form || !mountEl || typeof Stripe === 'undefined') {
-    var b = window.__I18N__ && window.__I18N__.billing;
-    showError(
-      (b && b.couldNotLoad) || 'Billing could not load. Refresh the page or return to Account.'
-    );
+    showError(B('couldNotLoad', 'Billing could not load. Refresh the page or return to Account.'));
     return;
   }
 
@@ -35,18 +37,16 @@
       return {};
     });
     if (!res.ok) {
-      var b = window.__I18N__ && window.__I18N__.billing;
       showError(
         data.error ||
-          (b && b.couldNotStartCard) ||
-          'Could not start card update. Return to Account.'
+          B('couldNotStartCard', 'Could not start card update. Return to Account.')
       );
       return;
     }
     const clientSecret = data.clientSecret;
     const setupIntentId = data.setupIntentId;
     if (!clientSecret || !setupIntentId) {
-      showError('Invalid response from server.');
+      showError(B('invalidServerResponse', 'Invalid response from server.'));
       return;
     }
 
@@ -75,7 +75,7 @@
         },
       });
       if (error) {
-        showError(error.message || 'Could not save card.');
+        showError(error.message || B('couldNotSaveCard', 'Could not save card.'));
         submitBtn.disabled = false;
         return;
       }
@@ -91,20 +91,20 @@
           return {};
         });
         if (!complete.ok) {
-          showError(completeData.error || 'Could not save payment method.');
+          showError(completeData.error || B('couldNotSavePaymentMethod', 'Could not save payment method.'));
           submitBtn.disabled = false;
           return;
         }
         window.location.href = base + '/app/account?pm=success';
       } catch (err) {
-        showError('Something went wrong. Try again from Account.');
+        showError(B('somethingWrongRetryAccount', 'Something went wrong. Try again from Account.'));
         submitBtn.disabled = false;
       }
     });
   }
 
   init().catch(function () {
-    showError('Something went wrong. Try again from Account.');
+    showError(B('somethingWrongRetryAccount', 'Something went wrong. Try again from Account.'));
     submitBtn.disabled = true;
   });
 })();

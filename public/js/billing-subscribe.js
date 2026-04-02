@@ -1,4 +1,9 @@
 (function () {
+  function B(key, fallback) {
+    var o = window.__I18N__ && window.__I18N__.billing;
+    return (o && o[key]) || fallback;
+  }
+
   const cfg = window.__BILLING_SUBSCRIBE__;
   const form = document.getElementById('billing-subscribe-form');
   const mountEl = document.getElementById('billing-subscribe-payment');
@@ -25,10 +30,7 @@
   }
 
   if (!cfg || !cfg.publishableKey || !form || !mountEl || typeof Stripe === 'undefined') {
-    var b = window.__I18N__ && window.__I18N__.billing;
-    showError(
-      (b && b.couldNotLoad) || 'Billing could not load. Refresh the page or return to Account.'
-    );
+    showError(B('couldNotLoad', 'Billing could not load. Refresh the page or return to Account.'));
     return;
   }
 
@@ -63,14 +65,18 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      let errMsg = data.error || 'Could not start checkout. Try again from Account.';
+      let errMsg =
+        data.error || B('couldNotStartCheckout', 'Could not start checkout. Try again from Account.');
       if (/internal server error/i.test(String(errMsg))) {
-        errMsg = 'Could not start checkout. Try again from Account, or contact support.';
+        errMsg = B(
+          'couldNotStartCheckoutSupport',
+          'Could not start checkout. Try again from Account, or contact support.'
+        );
       }
       throw new Error(errMsg);
     }
     if (!data.clientSecret) {
-      throw new Error('Invalid response from server.');
+      throw new Error(B('invalidServerResponse', 'Invalid response from server.'));
     }
     return data.clientSecret;
   }
@@ -97,10 +103,10 @@
       const clientSecret = await fetchIntent(code || undefined);
       mountPayment(clientSecret);
       if (code) {
-        showPromoHint('Promotion applied.');
+        showPromoHint(B('promotionApplied', 'Promotion applied.'));
       }
     } catch (e) {
-      showError(e.message || 'Something went wrong.');
+      showError(e.message || B('somethingWrongShort', 'Something went wrong.'));
       submitBtn.disabled = false;
     } finally {
       if (promoApply) promoApply.disabled = false;
@@ -125,7 +131,7 @@
         error.decline_code,
         error.message
       );
-      let msg = error.message || 'Payment could not be completed.';
+      let msg = error.message || B('paymentCouldNotComplete', 'Payment could not be completed.');
       const lastPi =
         error.payment_intent && error.payment_intent.last_payment_error
           ? error.payment_intent.last_payment_error.message
@@ -142,8 +148,14 @@
           parts.push(error.code);
         }
         msg = parts.length
-          ? `Payment failed (${parts.join('; ')}). Try another card or contact your bank.`
-          : 'Payment failed. Check the card details, try another card, or confirm your bank allows the charge. If you use test keys, use Stripe test cards (e.g. 4242…).';
+          ? B('paymentFailedTryCard', 'Payment failed ({detail}). Try another card or contact your bank.').replace(
+              '{detail}',
+              parts.join('; ')
+            )
+          : B(
+              'paymentFailedGeneric',
+              'Payment failed. Check the card details, try another card, or confirm your bank allows the charge. If you use test keys, use Stripe test cards (e.g. 4242…).'
+            );
       }
       showError(msg);
       submitBtn.disabled = false;
@@ -164,7 +176,7 @@
   }
 
   init().catch(function () {
-    showError('Something went wrong. Try again from Account.');
+    showError(B('somethingWrongRetryAccount', 'Something went wrong. Try again from Account.'));
     submitBtn.disabled = true;
   });
 })();

@@ -1,18 +1,18 @@
 <%#
   The Crucible: Forge Research Assist + research plan.
 %>
-<aside class="app-insight app-crucible-rail" aria-label="Forge Research Assist and research plan">
+<aside class="app-insight app-crucible-rail" aria-label="<%= t('client.crucible.railAriaLabel') %>">
   <div class="app-crucible-rail__inner">
     <div class="app-crucible-rail__top">
       <div class="insight-h crucible-sug-header">
-        <span>Forge Research Assist</span>
-        <button type="button" class="crucible-sug-search-btn" id="crucible-custom-search-btn" title="Search by custom terms">&#128269;</button>
+        <span><%= t('client.crucible.forgeResearchAssistTitle') %></span>
+        <button type="button" class="crucible-sug-search-btn" id="crucible-custom-search-btn" title="<%= t('client.crucible.searchCustomTerms') %>">&#128269;</button>
       </div>
       <div class="app-crucible-rail__scroll" id="crucible-suggestions">
       </div>
     </div>
     <div class="app-crucible-rail__bottom">
-      <div class="insight-h">Research Plan</div>
+      <div class="insight-h"><%= t('client.crucible.researchPlanHeading') %></div>
       <div class="app-crucible-rail__scroll" id="crucible-research-plan">
       </div>
     </div>

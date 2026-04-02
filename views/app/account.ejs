@@ -121,7 +121,7 @@
             <section class="account-rail-section">
               <h2 class="account-h2"><%= t('account.passwordH2') %></h2>
               <p class="account-meta account-meta--password-reset"><a href="/forgot-password"><%= t('account.passwordForgot') %></a></p>
-              <form id="account-password-form" class="app-form-stack account-form" autocomplete="off">
+              <form id="account-password-form" class="app-form-stack account-form" autocomplete="off" novalidate>
                 <label class="app-field account-password-field">
                   <span><%= t('account.currentPasswordField') %> <abbr class="account-required-star" title="<%= t('account.requiredAbbr') %>">*</abbr></span>
                   <span class="account-password-field__inner">

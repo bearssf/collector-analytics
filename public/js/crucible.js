@@ -9,6 +9,23 @@
     return (o && o[key]) || fb;
   }
 
+  function crucibleTv(key, vars, fb) {
+    var s = crucibleT(key, fb);
+    if (vars && typeof vars === 'object') {
+      for (var k in vars) {
+        if (Object.prototype.hasOwnProperty.call(vars, k)) {
+          s = s.split('{' + k + '}').join(String(vars[k]));
+        }
+      }
+    }
+    return s;
+  }
+
+  function commonT(key, fb) {
+    var o = window.__I18N__ && window.__I18N__.common;
+    return (o && o[key]) || fb;
+  }
+
   var root = document.getElementById('crucible-root');
   if (!root) return;
 
@@ -386,7 +403,8 @@
   function render() {
     var filtered = getFiltered();
 
-    var sectionFilterOpts = '<option value="">All sections</option>';
+    var sectionFilterOpts =
+      '<option value="">' + escHtml(crucibleT('allSections', 'All sections')) + '</option>';
     sections.forEach(function (sec) {
       sectionFilterOpts += '<option value="' + sec.id + '"' + (filterSectionId === sec.id ? ' selected' : '') + '>' + escHtml(sec.title) + '</option>';
     });
@@ -396,33 +414,55 @@
     var html = '';
 
     /* sort / filter bar */
+    var countStr =
+      filtered.length === 1
+        ? crucibleTv('sourceCount', { n: filtered.length }, '{n} source')
+        : crucibleTv('sourceCountPlural', { n: filtered.length }, '{n} sources');
     html += '<div class="crucible-toolbar" id="tw-crucible-filters">' +
       '<div class="crucible-toolbar__left">' +
         '<span class="crucible-toolbar-spacer"></span>' +
-        '<label class="crucible-sort-label">Sort: ' +
+        '<label class="crucible-sort-label">' +
+        escHtml(crucibleT('sortLabel', 'Sort:')) +
+        ' ' +
           '<select id="crucible-sort" class="crucible-select">' +
-            '<option value="alpha"' + (sortMode === 'alpha' ? ' selected' : '') + '>Alphabetical</option>' +
-            '<option value="date"' + (sortMode === 'date' ? ' selected' : '') + '>Date created</option>' +
+            '<option value="alpha"' + (sortMode === 'alpha' ? ' selected' : '') + '>' +
+            escHtml(crucibleT('sortAlpha', 'Alphabetical')) +
+            '</option>' +
+            '<option value="date"' + (sortMode === 'date' ? ' selected' : '') + '>' +
+            escHtml(crucibleT('sortDate', 'Date created')) +
+            '</option>' +
           '</select>' +
         '</label>' +
         '<span class="crucible-toolbar-spacer"></span>' +
-        '<button type="button" class="crucible-filter-btn" id="crucible-tag-filter-btn">Filter by tag' + escHtml(activeTagCount) + '</button>' +
+        '<button type="button" class="crucible-filter-btn" id="crucible-tag-filter-btn">' +
+        escHtml(crucibleT('filterByTag', 'Filter by tag')) +
+        escHtml(activeTagCount) +
+        '</button>' +
         '<span class="crucible-toolbar-spacer"></span>' +
-        '<label class="crucible-sort-label">Show Sources For: ' +
+        '<label class="crucible-sort-label">' +
+        escHtml(crucibleT('showSourcesFor', 'Show Sources For:')) +
+        ' ' +
           '<select id="crucible-section-filter" class="crucible-select">' + sectionFilterOpts + '</select>' +
         '</label>' +
         '<span class="crucible-toolbar-spacer"></span>' +
-        '<label class="crucible-sort-label crucible-full-lib-label"><input type="checkbox" id="crucible-full-library-cb"' + (fullLibraryMode ? ' checked' : '') + '> Review Full Source Library:</label>' +
+        '<label class="crucible-sort-label crucible-full-lib-label"><input type="checkbox" id="crucible-full-library-cb"' +
+      (fullLibraryMode ? ' checked' : '') +
+      '> ' +
+      escHtml(crucibleT('reviewFullLibrary', 'Review Full Source Library:')) +
+      '</label>' +
       '</div>' +
       '<div class="crucible-toolbar__right">' +
-        '<span class="crucible-count">' + filtered.length + ' source' + (filtered.length !== 1 ? 's' : '') + '</span>' +
+        '<span class="crucible-count">' + escHtml(countStr) + '</span>' +
       '</div>' +
     '</div>';
 
     /* main area: scrollable list of source rows (tile + notes side by side) */
     html += '<div class="crucible-main">';
     if (!filtered.length) {
-      html += '<div class="crucible-empty">No sources yet. Click &ldquo;Add a Source&rdquo; below to get started.</div>';
+      html +=
+        '<div class="crucible-empty">' +
+        escHtml(crucibleT('emptyPrompt', 'No sources yet. Click “Add a Source” below to get started.')) +
+        '</div>';
     } else {
       filtered.forEach(function (src) {
         var formattedCitation = formatCitation(src, citationStyle);
@@ -435,36 +475,82 @@
         if (fullLibraryMode && src.project_name) {
           projectLabel = '<div class="crucible-tile__project-row">' +
             '<span class="crucible-tile__project-label">' + escHtml(src.project_name) + '</span>' +
-            (isOtherProject ? '<button type="button" class="crucible-add-to-project-btn" data-source-id="' + src.id + '">+ Add to Current Project</button>' : '') +
+            (isOtherProject
+              ? '<button type="button" class="crucible-add-to-project-btn" data-source-id="' +
+                src.id +
+                '">' +
+                escHtml(crucibleT('addToProject', '+ Add to Current Project')) +
+                '</button>'
+              : '') +
           '</div>';
         }
         var actionBtns = isOtherProject ? '' :
           '<span class="crucible-tile__actions">' +
-            '<button type="button" class="crucible-tile-btn crucible-tile-btn--search" data-source-id="' + src.id + '" title="Find related sources">&#128269;</button>' +
-            '<button type="button" class="crucible-tile-btn crucible-tile-btn--edit" data-source-id="' + src.id + '" title="Edit source">&#9998;</button>' +
-            '<button type="button" class="crucible-tile-btn crucible-tile-btn--delete" data-source-id="' + src.id + '" title="Delete source">&times;</button>' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--search" data-source-id="' +
+            src.id +
+            '" title="' +
+            escHtml(crucibleT('findRelated', 'Find related sources')) +
+            '">&#128269;</button>' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--edit" data-source-id="' +
+            src.id +
+            '" title="' +
+            escHtml(crucibleT('editSource', 'Edit source')) +
+            '">&#9998;</button>' +
+            '<button type="button" class="crucible-tile-btn crucible-tile-btn--delete" data-source-id="' +
+            src.id +
+            '" title="' +
+            escHtml(crucibleT('deleteSource', 'Delete source')) +
+            '">&times;</button>' +
           '</span>';
         html += '<div class="crucible-source-row" data-source-id="' + src.id + '">' +
           '<div class="crucible-tile">' +
             projectLabel +
             '<div class="crucible-tile__header">' +
-              '<span class="crucible-tile__title">' + escHtml(src.article_title || src.citation_text || '(Untitled)') + '</span>' +
+              '<span class="crucible-tile__title">' +
+              escHtml(src.article_title || src.citation_text || crucibleT('untrackedTitle', '(Untitled)')) +
+              '</span>' +
               actionBtns +
             '</div>' +
             '<div class="crucible-tile__citation">' + formattedCitation + '</div>' +
             (src.from_suggestion && src.open_access_url
-              ? '<div class="crucible-tile__open-access"><a href="' + escHtml(src.open_access_url) + '" target="_blank" rel="noopener">URL to Open Access</a></div>'
+              ? '<div class="crucible-tile__open-access"><a href="' +
+                escHtml(src.open_access_url) +
+                '" target="_blank" rel="noopener">' +
+                escHtml(crucibleT('urlOpenAccess', 'URL to Open Access')) +
+                '</a></div>'
               : '') +
             (tagBadges ? '<div class="crucible-tile__tags">' + tagBadges + '</div>' : '') +
-            (citationUsageCounts[src.id] ? '<a href="#" class="crucible-tile__usage-count" data-source-id="' + src.id + '" title="View citation usages">' + citationUsageCounts[src.id] + '</a>' : '') +
+            (citationUsageCounts[src.id]
+              ? '<a href="#" class="crucible-tile__usage-count" data-source-id="' +
+                src.id +
+                '" title="' +
+                escHtml(crucibleT('viewCitationUsages', 'View citation usages')) +
+                '">' +
+                citationUsageCounts[src.id] +
+                '</a>'
+              : '') +
           '</div>' +
           '<div class="crucible-note-tile' + (notesLightMode ? ' crucible-note-tile--light' : '') + '">' +
             '<div class="crucible-note-tile__editor"' + (isOtherProject ? '' : ' contenteditable="true"') + ' data-source-id="' + src.id + '">' + (src.crucible_notes || '') + '</div>' +
             (isOtherProject ? '' :
             '<div class="crucible-note-tile__toolbar">' +
-              '<button type="button" class="crucible-notes-fmt-btn crucible-note-bold" data-source-id="' + src.id + '" title="Bold"><strong>B</strong></button>' +
-              '<button type="button" class="crucible-notes-fmt-btn crucible-note-ul" data-source-id="' + src.id + '" title="Bulleted list">&#8226; List</button>' +
-              '<button type="button" class="crucible-notes-fmt-btn crucible-notes-save-btn crucible-note-save" data-source-id="' + src.id + '">Save</button>' +
+              '<button type="button" class="crucible-notes-fmt-btn crucible-note-bold" data-source-id="' +
+              src.id +
+              '" title="' +
+              escHtml(crucibleT('noteBold', 'Bold')) +
+              '"><strong>B</strong></button>' +
+              '<button type="button" class="crucible-notes-fmt-btn crucible-note-ul" data-source-id="' +
+              src.id +
+              '" title="' +
+              escHtml(crucibleT('noteBulletedList', 'Bulleted list')) +
+              '">' +
+              escHtml(crucibleT('noteListDisplay', '• List')) +
+              '</button>' +
+              '<button type="button" class="crucible-notes-fmt-btn crucible-notes-save-btn crucible-note-save" data-source-id="' +
+              src.id +
+              '">' +
+              escHtml(crucibleT('save', 'Save')) +
+              '</button>' +
             '</div>') +
           '</div>' +
         '</div>';
@@ -474,12 +560,26 @@
 
     /* action bar */
     html += '<div class="crucible-action-bar">' +
-      '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn"' + (fullLibraryMode ? ' disabled' : '') + '>Add a Source</button>' +
+      '<button type="button" class="crucible-add-btn" id="crucible-add-source-btn"' +
+      (fullLibraryMode ? ' disabled' : '') +
+      '>' +
+      escHtml(crucibleT('addSource', 'Add a Source')) +
+      '</button>' +
       '<div class="crucible-paper-toggle-wrap">' +
-        '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle' + (fullLibraryMode ? ' anvil-paper-toggle--disabled' : '') + '" role="switch" aria-checked="' + (notesLightMode ? 'true' : 'false') + '"' + (fullLibraryMode ? ' disabled' : '') + ' title="Toggle light/dark notes mode">' +
+        '<button type="button" id="crucible-paper-toggle" class="anvil-paper-toggle' +
+      (fullLibraryMode ? ' anvil-paper-toggle--disabled' : '') +
+      '" role="switch" aria-checked="' +
+      (notesLightMode ? 'true' : 'false') +
+      '"' +
+      (fullLibraryMode ? ' disabled' : '') +
+      ' title="' +
+      escHtml(crucibleT('toggleNotesMode', 'Toggle light/dark notes mode')) +
+      '">' +
           '<span class="anvil-paper-toggle__track"><span class="anvil-paper-toggle__thumb"></span></span>' +
         '</button>' +
-        '<span id="crucible-paper-hint" class="anvil-paper-toggle__hint">' + (notesLightMode ? 'LIGHT MODE' : 'DARK MODE') + '</span>' +
+        '<span id="crucible-paper-hint" class="anvil-paper-toggle__hint">' +
+      (notesLightMode ? escHtml(crucibleT('lightMode', 'Light mode')) : escHtml(crucibleT('darkMode', 'Dark mode'))) +
+      '</span>' +
       '</div>' +
     '</div>';
 
@@ -573,8 +673,10 @@
         api('PATCH', '/sources/' + sid, { crucible_notes: notesHtml }).then(function (d) {
           var idx = sources.findIndex(function (s) { return s.id === d.source.id; });
           if (idx !== -1) sources[idx] = d.source;
-          btn.textContent = 'Saved!';
-          setTimeout(function () { btn.textContent = 'Save'; }, 1500);
+          btn.textContent = crucibleT('savedFlash', 'Saved!');
+          setTimeout(function () {
+            btn.textContent = crucibleT('save', 'Save');
+          }, 1500);
         }).catch(function (e) { openAlertModal(e.message); });
       });
     });
@@ -590,7 +692,11 @@
       localStorage.setItem('crucible-notes-light', notesLightMode ? '1' : '0');
       paperToggle.setAttribute('aria-checked', notesLightMode ? 'true' : 'false');
       var hint = document.getElementById('crucible-paper-hint');
-      if (hint) hint.textContent = notesLightMode ? 'LIGHT MODE' : 'DARK MODE';
+      if (hint) {
+        hint.textContent = notesLightMode
+          ? crucibleT('lightMode', 'Light mode')
+          : crucibleT('darkMode', 'Dark mode');
+      }
       root.querySelectorAll('.crucible-note-tile').forEach(function (t) {
         if (notesLightMode) t.classList.add('crucible-note-tile--light');
         else t.classList.remove('crucible-note-tile--light');
@@ -607,12 +713,20 @@
     modal.className = 'crucible-modal crucible-modal--sm';
 
     modal.innerHTML =
-      '<div class="crucible-modal__header"><h2>Delete Source</h2>' +
+      '<div class="crucible-modal__header"><h2>' +
+      escHtml(crucibleT('deleteSourceTitle', 'Delete Source')) +
+      '</h2>' +
         '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>' +
-      '<div class="crucible-modal__body"><p>Are you sure you want to delete this source? This cannot be undone.</p></div>' +
+      '<div class="crucible-modal__body"><p>' +
+      escHtml(crucibleT('deleteSourceConfirm', 'Are you sure you want to delete this source? This cannot be undone.')) +
+      '</p></div>' +
       '<div class="crucible-modal__footer">' +
-        '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-delete-cancel">Cancel</button>' +
-        '<button type="button" class="crucible-btn crucible-btn--danger" id="crucible-delete-confirm">Delete</button>' +
+        '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-delete-cancel">' +
+      escHtml(commonT('cancel', 'Cancel')) +
+      '</button>' +
+        '<button type="button" class="crucible-btn crucible-btn--danger" id="crucible-delete-confirm">' +
+      escHtml(crucibleT('delete', 'Delete')) +
+      '</button>' +
       '</div>';
 
     overlay.appendChild(modal);
@@ -640,11 +754,15 @@
     modal.className = 'crucible-modal crucible-modal--sm';
 
     modal.innerHTML =
-      '<div class="crucible-modal__header"><h2>Notice</h2>' +
+      '<div class="crucible-modal__header"><h2>' +
+      escHtml(crucibleT('notice', 'Notice')) +
+      '</h2>' +
         '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>' +
       '<div class="crucible-modal__body"><p>' + escHtml(message) + '</p></div>' +
       '<div class="crucible-modal__footer">' +
-        '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-alert-ok">OK</button>' +
+        '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-alert-ok">' +
+      escHtml(commonT('ok', 'OK')) +
+      '</button>' +
       '</div>';
 
     overlay.appendChild(modal);
@@ -659,7 +777,7 @@
   function openTagFilterModal() {
     closeModal();
     if (!allTags.length) {
-      openAlertModal('No tags have been created yet. Add tags to your sources to use this filter.');
+      openAlertModal(crucibleT('noTagsYet', 'No tags have been created yet. Add tags to your sources to use this filter.'));
       return;
     }
 
@@ -668,7 +786,10 @@
     var modal = document.createElement('div');
     modal.className = 'crucible-modal crucible-modal--sm';
 
-    var html = '<div class="crucible-modal__header"><h2>Filter by Tag</h2><button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
+    var html =
+      '<div class="crucible-modal__header"><h2>' +
+      escHtml(crucibleT('filterByTagTitle', 'Filter by Tag')) +
+      '</h2><button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
     html += '<div class="crucible-modal__body">';
     html += '<div class="crucible-tag-filter-list">';
     allTags.forEach(function (tag) {
@@ -678,8 +799,12 @@
     html += '</div>';
     html += '</div>';
     html += '<div class="crucible-modal__footer">' +
-      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-tag-clear">Clear all</button>' +
-      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-tag-apply">Apply</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-tag-clear">' +
+      escHtml(crucibleT('clearAll', 'Clear all')) +
+      '</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-tag-apply">' +
+      escHtml(crucibleT('apply', 'Apply')) +
+      '</button>' +
     '</div>';
 
     modal.innerHTML = html;
@@ -720,70 +845,182 @@
 
     var sourceTypeOpts = ['', 'journal', 'book', 'chapter', 'conference'].map(function (t) {
       var sel = (v.source_type || '') === t ? ' selected' : '';
-      var label = t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Auto-detect';
-      return '<option value="' + t + '"' + sel + '>' + label + '</option>';
+      var key =
+        t === ''
+          ? 'sourceTypeAuto'
+          : t === 'journal'
+            ? 'sourceTypeJournal'
+            : t === 'book'
+              ? 'sourceTypeBook'
+              : t === 'chapter'
+                ? 'sourceTypeChapter'
+                : 'sourceTypeConference';
+      var fb = t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Auto-detect';
+      var label = crucibleT(key, fb);
+      return '<option value="' + t + '"' + sel + '>' + escHtml(label) + '</option>';
     }).join('');
 
-    var html = '<div class="crucible-modal__header"><h2>' + (isEdit ? 'Edit Source' : 'Add a Source') + '</h2>' +
+    var html =
+      '<div class="crucible-modal__header"><h2>' +
+      escHtml(isEdit ? crucibleT('editSourceTitle', 'Edit Source') : crucibleT('addSourceModalTitle', 'Add a Source')) +
+      '</h2>' +
       '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
     html += '<form id="crucible-source-form" class="crucible-modal__body">';
 
-    html += '<div class="crucible-form-row crucible-form-row--half">' +
-      '<label>Source Type:<select name="source_type" id="crucible-source-type" class="crucible-select crucible-select--full">' + sourceTypeOpts + '</select></label>' +
-      '<label>Publication Date:<input type="text" name="publication_date" value="' + escHtml(v.publication_date || '') + '" placeholder="e.g. 2024"></label>' +
-    '</div>';
+    html +=
+      '<div class="crucible-form-row crucible-form-row--half">' +
+      '<label>' +
+      escHtml(crucibleT('sourceTypeLabel', 'Source Type:')) +
+      '<select name="source_type" id="crucible-source-type" class="crucible-select crucible-select--full">' +
+      sourceTypeOpts +
+      '</select></label>' +
+      '<label>' +
+      escHtml(crucibleT('publicationDateLabel', 'Publication Date:')) +
+      '<input type="text" name="publication_date" value="' +
+      escHtml(v.publication_date || '') +
+      '" placeholder="' +
+      escHtml(crucibleT('pubDatePlaceholder', 'e.g. 2024')) +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Author(s): <span class="crucible-hint">(separate by semicolon)</span><input type="text" name="authors" value="' + escHtml(v.authors || '') + '" placeholder="e.g. John Smith; Jane Doe or Smith, John; Doe, Jane"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('authorsLabel', 'Author(s):')) +
+      ' <span class="crucible-hint">' +
+      escHtml(crucibleT('authorsHint', '(separate by semicolon)')) +
+      '</span><input type="text" name="authors" value="' +
+      escHtml(v.authors || '') +
+      '" placeholder="' +
+      escHtml(crucibleT('authorsPlaceholder', 'e.g. John Smith; Jane Doe or Smith, John; Doe, Jane')) +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Article / Work Title:<input type="text" name="article_title" value="' + escHtml(v.article_title || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('articleTitleLabel', 'Article / Work Title:')) +
+      '<input type="text" name="article_title" value="' +
+      escHtml(v.article_title || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row" data-field-group="journal">' +
-      '<label>Journal / Publication Title:<input type="text" name="journal_title" value="' + escHtml(v.journal_title || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('journalTitleLabel', 'Journal / Publication Title:')) +
+      '<input type="text" name="journal_title" value="' +
+      escHtml(v.journal_title || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row" data-field-group="chapter">' +
-      '<label>Book Title:<input type="text" name="book_title" value="' + escHtml(v.book_title || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('bookTitleLabel', 'Book Title:')) +
+      '<input type="text" name="book_title" value="' +
+      escHtml(v.book_title || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row crucible-form-row--third" data-field-group="journal">' +
-      '<label>Volume:<input type="text" name="volume_number" value="' + escHtml(v.volume_number || '') + '"></label>' +
-      '<label>Issue:<input type="text" name="issue_number" value="' + escHtml(v.issue_number || '') + '"></label>' +
-      '<label>Page(s):<input type="text" name="page_numbers" value="' + escHtml(v.page_numbers || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('volumeLabel', 'Volume:')) +
+      '<input type="text" name="volume_number" value="' +
+      escHtml(v.volume_number || '') +
+      '"></label>' +
+      '<label>' +
+      escHtml(crucibleT('issueLabel', 'Issue:')) +
+      '<input type="text" name="issue_number" value="' +
+      escHtml(v.issue_number || '') +
+      '"></label>' +
+      '<label>' +
+      escHtml(crucibleT('pagesLabel', 'Page(s):')) +
+      '<input type="text" name="page_numbers" value="' +
+      escHtml(v.page_numbers || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row" data-field-group="pages-only" style="display:none">' +
-      '<label>Page(s):<input type="text" name="page_numbers_alt" value="' + escHtml(v.page_numbers || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('pagesLabel', 'Page(s):')) +
+      '<input type="text" name="page_numbers_alt" value="' +
+      escHtml(v.page_numbers || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>DOI:<input type="text" name="doi" value="' + escHtml(v.doi || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('doiLabel', 'DOI:')) +
+      '<input type="text" name="doi" value="' +
+      escHtml(v.doi || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="publisher">' +
-      '<label>Publisher:<input type="text" name="publisher" value="' + escHtml(v.publisher || '') + '"></label>' +
-      '<label>Publisher Location:<input type="text" name="publisher_location" value="' + escHtml(v.publisher_location || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('publisherLabel', 'Publisher:')) +
+      '<input type="text" name="publisher" value="' +
+      escHtml(v.publisher || '') +
+      '"></label>' +
+      '<label>' +
+      escHtml(crucibleT('publisherLocationLabel', 'Publisher Location:')) +
+      '<input type="text" name="publisher_location" value="' +
+      escHtml(v.publisher_location || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row crucible-form-row--half" data-field-group="edition">' +
-      '<label>Edition: <span class="crucible-hint">(e.g. 2nd ed.)</span><input type="text" name="edition" value="' + escHtml(v.edition || '') + '"></label>' +
-      '<label>Editors: <span class="crucible-hint">(semicolon separated)</span><input type="text" name="editors" value="' + escHtml(v.editors || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('editionLabel', 'Edition:')) +
+      ' <span class="crucible-hint">' +
+      escHtml(crucibleT('editionHint', '(e.g. 2nd ed.)')) +
+      '</span><input type="text" name="edition" value="' +
+      escHtml(v.edition || '') +
+      '"></label>' +
+      '<label>' +
+      escHtml(crucibleT('editorsLabel', 'Editors:')) +
+      ' <span class="crucible-hint">' +
+      escHtml(crucibleT('editorsHint', '(semicolon separated)')) +
+      '</span><input type="text" name="editors" value="' +
+      escHtml(v.editors || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row" data-field-group="chapter">' +
-      '<label>Chapter Name:<input type="text" name="chapter_name" value="' + escHtml(v.chapter_name || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('chapterNameLabel', 'Chapter Name:')) +
+      '<input type="text" name="chapter_name" value="' +
+      escHtml(v.chapter_name || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row" data-field-group="conference">' +
-      '<label>Conference Name:<input type="text" name="conference_name" value="' + escHtml(v.conference_name || '') + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('conferenceNameLabel', 'Conference Name:')) +
+      '<input type="text" name="conference_name" value="' +
+      escHtml(v.conference_name || '') +
+      '"></label>' +
+      '</div>';
     html += '<div class="crucible-form-row">' +
-      '<label>Tags: <span class="crucible-hint">(comma separated)</span><input type="text" name="tags" value="' + escHtml((v.tags || []).join(', ')) + '"></label>' +
-    '</div>';
+      '<label>' +
+      escHtml(crucibleT('tagsLabel', 'Tags:')) +
+      ' <span class="crucible-hint">' +
+      escHtml(crucibleT('tagsHint', '(comma separated)')) +
+      '</span><input type="text" name="tags" value="' +
+      escHtml((v.tags || []).join(', ')) +
+      '"></label>' +
+      '</div>';
     if (assignableSections.length) {
-      html += '<div class="crucible-form-row"><span class="crucible-field-label">Applicable Sections:</span>' +
+      html +=
+        '<div class="crucible-form-row"><span class="crucible-field-label">' +
+        escHtml(crucibleT('applicableSectionsLabel', 'Applicable Sections:')) +
+        '</span>' +
         '<div class="crucible-section-checks">' +
-        '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong class="crucible-select-all-text">Select All</strong></label>' +
-        sectionChecks + '</div></div>';
+        '<label class="crucible-section-check crucible-section-check--all"><input type="checkbox" id="crucible-select-all-sections"> <strong class="crucible-select-all-text">' +
+        escHtml(crucibleT('selectAllSections', 'Select All')) +
+        '</strong></label>' +
+        sectionChecks +
+        '</div></div>';
     }
 
     html += '</form>';
-    html += '<div class="crucible-modal__footer">' +
-      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-modal-cancel">Cancel</button>' +
-      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-modal-save">' + (isEdit ? 'Save Changes' : 'Add Source') + '</button>' +
-    '</div>';
+    html +=
+      '<div class="crucible-modal__footer">' +
+      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-modal-cancel">' +
+      escHtml(commonT('cancel', 'Cancel')) +
+      '</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-modal-save">' +
+      escHtml(
+        isEdit ? crucibleT('saveChanges', 'Save Changes') : crucibleT('addSourceSubmit', 'Add Source')
+      ) +
+      '</button>' +
+      '</div>';
 
     modal.innerHTML = html;
     overlay.appendChild(modal);
@@ -940,7 +1177,7 @@
 
   function trackSuggestedSource(paper, btn) {
     btn.disabled = true;
-    btn.textContent = 'Adding…';
+    btn.textContent = crucibleT('adding', 'Adding…');
     var allAuthors = (paper.authors || []).join('; ');
     var sourceType = mapS2TypeToSourceType(paper.publicationTypes);
     var payload = {
@@ -964,12 +1201,14 @@
       sources.push(d.source);
       collectAllTags();
       render();
-      btn.textContent = 'Tracked ✓';
+      btn.textContent = crucibleT('tracked', 'Tracked ✓');
       btn.classList.add('crucible-sug-track-btn--done');
     }).catch(function (e) {
       btn.disabled = false;
-      btn.textContent = '+ Track Source';
-      openAlertModal('Could not add source: ' + (e.message || 'unknown error'));
+      btn.textContent = crucibleT('trackSource', '+ Track Source');
+      openAlertModal(
+        crucibleTv('couldNotAddSource', { message: e.message || 'unknown error' }, 'Could not add source: {message}')
+      );
     });
   }
 
@@ -1018,7 +1257,7 @@
     var html = '';
     filtered.forEach(function (p, idx) {
       var authors = (p.authors || []).slice(0, 3).join(', ');
-      if (p.authors && p.authors.length > 3) authors += ' et al.';
+      if (p.authors && p.authors.length > 3) authors += crucibleT('etAlSuffix', ' et al.');
       html += '<div class="crucible-sug-card" data-filt-idx="' + idx + '">';
       html += '<div class="crucible-sug-card__title">';
       if (p.url) html += '<a href="' + escHtml(p.url) + '" target="_blank" rel="noopener">' + escHtml(p.title) + '</a>';
@@ -1027,10 +1266,19 @@
       if (authors) html += '<div class="crucible-sug-card__authors">' + escHtml(authors) + '</div>';
       var meta = [];
       if (p.year) meta.push(String(p.year));
-      if (p.citationCount != null) meta.push(p.citationCount + ' citations');
+      if (p.citationCount != null) {
+        meta.push(
+          crucibleTv('citationsMeta', { n: p.citationCount }, '{n} citations')
+        );
+      }
       if (meta.length) html += '<div class="crucible-sug-card__meta">' + escHtml(meta.join(' · ')) + '</div>';
       if (p.abstract) html += '<div class="crucible-sug-card__abstract">' + escHtml(p.abstract) + '</div>';
-      html += '<button type="button" class="crucible-sug-track-btn" data-filt-idx="' + idx + '">+ Track Source</button>';
+      html +=
+        '<button type="button" class="crucible-sug-track-btn" data-filt-idx="' +
+        idx +
+        '">' +
+        escHtml(crucibleT('trackSource', '+ Track Source')) +
+        '</button>';
       html += '</div>';
     });
     panel.innerHTML = html;
@@ -1053,7 +1301,10 @@
         '</div>';
       return;
     }
-    panel.innerHTML = '<div class="crucible-sug-loading">Searching for related papers…</div>';
+    panel.innerHTML =
+      '<div class="crucible-sug-loading">' +
+      escHtml(crucibleT('searchingRelated', 'Searching for related papers…')) +
+      '</div>';
     var q = keywords.join(',');
     fetch('/api/projects/' + projectId + '/sources/search-scholar?q=' + encodeURIComponent(q) + '&limit=20', {
       credentials: 'same-origin'
@@ -1083,7 +1334,12 @@
     if (!titles.length && !tags.length) return;
 
     var panel = document.getElementById('crucible-suggestions');
-    if (panel) panel.innerHTML = '<div class="crucible-sug-loading">Analyzing source for keywords…</div>';
+    if (panel) {
+      panel.innerHTML =
+        '<div class="crucible-sug-loading">' +
+        escHtml(crucibleT('analyzingKeywordsOne', 'Analyzing source for keywords…')) +
+        '</div>';
+    }
 
     api('POST', '/sources/extract-keywords', { titles: titles, tags: tags })
       .then(function (d) {
@@ -1119,7 +1375,12 @@
       return;
     }
     var panel = document.getElementById('crucible-suggestions');
-    if (panel) panel.innerHTML = '<div class="crucible-sug-loading">Analyzing sources for keywords…</div>';
+    if (panel) {
+      panel.innerHTML =
+        '<div class="crucible-sug-loading">' +
+        escHtml(crucibleT('analyzingKeywordsAll', 'Analyzing sources for keywords…')) +
+        '</div>';
+    }
 
     api('POST', '/sources/extract-keywords', { titles: data.titles, tags: data.tags })
       .then(function (d) {
@@ -1141,18 +1402,41 @@
 
     var existing = (customSearchTerms || []).join(', ');
 
-    var html = '<div class="crucible-modal__header"><h2>Custom Source Search</h2>' +
+    var html =
+      '<div class="crucible-modal__header"><h2>' +
+      escHtml(crucibleT('customSearchTitle', 'Custom Source Search')) +
+      '</h2>' +
       '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
     html += '<div class="crucible-modal__body">';
-    html += '<p class="crucible-custom-search-hint">Enter search terms to find related papers. Separate multiple terms with commas.</p>';
+    html +=
+      '<p class="crucible-custom-search-hint">' +
+      escHtml(
+        crucibleT(
+          'customSearchHint',
+          'Enter search terms to find related papers. Separate multiple terms with commas.'
+        )
+      ) +
+      '</p>';
     html += '<div class="crucible-form-row">' +
-      '<label>Search Terms:<textarea id="crucible-custom-terms" class="crucible-custom-terms-input" rows="4" placeholder="e.g. machine learning, neural networks, deep learning">' + escHtml(existing) + '</textarea></label>' +
+      '<label>' +
+      escHtml(crucibleT('searchTerms', 'Search Terms:')) +
+      '<textarea id="crucible-custom-terms" class="crucible-custom-terms-input" rows="4" placeholder="' +
+      escHtml(crucibleT('searchPlaceholder', 'e.g. machine learning, neural networks, deep learning')) +
+      '">' +
+      escHtml(existing) +
+      '</textarea></label>' +
     '</div>';
     html += '</div>';
     html += '<div class="crucible-modal__footer">' +
-      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-custom-reset">Reset to Sources</button>' +
-      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-modal-cancel">Cancel</button>' +
-      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-custom-search">Search</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-custom-reset">' +
+      escHtml(crucibleT('resetToSources', 'Reset to Sources')) +
+      '</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--secondary" id="crucible-modal-cancel">' +
+      escHtml(commonT('cancel', 'Cancel')) +
+      '</button>' +
+      '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-custom-search">' +
+      escHtml(crucibleT('search', 'Search')) +
+      '</button>' +
     '</div>';
 
     modal.innerHTML = html;
@@ -1167,7 +1451,7 @@
       var raw = document.getElementById('crucible-custom-terms').value || '';
       var terms = raw.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
       if (!terms.length) {
-        openAlertModal('Please enter at least one search term.');
+        openAlertModal(crucibleT('enterSearchTerm', 'Please enter at least one search term.'));
         return;
       }
       customSearchTerms = terms;
@@ -1214,25 +1498,39 @@
         var modal = document.createElement('div');
         modal.className = 'crucible-modal';
 
-        var html = '<div class="crucible-modal__header"><h2>Citation Uses</h2>' +
+        var html =
+          '<div class="crucible-modal__header"><h2>' +
+          escHtml(crucibleT('citationUsesTitle', 'Citation Uses')) +
+          '</h2>' +
           '<button type="button" class="crucible-modal__close" id="crucible-modal-close">&times;</button></div>';
         html += '<div class="crucible-modal__body">';
         if (!usages.length) {
-          html += '<p>No recorded usages for this citation.</p>';
+          html +=
+            '<p>' +
+            escHtml(crucibleT('noRecordedUsages', 'No recorded usages for this citation.')) +
+            '</p>';
         } else {
           usages.forEach(function (u) {
             html += '<div class="crucible-usage-item">';
             if (fullLibraryMode) {
-              html += '<strong style="color:#2f80ec">' + escHtml(u.project_name || 'Project') + ':</strong> ';
+              html +=
+                '<strong style="color:#2f80ec">' +
+                escHtml(u.project_name || crucibleT('projectFallback', 'Project')) +
+                ':</strong> ';
             }
-            html += '<strong style="color:#1abac4">' + escHtml(u.section_title || 'Section') + ':</strong> ';
+            html +=
+              '<strong style="color:#1abac4">' +
+              escHtml(u.section_title || crucibleT('sectionFallback', 'Section')) +
+              ':</strong> ';
             html += '"' + escHtml(u.context_excerpt || u.cite_marker || '') + '"';
             html += '</div>';
           });
         }
         html += '</div>';
         html += '<div class="crucible-modal__footer">' +
-          '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-modal-cancel">Close</button>' +
+          '<button type="button" class="crucible-btn crucible-btn--primary" id="crucible-modal-cancel">' +
+          escHtml(crucibleT('close', 'Close')) +
+          '</button>' +
         '</div>';
 
         modal.innerHTML = html;
@@ -1243,7 +1541,9 @@
         document.getElementById('crucible-modal-cancel').addEventListener('click', closeModal);
       })
       .catch(function (e) {
-        openAlertModal('Could not load usages: ' + (e.message || 'unknown error'));
+        openAlertModal(
+          crucibleTv('couldNotLoadUsages', { message: e.message || 'unknown error' }, 'Could not load usages: {message}')
+        );
       });
   }
 
@@ -1251,7 +1551,7 @@
 
   function addOtherSourceToCurrentProject(src, btn) {
     btn.disabled = true;
-    btn.textContent = 'Adding…';
+    btn.textContent = crucibleT('adding', 'Adding…');
     var payload = {
       article_title: src.article_title || '',
       authors: src.authors || '',
@@ -1277,12 +1577,14 @@
     };
     api('POST', '/sources', payload).then(function (d) {
       projectSources.push(d.source);
-      btn.textContent = 'Added ✓';
+      btn.textContent = crucibleT('added', 'Added ✓');
       btn.classList.add('crucible-add-to-project-btn--done');
     }).catch(function (e) {
       btn.disabled = false;
-      btn.textContent = '+ Add to Current Project';
-      openAlertModal('Could not add source: ' + (e.message || 'unknown error'));
+      btn.textContent = crucibleT('addToProject', '+ Add to Current Project');
+      openAlertModal(
+        crucibleTv('couldNotAddSource', { message: e.message || 'unknown error' }, 'Could not add source: {message}')
+      );
     });
   }
 
@@ -1310,7 +1612,12 @@
     fullLibraryMode = enabled;
     if (enabled) {
       projectSources = sources.slice();
-      openAlertModal('The Suggested Source feature, the ability to add sources, and the research plan are not available while viewing all tracked sources across all research projects.');
+      openAlertModal(
+        crucibleT(
+          'fullLibraryWarning',
+          'The Suggested Source feature, the ability to add sources, and the research plan are not available while viewing all tracked sources across all research projects.'
+        )
+      );
       var sugPanel = document.getElementById('crucible-suggestions');
       if (sugPanel)
         sugPanel.innerHTML =
@@ -1321,7 +1628,17 @@
           ) +
           '</div>';
       var rpPanel = document.getElementById('crucible-research-plan');
-      if (rpPanel) rpPanel.innerHTML = '<div class="crucible-rp-empty">Research Planning is paused while viewing the full source library.</div>';
+      if (rpPanel) {
+        rpPanel.innerHTML =
+          '<div class="crucible-rp-empty">' +
+          escHtml(
+            crucibleT(
+              'researchPlanPaused',
+              'Research Planning is paused while viewing the full source library.'
+            )
+          ) +
+          '</div>';
+      }
 
       fetch('/api/sources/all', { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
@@ -1331,7 +1648,13 @@
           collectAllTags();
           render();
         }).catch(function (e) {
-          openAlertModal('Could not load full library: ' + (e.message || 'unknown error'));
+          openAlertModal(
+            crucibleTv(
+              'couldNotLoadLibrary',
+              { message: e.message || 'unknown error' },
+              'Could not load full library: {message}'
+            )
+          );
           fullLibraryMode = false;
           sources = projectSources;
           render();
@@ -1362,24 +1685,64 @@
       return it.status !== 'dismissed';
     });
     if (!visible.length) {
-      panel.innerHTML = '<div class="crucible-rp-empty">No research plan items.</div>';
+      panel.innerHTML =
+        '<div class="crucible-rp-empty">' +
+        escHtml(crucibleT('noResearchPlanItems', 'No research plan items.')) +
+        '</div>';
       return;
     }
     var html = '';
     visible.forEach(function (it) {
       var statusClass = it.status === 'resolved' ? 'crucible-rp-tile--resolved' : '';
       html += '<div class="crucible-rp-tile ' + statusClass + '" data-rp-id="' + it.id + '">';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Section:</span> ' + escHtml(it.section_title || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Context:</span> ' + escHtml(it.suggestion_body || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Key Words:</span> ' + escHtml(it.keywords || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Research Needed:</span> ' + escHtml(it.research_needed || '—') + '</div>';
-      html += '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">Status:</span> <span class="crucible-rp-status crucible-rp-status--' + escHtml(it.status) + '">' + escHtml(it.status.charAt(0).toUpperCase() + it.status.slice(1)) + '</span></div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escHtml(crucibleT('rpSection', 'Section:')) +
+        '</span> ' +
+        escHtml(it.section_title || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escHtml(crucibleT('rpContext', 'Context:')) +
+        '</span> ' +
+        escHtml(it.suggestion_body || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escHtml(crucibleT('rpKeywords', 'Key Words:')) +
+        '</span> ' +
+        escHtml(it.keywords || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escHtml(crucibleT('rpResearchNeeded', 'Research Needed:')) +
+        '</span> ' +
+        escHtml(it.research_needed || '—') +
+        '</div>';
+      html +=
+        '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
+        escHtml(crucibleT('rpStatus', 'Status:')) +
+        '</span> <span class="crucible-rp-status crucible-rp-status--' +
+        escHtml(it.status) +
+        '">' +
+        escHtml(it.status.charAt(0).toUpperCase() + it.status.slice(1)) +
+        '</span></div>';
       html += '<div class="crucible-rp-tile__actions">';
       if (it.status !== 'resolved') {
-        html += '<button type="button" class="crucible-rp-btn crucible-rp-btn--resolve" data-rp-id="' + it.id + '">Resolve</button>';
+        html +=
+          '<button type="button" class="crucible-rp-btn crucible-rp-btn--resolve" data-rp-id="' +
+          it.id +
+          '">' +
+          escHtml(crucibleT('resolve', 'Resolve')) +
+          '</button>';
       }
       if (it.status !== 'dismissed') {
-        html += '<button type="button" class="crucible-rp-btn crucible-rp-btn--dismiss" data-rp-id="' + it.id + '">Dismiss</button>';
+        html +=
+          '<button type="button" class="crucible-rp-btn crucible-rp-btn--dismiss" data-rp-id="' +
+          it.id +
+          '">' +
+          escHtml(crucibleT('dismiss', 'Dismiss')) +
+          '</button>';
       }
       html += '</div>';
       html += '</div>';
@@ -1408,7 +1771,13 @@
       }
       renderResearchPlan();
     }).catch(function (e) {
-      openAlertModal('Could not update status: ' + (e.message || 'unknown error'));
+      openAlertModal(
+        crucibleTv(
+          'couldNotUpdateRpStatus',
+          { message: e.message || 'unknown error' },
+          'Could not update status: {message}'
+        )
+      );
     });
   }
 
@@ -1429,7 +1798,12 @@
       render();
     } catch (renderErr) {
       console.error('[Crucible] render() error:', renderErr);
-      root.innerHTML = '<div class="crucible-empty">Failed to render sources: ' + escHtml(renderErr.message) + '</div>';
+      root.innerHTML =
+        '<div class="crucible-empty">' +
+        escHtml(
+          crucibleTv('renderSourcesFailed', { message: renderErr.message || '' }, 'Failed to render sources: {message}')
+        ) +
+        '</div>';
       return;
     }
 
@@ -1449,6 +1823,9 @@
     loadCitationUsageCounts();
   }).catch(function (e) {
     console.error('[Crucible] Failed to load sources:', e);
-    root.innerHTML = '<div class="crucible-empty">Failed to load sources: ' + escHtml(e.message) + '</div>';
+    root.innerHTML =
+      '<div class="crucible-empty">' +
+      escHtml(crucibleTv('loadSourcesFailed', { message: e.message || '' }, 'Failed to load sources: {message}')) +
+      '</div>';
   });
 })();

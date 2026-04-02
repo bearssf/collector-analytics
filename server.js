@@ -888,7 +888,8 @@ app.get(
         billingHistory = await fetchBillingHistoryForCustomer(
           stripe,
           subscriptionRow.stripe_customer_id,
-          30
+          30,
+          req.locale || 'en'
         );
       } catch (err) {
         console.error('[account] billing history:', err.message || err);
