@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= typeof htmlLang !== 'undefined' ? htmlLang : 'en' %>" dir="<%= typeof textDir !== 'undefined' ? textDir : 'ltr' %>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create account – AcademiqForge</title>
+  <title><%= t('register.pageTitle') %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -247,117 +247,124 @@
         <div class="brand-mark" aria-hidden="true"><span></span></div>
         <span class="brand-name">AcademiqForge</span>
       </a>
-      <a href="/" class="topbar-link">← Home</a>
+      <a href="/" class="topbar-link"><%= t('register.topLinkHome') %></a>
     </header>
 
     <div class="card">
-      <h1>Create account</h1>
+      <h1><%= t('register.title') %></h1>
       <% if (error) { %><p class="error"><%= error %></p><% } %>
       <form action="/register" method="post" autocomplete="off" id="reg-form">
         <div class="form-group">
-          <label for="title">Title *</label>
+          <label for="title"><%= t('register.titleLabel') %><%= t('register.requiredStar') %></label>
           <select id="title" name="title" required>
-            <option value="" disabled <%= !form.title ? 'selected' : '' %>>Select…</option>
+            <option value="" disabled <%= !form.title ? 'selected' : '' %>><%= t('project.select') %></option>
             <% (typeof allowedTitles !== 'undefined' ? allowedTitles : ['mr', 'mrs', 'ms', 'miss', 'mx', 'dr']).forEach(function (tk) { %>
-              <option value="<%= tk %>" <%= form.title === tk ? 'selected' : '' %>><%= typeof t !== 'undefined' ? t('accountTitles.' + tk) : tk %></option>
+              <option value="<%= tk %>" <%= form.title === tk ? 'selected' : '' %>><%= t('accountTitles.' + tk) %></option>
             <% }); %>
           </select>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="firstName">First name *</label>
-            <input type="text" id="firstName" name="firstName" required placeholder="First name" value="<%= form.firstName || '' %>" />
+            <label for="firstName"><%= t('register.firstName') %><%= t('register.requiredStar') %></label>
+            <input type="text" id="firstName" name="firstName" required placeholder="<%= t('register.firstNamePlaceholder') %>" value="<%= form.firstName || '' %>" />
           </div>
           <div class="form-group">
-            <label for="lastName">Last name *</label>
-            <input type="text" id="lastName" name="lastName" required placeholder="Last name" value="<%= form.lastName || '' %>" />
+            <label for="lastName"><%= t('register.lastName') %><%= t('register.requiredStar') %></label>
+            <input type="text" id="lastName" name="lastName" required placeholder="<%= t('register.lastNamePlaceholder') %>" value="<%= form.lastName || '' %>" />
           </div>
         </div>
         <div class="form-group">
-          <label for="email">Email *</label>
-          <input type="email" id="email" name="email" required placeholder="you@university.edu" value="<%= form.email || '' %>" autocomplete="email" />
+          <label for="email"><%= t('auth.email') %><%= t('register.requiredStar') %></label>
+          <input type="email" id="email" name="email" required placeholder="<%= t('register.emailPlaceholder') %>" value="<%= form.email || '' %>" autocomplete="email" />
         </div>
         <div class="form-group">
-          <label for="password">Password *</label>
-          <input type="password" id="password" name="password" required placeholder="At least 8 characters" minlength="8" autocomplete="new-password" />
+          <label for="password"><%= t('auth.password') %><%= t('register.requiredStar') %></label>
+          <input type="password" id="password" name="password" required placeholder="<%= t('register.passwordPlaceholder') %>" minlength="8" autocomplete="new-password" />
         </div>
         <div class="form-group">
-          <label for="passwordConfirm">Confirm password *</label>
-          <input type="password" id="passwordConfirm" name="passwordConfirm" required placeholder="Re-enter password" minlength="8" autocomplete="new-password" />
+          <label for="passwordConfirm"><%= t('register.confirmPassword') %><%= t('register.requiredStar') %></label>
+          <input type="password" id="passwordConfirm" name="passwordConfirm" required placeholder="<%= t('register.confirmPasswordPlaceholder') %>" minlength="8" autocomplete="new-password" />
         </div>
 
         <div class="form-group">
-          <label for="university">University <span class="opt">(optional)</span></label>
-          <input type="text" id="university" name="university" list="university-list" placeholder="Type or choose from list" value="<%= form.university || '' %>" />
+          <label for="university"><%= t('register.university') %> <span class="opt"><%= t('register.optionalInParens') %></span></label>
+          <input type="text" id="university" name="university" list="university-list" placeholder="<%= t('register.universityPlaceholder') %>" value="<%= form.university || '' %>" />
           <datalist id="university-list">
             <% universities.forEach(function (u) { %>
               <option value="<%= u %>"></option>
             <% }); %>
           </datalist>
-          <p class="hint">Pick a school from suggestions or type your institution if it isn’t listed.</p>
+          <p class="hint"><%= t('register.universityHint') %></p>
         </div>
         <div class="form-group">
-          <label for="researchFocus">Research focus <span class="opt">(optional)</span></label>
-          <textarea id="researchFocus" name="researchFocus" placeholder="e.g. computational linguistics"><%= form.researchFocus || '' %></textarea>
+          <label for="researchFocus"><%= t('register.researchFocus') %> <span class="opt"><%= t('register.optionalInParens') %></span></label>
+          <textarea id="researchFocus" name="researchFocus" placeholder="<%= t('register.researchFocusPlaceholder') %>"><%= form.researchFocus || '' %></textarea>
         </div>
         <div class="form-group">
-          <label for="preferredSearchEngine">Preferred search engine <span class="opt">(optional)</span></label>
+          <label for="preferredSearchEngine"><%= t('register.preferredSearchEngine') %> <span class="opt"><%= t('register.optionalInParens') %></span></label>
           <select id="preferredSearchEngine" name="preferredSearchEngine">
             <option value="">—</option>
             <% searchEngines.forEach(function (sk) { %>
-              <option value="<%= sk %>" <%= form.preferredSearchEngine === sk ? 'selected' : '' %>><%= typeof t !== 'undefined' ? t('searchEngineOptions.' + sk) : sk %></option>
+              <option value="<%= sk %>" <%= form.preferredSearchEngine === sk ? 'selected' : '' %>><%= t('searchEngineOptions.' + sk) %></option>
             <% }); %>
           </select>
         </div>
 
         <% if (typeof memberSubscribeAvailable !== 'undefined' && memberSubscribeAvailable) { %>
         <fieldset class="register-membership">
-          <legend>Membership</legend>
+          <legend><%= t('register.membershipLegend') %></legend>
           <p class="register-membership-lead">
-            Continue with a free account (includes a trial where applicable), or go straight to paid membership after you create your account.
+            <%= t('register.membershipLead') %>
           </p>
           <label class="register-radio">
             <input type="radio" name="subscribeChoice" value="free" <%= (form.subscribeChoice || 'free') !== 'member' ? 'checked' : '' %> />
-            <span>Free account — I’ll subscribe later if I want</span>
+            <span><%= t('register.subscribeFree') %></span>
           </label>
           <label class="register-radio">
             <input type="radio" name="subscribeChoice" value="member" <%= form.subscribeChoice === 'member' ? 'checked' : '' %> />
-            <span>Subscribe as a member now (secure payment on the next step)</span>
+            <span><%= t('register.subscribeMember') %></span>
           </label>
           <% if (typeof billingPriceMode !== 'undefined' && billingPriceMode === 'dual') { %>
           <div class="register-interval" id="register-interval" aria-live="polite">
-            <span class="register-interval-label">Plan</span>
+            <span class="register-interval-label"><%= t('register.planLabel') %></span>
             <label>
               <input type="radio" name="billingInterval" value="month" <%= (form.billingInterval || 'month') !== 'year' ? 'checked' : '' %> />
-              Monthly
+              <%= t('billing.intervalMonthly') %>
             </label>
             <label>
               <input type="radio" name="billingInterval" value="year" <%= form.billingInterval === 'year' ? 'checked' : '' %> />
-              Yearly
+              <%= t('billing.intervalYearly') %>
             </label>
           </div>
           <% } %>
           <div class="form-group register-promo-wrap" id="register-promo-wrap">
-            <label for="subscribePromo">Promotion code <span class="opt">(optional)</span></label>
-            <input type="text" id="subscribePromo" name="subscribePromo" placeholder="If you have one" value="<%= form.subscribePromo || '' %>" autocomplete="off" />
+            <label for="subscribePromo"><%= t('register.promoLabel') %> <span class="opt"><%= t('register.optionalInParens') %></span></label>
+            <input type="text" id="subscribePromo" name="subscribePromo" placeholder="<%= t('register.promoPlaceholder') %>" value="<%= form.subscribePromo || '' %>" autocomplete="off" />
           </div>
         </fieldset>
         <% } %>
 
-        <button type="submit">Create account</button>
+        <button type="submit"><%= t('register.submit') %></button>
       </form>
     </div>
-    <a href="/" class="back">← Back to home</a>
+    <a href="/" class="back"><%= t('register.backToHome') %></a>
   </div>
+  <% var _regAlert = JSON.stringify({ alertPasswordMismatch: t('register.alertPasswordMismatch') }).replace(/</g, '\\u003c'); %>
+  <script type="application/json" id="register-i18n"><%- _regAlert %></script>
   <script>
     (function () {
+      var i18n = { alertPasswordMismatch: 'Password and confirmation must match.' };
+      var el = document.getElementById('register-i18n');
+      if (el && el.textContent) {
+        try { i18n = Object.assign(i18n, JSON.parse(el.textContent)); } catch (e) {}
+      }
       var form = document.getElementById('reg-form');
       var p1 = document.getElementById('password');
       var p2 = document.getElementById('passwordConfirm');
       form.addEventListener('submit', function (e) {
         if (p1.value !== p2.value) {
           e.preventDefault();
-          alert('Password and confirmation must match.');
+          alert(i18n.alertPasswordMismatch);
         }
       });
 

@@ -1343,25 +1343,26 @@ app.post('/register', async (req, res) => {
     subscribePromo,
   };
 
-  const renderErr = (msg) =>
+  const t = res.locals.t;
+  const renderErr = (key) =>
     res.render('register', {
-      error: msg,
+      error: t(key),
       ...registerPageLocals(form),
     });
 
   if (!form.title || !isAllowedTitleKey(form.title)) {
-    return renderErr('Please select a valid title.');
+    return renderErr('register.errorInvalidTitle');
   }
   if (!form.firstName || !form.lastName || !form.email) {
-    return renderErr('First name, last name, and email are required.');
+    return renderErr('register.errorRequiredFields');
   }
   const pw = password || '';
   const pw2 = passwordConfirm || '';
   if (pw.length < 8) {
-    return renderErr('Password must be at least 8 characters.');
+    return renderErr('register.errorPasswordShort');
   }
   if (pw !== pw2) {
-    return renderErr('Password and confirmation do not match.');
+    return renderErr('register.errorPasswordMismatch');
   }
 
   const uni = form.university || null;
@@ -1423,10 +1424,10 @@ app.post('/register', async (req, res) => {
     return res.redirect('/app/dashboard');
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
-      return renderErr('An account with that email already exists.');
+      return renderErr('register.errorDuplicateEmail');
     }
     console.error('Register error:', err.message);
-    return renderErr('Registration failed. Please try again.');
+    return renderErr('register.errorGeneric');
   }
 });
 

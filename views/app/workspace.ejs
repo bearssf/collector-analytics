@@ -32,13 +32,13 @@
       <% } else if (phaseSlug === 'framework') { %>
         <p class="sub"><%- t('workspace.frameworkSub', { project: projectTitle }) %></p>
       <% } else if (phaseSlug !== 'anvil') { %>
-        <p class="sub"><%= projectTitle %> — center canvas placeholder. Rich editor, sources, and workflow tools will mount here.</p>
+        <p class="sub"><%= t('workspace.genericPhaseSub', { project: projectTitle }) %></p>
       <% } %>
 
       <% if (foundryLocked) { %>
         <div class="app-paywall" id="tw-foundry-paywall">
-          <h2>The Foundry is for members</h2>
-          <p>The Foundry is not included in the free trial. Subscribe to unlock literature-gap and topic ideation powered by your sources and interests.</p>
+          <h2><%= t('workspace.foundryPaywallTitle') %></h2>
+          <p><%= t('workspace.foundryPaywallBody') %></p>
         </div>
       <% } else if (phaseSlug === 'anvil') { %>
         <div
@@ -59,12 +59,12 @@
         </div>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder" id="tw-framework-workspace">
-          <p style="margin:0 0 .5rem"><strong>Coming soon.</strong> The Framework workspace isn’t wired up yet—we’ll revisit the right experience for outline and evidence here.</p>
-          <p style="margin:0;color:rgba(255,255,255,.55);font-size:.9rem">The Anvil already covers section drafts for this project.</p>
+          <p style="margin:0 0 .5rem"><strong><%= t('workspace.frameworkComingLead') %></strong> <%= t('workspace.frameworkComingBody') %></p>
+          <p style="margin:0;color:rgba(255,255,255,.55);font-size:.9rem"><%= t('workspace.frameworkAnvilNote') %></p>
         </div>
       <% } else { %>
         <div class="app-placeholder" id="tw-foundry-workspace">
-          <strong>Placeholder workspace.</strong> Section-specific writing, capture, or visualization will load here for <code><%= phaseSlug %></code>.
+          <strong><%= t('workspace.placeholderStrong') %></strong> <%= t('workspace.placeholderRest') %> <code><%= phaseSlug %></code>.
         </div>
       <% } %>
     </main>
