@@ -1,4 +1,20 @@
 (function () {
+  const i18nEl = document.getElementById('project-settings-i18n');
+  let i18n = {
+    sumPrefix: 'Current total: ',
+    sumOk: ' ✓',
+    sumMust100: ' (must be 100%)',
+    alertPct100: 'Section percentages must total exactly 100%.',
+    alertSectionName: 'Each section needs a name.',
+  };
+  if (i18nEl && i18nEl.textContent) {
+    try {
+      i18n = Object.assign(i18n, JSON.parse(i18nEl.textContent));
+    } catch (_) {
+      /* keep defaults */
+    }
+  }
+
   const form = document.getElementById('project-settings-form');
   const hidden = document.getElementById('otherSectionsJson');
   const purposeEl = document.getElementById('settings-purpose');
@@ -20,7 +36,8 @@
       const n = parseInt(p.value, 10);
       if (!Number.isNaN(n)) total += n;
     });
-    sumEl.textContent = 'Current total: ' + total + '%' + (total === 100 ? ' ✓' : ' (must be 100%)');
+    sumEl.textContent =
+      i18n.sumPrefix + total + '%' + (total === 100 ? i18n.sumOk : i18n.sumMust100);
     sumEl.style.color = total === 100 ? 'rgba(160, 220, 180, 0.95)' : 'var(--muted)';
   }
 
@@ -55,13 +72,13 @@
     }, 0);
     if (sum !== 100) {
       e.preventDefault();
-      alert('Section percentages must total exactly 100%.');
+      alert(i18n.alertPct100);
       return;
     }
     for (var i = 0; i < arr.length; i++) {
       if (!arr[i].title) {
         e.preventDefault();
-        alert('Each section needs a name.');
+        alert(i18n.alertSectionName);
         return;
       }
     }

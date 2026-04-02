@@ -998,9 +998,16 @@ app.get(
     if (!bundle) return res.status(404).send('Not found');
     const projects = await listProjects(getPool, req.session.userId);
     const tpl = loadTemplates();
-    const templateLabel = tpl[bundle.project.template_key]
-      ? tpl[bundle.project.template_key].label
-      : bundle.project.template_key;
+    const tkUnderscore = String(bundle.project.template_key || '').replace(/-/g, '_');
+    const templateLabelKey = 'projectTemplateLabels.' + tkUnderscore;
+    const templateLabelTranslated = res.locals.t(templateLabelKey);
+    const templateLabelFallback =
+      (tpl[bundle.project.template_key] && tpl[bundle.project.template_key].label) ||
+      bundle.project.template_key;
+    const templateLabel =
+      templateLabelTranslated && templateLabelTranslated !== templateLabelKey
+        ? templateLabelTranslated
+        : templateLabelFallback;
     res.render('app/project-settings', {
       user: req.session.user,
       appAccess: res.locals.appAccess,
@@ -1029,9 +1036,16 @@ app.post(
     const bundle = await getProjectBundle(getPool, projectId, req.session.userId);
     if (!bundle) return res.status(404).send('Not found');
     const tpl = loadTemplates();
-    const templateLabel = tpl[bundle.project.template_key]
-      ? tpl[bundle.project.template_key].label
-      : bundle.project.template_key;
+    const tkUnderscore = String(bundle.project.template_key || '').replace(/-/g, '_');
+    const templateLabelKey = 'projectTemplateLabels.' + tkUnderscore;
+    const templateLabelTranslated = res.locals.t(templateLabelKey);
+    const templateLabelFallback =
+      (tpl[bundle.project.template_key] && tpl[bundle.project.template_key].label) ||
+      bundle.project.template_key;
+    const templateLabel =
+      templateLabelTranslated && templateLabelTranslated !== templateLabelKey
+        ? templateLabelTranslated
+        : templateLabelFallback;
     const body = req.body || {};
     const result = await updateProjectSettings(getPool, req.session.userId, projectId, body);
     if (!result.ok) {
