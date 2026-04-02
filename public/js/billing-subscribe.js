@@ -58,7 +58,11 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || 'Could not start checkout. Try again from Account.');
+      let errMsg = data.error || 'Could not start checkout. Try again from Account.';
+      if (/internal server error/i.test(String(errMsg))) {
+        errMsg = 'Could not start checkout. Try again from Account, or contact support.';
+      }
+      throw new Error(errMsg);
     }
     if (!data.clientSecret) {
       throw new Error('Invalid response from server.');

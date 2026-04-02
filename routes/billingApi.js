@@ -80,7 +80,22 @@ function createBillingApiRouter(getPool, stripe) {
         console.error(e.message);
         return res.status(502).json({ error: 'Could not start payment. Try again or contact support.' });
       }
-      next(e);
+      if (e && e.code === 'STRIPE_SUBSCRIPTION_BLOCKING') {
+        return res.status(400).json({ error: e.message || 'Subscription cannot be started in the current state.' });
+      }
+      if (e && e.type && String(e.type).startsWith('Stripe')) {
+        console.error('[billing] subscription-intent Stripe:', e.message, e.code, e.param);
+        const raw = e.message ? String(e.message).trim() : '';
+        const msg =
+          raw && raw.length < 280
+            ? raw
+            : 'Stripe could not start the subscription. Try again or contact support.';
+        return res.status(400).json({ error: msg });
+      }
+      console.error('[billing] subscription-intent:', e && e.message ? e.message : e);
+      return res.status(502).json({
+        error: 'Could not start checkout. Try again from Account, or contact support if this continues.',
+      });
     }
   });
 
