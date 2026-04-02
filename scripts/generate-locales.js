@@ -37,7 +37,7 @@ function maskPlaceholders(s) {
   const masked = String(s).replace(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (m) => {
     const i = parts.length;
     parts.push(m);
-    return `«PH${i}»`;
+    return `__AF_VAR_${i}__`;
   });
   return { masked, parts };
 }
@@ -45,8 +45,9 @@ function maskPlaceholders(s) {
 function unmaskPlaceholders(translated, parts) {
   let out = String(translated);
   for (let i = 0; i < parts.length; i++) {
-    out = out.split(`«PH${i}»`).join(parts[i]);
-    out = out.split(`«ph${i}»`).join(parts[i]);
+    const token = `__AF_VAR_${i}__`;
+    out = out.split(token).join(parts[i]);
+    out = out.split(token.toLowerCase()).join(parts[i]);
   }
   return out;
 }
