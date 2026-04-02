@@ -972,7 +972,7 @@
     if (!mount) return;
     if (!feedbackRows.length) {
       mount.innerHTML =
-        '<p class="anvil2-feedback-placeholder">Feedback and suggestions will appear here as you make progress with your writing.</p>';
+        '<p class="anvil2-feedback-placeholder">Forge Write Assist will appear here as you make progress with your writing.</p>';
       return;
     }
     var html = '<ul class="anvil2-feedback-list">';
@@ -1277,7 +1277,7 @@
     if (isIncremental) {
       setAnalyzeBanner(true, 'Analyzing new text…');
     } else if (mount) {
-      mount.innerHTML = '<p class="anvil2-feedback-placeholder">Loading feedback and suggestions…</p>';
+      mount.innerHTML = '<p class="anvil2-feedback-placeholder">Loading Forge Write Assist…</p>';
     }
 
     api('/projects/' + projectId + '/sections/' + selectedId + '/review-structured', 'POST', {
@@ -1467,7 +1467,7 @@
           matchers: [],
         },
       },
-      placeholder: 'As you forge ahead, feedback and suggestions will appear in the canvas to the right.',
+      placeholder: 'As you forge ahead, Forge Write Assist will appear in the canvas to the right.',
     });
 
     quill.clipboard.addMatcher(Node.ELEMENT_NODE, function (node, delta) {
