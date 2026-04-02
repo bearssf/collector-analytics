@@ -59,6 +59,20 @@
     <% } %>
   </div>
 
+  <% if (typeof showAdminNav !== 'undefined' && showAdminNav) { %>
+  <div class="app-nav-section">
+    <div class="app-nav-label">Admin</div>
+    <nav class="app-nav">
+      <% if (typeof adminProjectTemplatesHref !== 'undefined' && adminProjectTemplatesHref) { %>
+        <a href="<%= adminProjectTemplatesHref %>">Project templates</a>
+      <% } %>
+      <% if (typeof adminTrainingHref !== 'undefined' && adminTrainingHref) { %>
+        <a href="<%= adminTrainingHref %>">Training walkthrough</a>
+      <% } %>
+    </nav>
+  </div>
+  <% } %>
+
   <div class="app-sidebar-footer">
     <a href="/" class="app-sidebar-home" id="tw-sidebar-home">Home</a>
     <% if (typeof trainingReplayAvailable !== 'undefined' && trainingReplayAvailable && typeof trainingClientPayload !== 'undefined' && trainingClientPayload && trainingClientPayload.pageSlug) { %>

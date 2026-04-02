@@ -192,6 +192,32 @@ function trimAdminTemplateToken(v) {
 /** Minimum length for ADMIN_TEMPLATE_EDITOR_TOKEN (after trim). Shorter values were rejected before URL token was compared — use 8+ and match Render exactly. */
 const ADMIN_TEMPLATE_TOKEN_MIN_LEN = 8;
 
+/** App sidebar: show links to token-gated admin tools only for this signed-in user (URLs include secrets from env). */
+const ADMIN_SIDEBAR_NAV_EMAIL = 'bearssf@tiffin.edu';
+
+function applyAdminSidebarNavLocals(req, res) {
+  res.locals.showAdminNav = false;
+  res.locals.adminProjectTemplatesHref = '';
+  res.locals.adminTrainingHref = '';
+  if (!req.session || !req.session.user || !req.session.user.email) return;
+  if (String(req.session.user.email).toLowerCase() !== ADMIN_SIDEBAR_NAV_EMAIL.toLowerCase()) {
+    return;
+  }
+  const tplTok = trimAdminTemplateToken(process.env.ADMIN_TEMPLATE_EDITOR_TOKEN);
+  const trainTok = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
+  if (tplTok.length >= ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
+    res.locals.adminProjectTemplatesHref =
+      '/admin/project-templates?token=' + encodeURIComponent(tplTok);
+  }
+  if (trainTok.length >= ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
+    res.locals.adminTrainingHref =
+      '/admin/training-walkthrough?token=' + encodeURIComponent(trainTok);
+  }
+  res.locals.showAdminNav = !!(
+    res.locals.adminProjectTemplatesHref || res.locals.adminTrainingHref
+  );
+}
+
 function adminTemplateTokenFromReq(req) {
   const q = req.query && req.query.token;
   if (q != null) {
@@ -376,6 +402,7 @@ async function attachTrainingWalkthroughLocals(req, res, next) {
   res.locals.trainingReplayAvailable = false;
   res.locals.trainingPageSlug = null;
   res.locals.transTrainOpacity = parseTransTrainOpacity(process.env.TRANS_TRAIN);
+  applyAdminSidebarNavLocals(req, res);
   if (!req.session || !req.session.userId) return next();
   res.locals.trainingPageSlug = trainingPageSlugFromPath(pathFromRequest(req)) || null;
   try {
