@@ -486,7 +486,7 @@
   border-color: var(--line);
 }
 
-/* Source Suggestions header row */
+/* Forge Research Assist header row */
 .crucible-sug-header {
   display: flex;
   align-items: center;
