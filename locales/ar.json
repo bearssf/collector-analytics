@@ -476,7 +476,19 @@
     },
     "billing": {
       "couldNotLoad": "تعذر تحميل الفواتير. قم بتحديث الصفحة أو ارجع إلى الحساب.",
-      "couldNotStartCard": "تعذر بدء تحديث البطاقة. العودة إلى الحساب."
+      "couldNotStartCard": "تعذر بدء تحديث البطاقة. العودة إلى الحساب.",
+      "invalidServerResponse": "استجابة غير صالحة من الخادم.",
+      "couldNotSaveCard": "تعذر حفظ البطاقة.",
+      "couldNotSavePaymentMethod": "تعذر حفظ طريقة الدفع.",
+      "somethingWrongRetryAccount": "حدث خطأ ما. حاول مرة أخرى من الحساب.",
+      "couldNotStartCheckout": "تعذر بدء الدفع. حاول مرة أخرى من الحساب.",
+      "couldNotStartCheckoutSupport": "تعذر بدء الدفع. حاول مرة أخرى من الحساب، أو اتصل بالدعم.",
+      "promotionApplied": "تم تطبيق العرض الترويجي.",
+      "somethingWrongShort": "حدث خطأ ما.",
+      "paymentCouldNotComplete": "تعذر إتمام الدفع.",
+      "paymentFailedTryCard": "فشل الدفع ({detail}). جرّب بطاقة أخرى أو اتصل بمصرفك.",
+      "paymentFailedGeneric": "فشل الدفع. تحقق من بيانات البطاقة، جرّب بطاقة أخرى، أو تأكد أن مصرفك يسمح بالخصم. إذا كنت تستخدم مفاتيح اختبار، استخدم بطاقات اختبار Stripe (مثل 4242…).",
+      "checkoutCanceledNoCharge": "أُلغي الدفع. لم تُفرض أي رسوم."
     },
     "anvil": {
       "forgeWritePlaceholder": "أثناء التقدم، يظهر مساعد الكتابة في اللوحة على اليمين.",

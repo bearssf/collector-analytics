@@ -1,4 +1,5 @@
 node_modules/
+locales/packs/.translation-cache.json
 .env
 public/uploads/
 *.log
