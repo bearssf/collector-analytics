@@ -299,6 +299,23 @@
     return d.innerHTML;
   }
 
+  function sectionBarLabel(sec) {
+    return typeof window.localizedSectionTitle === 'function'
+      ? window.localizedSectionTitle(sec)
+      : sec && sec.title != null
+        ? String(sec.title)
+        : '';
+  }
+
+  function researchPlanSectionLine(it) {
+    var sid = it && it.section_id;
+    if (sid != null && bundle && bundle.sections) {
+      var sec = sectionById(Number(sid));
+      if (sec) return sectionBarLabel(sec);
+    }
+    return it && it.section_title != null && String(it.section_title) !== '' ? String(it.section_title) : '—';
+  }
+
   function sectionSlugKey(sec) {
     if (!sec) return '';
     var raw = sec.slug != null ? sec.slug : sec.section_slug;
@@ -685,7 +702,7 @@
         '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
         escapeHtml(anvilT('rpSection', 'Section:')) +
         '</span> ' +
-        escapeHtml(it.section_title || '—') +
+        escapeHtml(researchPlanSectionLine(it)) +
         '</div>';
       html +=
         '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
@@ -1996,7 +2013,7 @@
       apaBodyIndent: slug !== 'title' && style !== 'IEEE',
     });
     var blob = new Blob([rtf], { type: 'application/rtf' });
-    var name = (sec ? sec.title : 'Section') + '.rtf';
+    var name = (sec ? sectionBarLabel(sec) : 'Section') + '.rtf';
     downloadBlob(blob, name);
   }
 
@@ -2004,7 +2021,7 @@
     if (selectedId == null) return;
     var sec = sectionById(selectedId);
     var html = stripColorsForExportHtml(getDraftHtml());
-    var title = sec ? sec.title : 'Section';
+    var title = sec ? sectionBarLabel(sec) : 'Section';
     fetch('/api/projects/' + projectId + '/sections/' + selectedId + '/export-docx', {
       method: 'POST',
       credentials: 'same-origin',
@@ -2033,7 +2050,7 @@
     bundle.sections.forEach(function (sec) {
       var slug = sectionSlugKey(sec);
       if (slug !== 'title') {
-        combined += '<h2>' + escapeHtml(sec.title) + '</h2>';
+        combined += '<h2>' + escapeHtml(sectionBarLabel(sec)) + '</h2>';
       }
       combined += (sec.body || '') + '\n';
     });
@@ -2048,7 +2065,7 @@
   function exportAllDocx() {
     if (!bundle || !bundle.sections) return;
     var sections = bundle.sections.map(function (s) {
-      return { title: s.title, body: s.body || '', slug: s.slug };
+      return { title: sectionBarLabel(s), body: s.body || '', slug: s.slug };
     });
     fetch('/api/projects/' + projectId + '/export-project-docx', {
       method: 'POST',

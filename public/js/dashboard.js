@@ -17,15 +17,12 @@
     return s;
   }
 
-  /** Match server sidebar `localizedSectionTitle` + `sectionLabels.*` in locale bundles. */
-  function localizedSectionTitle(sec) {
-    var slug = sec && sec.slug != null ? String(sec.slug).trim() : '';
-    if (!slug) return sec && sec.title != null ? String(sec.title) : '';
-    var key = slug.replace(/-/g, '_');
-    var labels = window.__I18N__ && window.__I18N__.sectionLabels;
-    var tr = labels && labels[key];
-    if (tr != null && String(tr) !== '') return String(tr);
-    return sec.title != null ? String(sec.title) : '';
+  function sectionBarLabel(sec) {
+    return typeof window.localizedSectionTitle === 'function'
+      ? window.localizedSectionTitle(sec)
+      : sec && sec.title != null
+        ? String(sec.title)
+        : '';
   }
 
   var cfg = window.__DASHBOARD__;
@@ -56,7 +53,7 @@
     if (bars && pp.sections && pp.sections.length) {
       bars.innerHTML = pp.sections
         .map(function (sec) {
-          var label = localizedSectionTitle(sec);
+          var label = sectionBarLabel(sec);
           return (
             '<div class="dash-section-bar">' +
             '<div class="dash-section-bar__graph">' +

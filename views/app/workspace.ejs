@@ -55,7 +55,7 @@
         <div id="crucible-root" class="crucible"
           data-project-id="<%= projectId %>"
           data-citation-style="<%= typeof crucibleCitationStyle !== 'undefined' ? crucibleCitationStyle : 'APA' %>"
-          data-sections="<%= encodeURIComponent(JSON.stringify((typeof crucibleSections !== 'undefined' ? crucibleSections : []).map(function(s){ return { id: s.id, title: s.title }; }))) %>">
+          data-sections="<%= encodeURIComponent(JSON.stringify((typeof crucibleSections !== 'undefined' ? crucibleSections : []).map(function(s){ return { id: s.id, title: s.title, slug: s.slug != null ? String(s.slug) : '' }; }))) %>">
         </div>
       <% } else if (phaseSlug === 'framework') { %>
         <div class="app-placeholder" id="tw-framework-workspace">

@@ -36,7 +36,11 @@
   try {
     sections = JSON.parse(decodeURIComponent(root.getAttribute('data-sections') || '[]'));
   } catch (e) { sections = []; }
-  var assignableSections = sections.filter(function (s) { return !BIBLIO_RE.test((s.title || '').trim()); });
+  var assignableSections = sections.filter(function (s) {
+    var slug = (s.slug || '').trim().toLowerCase().replace(/-/g, '_');
+    if (slug === 'reference' || slug === 'references') return false;
+    return !BIBLIO_RE.test((s.title || '').trim());
+  });
 
   var sources = [];
   var allTags = [];
@@ -53,6 +57,29 @@
     var d = document.createElement('div');
     d.appendChild(document.createTextNode(s || ''));
     return d.innerHTML;
+  }
+
+  function sectionBarLabel(sec) {
+    return typeof window.localizedSectionTitle === 'function'
+      ? window.localizedSectionTitle(sec)
+      : sec && sec.title != null
+        ? String(sec.title)
+        : '';
+  }
+
+  function sectionLabelForStored(sectionId, storedTitle, emptyLabel) {
+    var fb =
+      storedTitle != null && String(storedTitle) !== ''
+        ? String(storedTitle)
+        : emptyLabel != null
+          ? emptyLabel
+          : crucibleT('sectionFallback', 'Section');
+    if (sectionId == null || !sections.length) return fb;
+    var sec = sections.find(function (s) {
+      return Number(s.id) === Number(sectionId);
+    });
+    if (!sec) return fb;
+    return sectionBarLabel(sec);
   }
 
   function api(method, path, body) {
@@ -406,7 +433,14 @@
     var sectionFilterOpts =
       '<option value="">' + escHtml(crucibleT('allSections', 'All sections')) + '</option>';
     sections.forEach(function (sec) {
-      sectionFilterOpts += '<option value="' + sec.id + '"' + (filterSectionId === sec.id ? ' selected' : '') + '>' + escHtml(sec.title) + '</option>';
+      sectionFilterOpts +=
+        '<option value="' +
+        sec.id +
+        '"' +
+        (filterSectionId === sec.id ? ' selected' : '') +
+        '>' +
+        escHtml(sectionBarLabel(sec)) +
+        '</option>';
     });
 
     var activeTagCount = filterTags.length ? ' (' + filterTags.length + ')' : '';
@@ -840,7 +874,14 @@
     var sectionChecks = '';
     assignableSections.forEach(function (sec) {
       var checked = (v.section_ids || []).indexOf(sec.id) !== -1 ? ' checked' : '';
-      sectionChecks += '<label class="crucible-section-check"><input type="checkbox" name="section_ids" value="' + sec.id + '"' + checked + '> ' + escHtml(sec.title) + '</label>';
+      sectionChecks +=
+        '<label class="crucible-section-check"><input type="checkbox" name="section_ids" value="' +
+        sec.id +
+        '"' +
+        checked +
+        '> ' +
+        escHtml(sectionBarLabel(sec)) +
+        '</label>';
     });
 
     var sourceTypeOpts = ['', 'journal', 'book', 'chapter', 'conference'].map(function (t) {
@@ -1520,7 +1561,7 @@
             }
             html +=
               '<strong style="color:#1abac4">' +
-              escHtml(u.section_title || crucibleT('sectionFallback', 'Section')) +
+              escHtml(sectionLabelForStored(u.section_id, u.section_title, crucibleT('sectionFallback', 'Section'))) +
               ':</strong> ';
             html += '"' + escHtml(u.context_excerpt || u.cite_marker || '') + '"';
             html += '</div>';
@@ -1699,7 +1740,7 @@
         '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +
         escHtml(crucibleT('rpSection', 'Section:')) +
         '</span> ' +
-        escHtml(it.section_title || '—') +
+        escHtml(sectionLabelForStored(it.section_id, it.section_title, '—')) +
         '</div>';
       html +=
         '<div class="crucible-rp-tile__field"><span class="crucible-rp-label">' +

@@ -19,14 +19,6 @@
       var s = _citeSlug[cs];
       return s ? t('citationStyles.' + s) : (cs || '');
     }
-    function localizedSectionTitleDash(sec) {
-      var slug = sec.slug != null ? String(sec.slug).trim() : '';
-      if (!slug) return sec.title;
-      var key = 'sectionLabels.' + slug.replace(/-/g, '_');
-      var tr = t(key);
-      if (tr && tr !== key) return tr;
-      return sec.title;
-    }
   %>
   <div class="app-grid">
     <%- include('../partials/app-sidebar', { user: user, navActive: 'dashboard', projects: projects, currentProjectId: currentProjectId, workspaceSlug: '', appAccess: appAccess }) %>
@@ -90,7 +82,7 @@
             <% recentProg.sections.forEach(function(sec) { %>
             <div class="dash-section-bar">
               <div class="dash-section-bar__graph">
-                <span class="dash-section-bar__label" title="<%= localizedSectionTitleDash(sec) %>"><%= localizedSectionTitleDash(sec) %></span>
+                <span class="dash-section-bar__label" title="<%= sectionLabel(sec) %>"><%= sectionLabel(sec) %></span>
                 <div class="dash-section-bar__track"><div class="dash-section-bar__fill" style="width:<%= sec.pct %>%"></div></div>
                 <span class="dash-section-bar__pct"><%= sec.pct %>%</span>
               </div>

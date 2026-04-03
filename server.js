@@ -1116,7 +1116,7 @@ app.get(
     let crucibleSections = [];
     if (slug === 'crucible' && bundle.sections && bundle.sections.length) {
       crucibleSections = bundle.sections.map(function (s) {
-        return { id: s.id, title: s.title };
+        return { id: s.id, title: s.title, slug: s.slug != null ? String(s.slug) : '' };
       });
     }
     const titleKey = WORKSPACE_PHASE_TITLE_KEYS[slug];

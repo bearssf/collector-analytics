@@ -3,4 +3,22 @@
   window.__STRIPE_LOCALE__ = <%- JSON.stringify(typeof stripeLocale !== 'undefined' ? stripeLocale : 'en') %>;
   window.__TEXT_DIR__ = <%- JSON.stringify(typeof textDir !== 'undefined' ? textDir : 'ltr') %>;
   window.__I18N__ = <%- typeof i18nClientJson !== 'undefined' ? i18nClientJson : '{}' %>;
+  window.localizedSectionTitle = function (sec) {
+    var title = sec && sec.title != null ? String(sec.title) : '';
+    var labels = window.__I18N__ && window.__I18N__.sectionLabels;
+    if (!labels) return title;
+    var slug = sec && sec.slug != null ? String(sec.slug).trim() : '';
+    if (!slug && title) {
+      slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60);
+    }
+    if (!slug) return title;
+    var key = slug.replace(/-/g, '_');
+    var tr = labels[key];
+    if (tr != null && String(tr) !== '') return String(tr);
+    return title;
+  };
 </script>

@@ -6,12 +6,14 @@
   return s.slice(0, 25) + '...';
 } %>
 <% function localizedSectionTitle(sec) {
-  var slug = sec.slug != null ? String(sec.slug).trim() : '';
-  if (!slug) return sec.title;
-  var key = 'sectionLabels.' + slug.replace(/-/g, '_');
-  var tr = t(key);
-  if (tr && tr !== key) return tr;
-  return sec.title;
+  return typeof sectionLabel !== 'undefined' ? sectionLabel(sec) : (function () {
+    var slug = sec.slug != null ? String(sec.slug).trim() : '';
+    if (!slug) return sec.title;
+    var key = 'sectionLabels.' + slug.replace(/-/g, '_');
+    var tr = t(key);
+    if (tr && tr !== key) return tr;
+    return sec.title;
+  })();
 } %>
 <% var cur = typeof currentProjectId !== 'undefined' && currentProjectId != null ? currentProjectId : null; %>
 <% var effectivePid = cur != null ? String(cur) : (projects[0] ? String(projects[0].id) : ''); %>
