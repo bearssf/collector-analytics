@@ -1945,93 +1945,103 @@
   width: 5.5rem;
 }
 
-/* Quill Snow defaults every font/size picker row to "Sans Serif" / "Normal" unless data-value matches its
-   built-ins (serif, monospace, small, large…). Empty <option> text means no data-label — add labels here. */
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='times-new-roman']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='times-new-roman']::before {
-  content: 'Times New Roman';
+/* Quill Snow puts default English in ::before; anvil.js sets translated labels as real text. Hide ::before
+   so only the localized string shows. Font/size “preview” lives on the element, not the pseudo-element. */
+.anvil-quill-wrap .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+.anvil-quill-wrap .ql-snow .ql-picker.ql-header .ql-picker-item::before,
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item::before,
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: none !important;
+}
+
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='times-new-roman'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='times-new-roman'] {
   font-family: 'Times New Roman', Times, serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='arial']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='arial']::before {
-  content: 'Arial';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='arial'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='arial'] {
   font-family: Arial, Helvetica, sans-serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='georgia']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='georgia']::before {
-  content: 'Georgia';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='georgia'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='georgia'] {
   font-family: Georgia, serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='courier-new']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='courier-new']::before {
-  content: 'Courier New';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='courier-new'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='courier-new'] {
   font-family: 'Courier New', Courier, monospace;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='verdana']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='verdana']::before {
-  content: 'Verdana';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='verdana'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='verdana'] {
   font-family: Verdana, Geneva, sans-serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='garamond']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='garamond']::before {
-  content: 'Garamond';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='garamond'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='garamond'] {
   font-family: Garamond, 'Times New Roman', serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='calibri']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='calibri']::before {
-  content: 'Calibri';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='calibri'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='calibri'] {
   font-family: Calibri, 'Segoe UI', Arial, sans-serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='cambria']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='cambria']::before {
-  content: 'Cambria';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='cambria'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='cambria'] {
   font-family: Cambria, Georgia, serif;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='helvetica']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='helvetica']::before {
-  content: 'Helvetica';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='helvetica'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='helvetica'] {
   font-family: Helvetica, Arial, sans-serif;
 }
 
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='8pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='8pt']::before {
-  content: '8 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='8pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='8pt'] {
+  font-size: 8pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='9pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='9pt']::before {
-  content: '9 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='9pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='9pt'] {
+  font-size: 9pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='10pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='10pt']::before {
-  content: '10 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='10pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='10pt'] {
+  font-size: 10pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='11pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='11pt']::before {
-  content: '11 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='11pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='11pt'] {
+  font-size: 11pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='12pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='12pt']::before {
-  content: '12 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='12pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='12pt'] {
+  font-size: 12pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='14pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='14pt']::before {
-  content: '14 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='14pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='14pt'] {
+  font-size: 14pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='16pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='16pt']::before {
-  content: '16 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='16pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='16pt'] {
+  font-size: 16pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='18pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='18pt']::before {
-  content: '18 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='18pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='18pt'] {
+  font-size: 18pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='20pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='20pt']::before {
-  content: '20 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='20pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='20pt'] {
+  font-size: 20pt;
 }
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='24pt']::before,
-.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='24pt']::before {
-  content: '24 pt';
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-label[data-value='24pt'],
+.anvil-quill-wrap .ql-snow .ql-picker.ql-size .ql-picker-item[data-value='24pt'] {
+  font-size: 24pt;
+}
+
+.anvil-quill-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='1'] {
+  font-size: 2em;
+}
+.anvil-quill-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='2'] {
+  font-size: 1.5em;
+}
+.anvil-quill-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='3'] {
+  font-size: 1.17em;
 }
 
 .ql-font-times-new-roman {
