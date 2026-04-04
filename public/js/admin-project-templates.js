@@ -65,6 +65,38 @@
     return Math.round((t * p) / 100).toLocaleString();
   }
 
+  function moveSection(t, idx, delta) {
+    const arr = t.sections;
+    if (!arr || arr.length < 2) return;
+    const j = idx + delta;
+    if (j < 0 || j >= arr.length) return;
+    const tmp = arr[idx];
+    arr[idx] = arr[j];
+    arr[j] = tmp;
+    render();
+  }
+
+  function deleteSectionAt(t, idx) {
+    if (!t.sections || t.sections.length <= 1) return;
+    if (!window.confirm('Delete this section? Percentages will be re-split evenly.')) return;
+    t.sections.splice(idx, 1);
+    const pcts = equalIntegerPercents(t.sections.length);
+    t.sections.forEach(function (sec, i) {
+      sec.percent = pcts[i];
+    });
+    render();
+  }
+
+  function reorderSectionByDrag(t, fromIdx, toIdx) {
+    const arr = t.sections;
+    if (!arr || fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= arr.length || toIdx >= arr.length) {
+      return;
+    }
+    const [item] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, item);
+    render();
+  }
+
   function slugifyTemplateKey(raw) {
     if (raw == null) return '';
     return String(raw)
@@ -130,15 +162,100 @@
       card.appendChild(fields);
 
       const table = document.createElement('table');
+      table.className = 'tpl-sections-table';
       const thead = document.createElement('thead');
       thead.innerHTML =
-        '<tr><th>Title</th><th>Slug</th><th>% of doc</th><th>Projected words (this section)</th></tr>';
+        '<tr><th>Order</th><th></th><th>Title</th><th>Slug</th><th>% of doc</th><th>Projected words (this section)</th></tr>';
       table.appendChild(thead);
       const tbody = document.createElement('tbody');
       const totalW = t.projectedTotalWords != null ? Number(t.projectedTotalWords) : NaN;
+      const sectionCount = (t.sections || []).length;
 
       (t.sections || []).forEach(function (s, idx) {
         const tr = document.createElement('tr');
+        tr.dataset.sectionIndex = String(idx);
+
+        const tdGrip = document.createElement('td');
+        tdGrip.className = 'tpl-drag-handle';
+        tdGrip.textContent = '⠿';
+        tdGrip.title = 'Drag to reorder';
+        tdGrip.setAttribute('aria-grabbed', 'false');
+        tdGrip.draggable = true;
+        tdGrip.addEventListener('dragstart', function (e) {
+          tdGrip.setAttribute('aria-grabbed', 'true');
+          tr.dataset.dragging = '1';
+          try {
+            e.dataTransfer.setData('text/plain', String(idx));
+            e.dataTransfer.effectAllowed = 'move';
+          } catch (err) {
+            /* ignore */
+          }
+        });
+        tdGrip.addEventListener('dragend', function () {
+          tdGrip.setAttribute('aria-grabbed', 'false');
+          delete tr.dataset.dragging;
+          tbody.querySelectorAll('tr.drag-over').forEach(function (r) {
+            r.classList.remove('drag-over');
+          });
+        });
+        tr.appendChild(tdGrip);
+
+        tr.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          tr.classList.add('drag-over');
+        });
+        tr.addEventListener('dragleave', function () {
+          tr.classList.remove('drag-over');
+        });
+        tr.addEventListener('drop', function (e) {
+          e.preventDefault();
+          tr.classList.remove('drag-over');
+          let from = NaN;
+          try {
+            from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+          } catch (err2) {
+            from = NaN;
+          }
+          if (Number.isNaN(from)) return;
+          reorderSectionByDrag(t, from, idx);
+        });
+
+        const tdActions = document.createElement('td');
+        tdActions.className = 'section-row-actions';
+        const btnUp = document.createElement('button');
+        btnUp.type = 'button';
+        btnUp.textContent = '↑';
+        btnUp.title = 'Move section up';
+        btnUp.setAttribute('aria-label', 'Move section up');
+        btnUp.disabled = idx === 0;
+        btnUp.addEventListener('click', function () {
+          moveSection(t, idx, -1);
+        });
+        const btnDown = document.createElement('button');
+        btnDown.type = 'button';
+        btnDown.textContent = '↓';
+        btnDown.title = 'Move section down';
+        btnDown.setAttribute('aria-label', 'Move section down');
+        btnDown.disabled = idx >= sectionCount - 1;
+        btnDown.addEventListener('click', function () {
+          moveSection(t, idx, 1);
+        });
+        const btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.className = 'danger';
+        btnDel.textContent = 'Delete';
+        btnDel.title = 'Delete section';
+        btnDel.setAttribute('aria-label', 'Delete section');
+        btnDel.disabled = sectionCount <= 1;
+        btnDel.addEventListener('click', function () {
+          deleteSectionAt(t, idx);
+        });
+        tdActions.appendChild(btnUp);
+        tdActions.appendChild(btnDown);
+        tdActions.appendChild(btnDel);
+        tr.appendChild(tdActions);
+
         const tdTitle = document.createElement('td');
         const inTitle = document.createElement('input');
         inTitle.type = 'text';
@@ -188,7 +305,7 @@
       const sumTr = document.createElement('tr');
       sumTr.className = 'sum-row' + (sumOk ? '' : ' bad');
       sumTr.innerHTML =
-        '<td colspan="2">Total</td><td>' +
+        '<td></td><td></td><td colspan="2">Total</td><td>' +
         sumRounded +
         '%</td><td>' +
         (sumOk ? 'OK' : 'Must equal 100%') +
@@ -218,19 +335,6 @@
         });
         render();
       });
-      const remBtn = document.createElement('button');
-      remBtn.type = 'button';
-      remBtn.textContent = 'Remove last section';
-      remBtn.disabled = (t.sections || []).length <= 1;
-      remBtn.addEventListener('click', function () {
-        if (!t.sections || t.sections.length <= 1) return;
-        t.sections.pop();
-        const pcts = equalIntegerPercents(t.sections.length);
-        t.sections.forEach(function (sec, i) {
-          sec.percent = pcts[i];
-        });
-        render();
-      });
       const eqBtn = document.createElement('button');
       eqBtn.type = 'button';
       eqBtn.textContent = 'Even split %';
@@ -243,7 +347,6 @@
         render();
       });
       actions.appendChild(addBtn);
-      actions.appendChild(remBtn);
       actions.appendChild(eqBtn);
       card.appendChild(actions);
 

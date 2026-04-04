@@ -33,6 +33,35 @@
     .proj-note { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem; }
     .tpl-actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .tpl-actions button { padding: 0.3rem 0.55rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #e8eaed; cursor: pointer; font: inherit; }
+    .section-row-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+    .section-row-actions button {
+      padding: 0.22rem 0.4rem;
+      font-size: 0.72rem;
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.07);
+      color: #e8eaed;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.2;
+    }
+    .section-row-actions button:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+    .section-row-actions button.danger { border-color: rgba(242,139,130,0.45); color: #f28b82; }
+    .section-row-actions button.danger:hover:not(:disabled) { background: rgba(242,139,130,0.12); }
+    .section-row-actions button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .tpl-drag-handle {
+      width: 1.75rem;
+      cursor: grab;
+      user-select: none;
+      color: rgba(255,255,255,0.35);
+      font-size: 1rem;
+      line-height: 1;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .tpl-drag-handle:active { cursor: grabbing; }
+    tr[data-dragging="1"] { opacity: 0.55; }
+    tr.drag-over { outline: 1px dashed rgba(138,180,255,0.6); outline-offset: -2px; }
     .other-note { color: rgba(255,255,255,0.45); font-size: 0.85rem; }
   </style>
 </head>
@@ -40,6 +69,7 @@
   <h1>Project templates</h1>
   <p class="sub">
     Set each section&rsquo;s share of the document (must total 100%) and a <strong>projected total word count</strong> for the whole piece.
+    Reorder sections with <strong>↑</strong>/<strong>↓</strong> or by dragging the <strong>⠿</strong> handle; delete a row with <strong>Delete</strong> (at least one section remains).
     Per-section targets and estimated document completion in the Anvil use these values. Templates marked <code>deprecated</code> in the JSON file are hidden here but stay on disk for existing projects.
     This page is not linked in the app &mdash; bookmark your secret URL.
   </p>
