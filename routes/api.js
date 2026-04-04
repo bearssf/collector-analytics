@@ -51,6 +51,20 @@ function apiErr(req, res, status, key, vars) {
   return res.status(status).json({ error: tReq(req, key, vars) });
 }
 
+function isAbstractSectionSlug(slug) {
+  return String(slug || '')
+    .trim()
+    .toLowerCase() === 'abstract';
+}
+
+/** Omit evidence-category items for the abstract section (slug `abstract`). */
+function filterStructuredFeedbackItemsForAbstract(items, sectionSlug) {
+  if (!isAbstractSectionSlug(sectionSlug) || !Array.isArray(items)) return items;
+  return items.filter(function (it) {
+    return String(it.category || '').trim().toLowerCase() !== 'evidence';
+  });
+}
+
 function mapSuggestionRow(r) {
   if (!r) return null;
   return rowToSuggestion({
@@ -940,6 +954,7 @@ function createApiRouter(getPool) {
           html,
           plainText,
           sectionTitle: sec.title,
+          sectionSlug: sec.slug,
           outputLanguage: req.languageNameForAi,
         });
       } catch (err) {
@@ -962,7 +977,7 @@ function createApiRouter(getPool) {
         });
       }
 
-      const newItems = reviewResult.items || [];
+      const newItems = filterStructuredFeedbackItemsForAbstract(reviewResult.items || [], sec.slug);
 
       const existing = await query(
         getPool,
@@ -1018,7 +1033,7 @@ function createApiRouter(getPool) {
          ORDER BY created_at DESC`,
         { pid: projectId, sid: sectionId }
       );
-      const allItems = allRows.recordset.map(function (r) {
+      let allItems = allRows.recordset.map(function (r) {
         return {
           dbId: r.id,
           id: r.fb_id,
@@ -1033,6 +1048,7 @@ function createApiRouter(getPool) {
           anchorWordCount: r.anchor_word_count || 0,
         };
       });
+      allItems = filterStructuredFeedbackItemsForAbstract(allItems, sec.slug);
 
       res.json({
         items: allItems,
@@ -1063,6 +1079,13 @@ function createApiRouter(getPool) {
       if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return apiErr(req, res, 404, 'errors.notFound');
 
+      const secSlugRow = await query(
+        getPool,
+        `SELECT slug FROM project_sections WHERE id = @sid AND project_id = @pid`,
+        { sid: sectionId, pid: projectId }
+      );
+      const sectionSlug = secSlugRow.recordset[0] && secSlugRow.recordset[0].slug;
+
       const rows = await query(
         getPool,
         `SELECT id, project_id, section_id, fb_id, category, anchor_text,
@@ -1073,7 +1096,7 @@ function createApiRouter(getPool) {
          ORDER BY created_at DESC`,
         { pid: projectId, sid: sectionId }
       );
-      const items = rows.recordset.map(function (r) {
+      let items = rows.recordset.map(function (r) {
         return {
           dbId: r.id,
           id: r.fb_id,
@@ -1088,6 +1111,7 @@ function createApiRouter(getPool) {
           anchorWordCount: r.anchor_word_count || 0,
         };
       });
+      items = filterStructuredFeedbackItemsForAbstract(items, sectionSlug);
       res.json({ items });
     } catch (e) {
       next(e);
@@ -1132,6 +1156,13 @@ function createApiRouter(getPool) {
         return apiErr(req, res, 404, 'errors.notFound');
 
       const plainText = req.body.plainText != null ? String(req.body.plainText) : '';
+      const secSlugRow = await query(
+        getPool,
+        `SELECT slug FROM project_sections WHERE id = @sid AND project_id = @pid`,
+        { sid: sectionId, pid: projectId }
+      );
+      const sectionSlug = secSlugRow.recordset[0] && secSlugRow.recordset[0].slug;
+
       const rows = await query(
         getPool,
         `SELECT id, anchor_text, suggestion, status
@@ -1167,7 +1198,7 @@ function createApiRouter(getPool) {
          ORDER BY created_at DESC`,
         { pid: projectId, sid: sectionId }
       );
-      const items = remaining.recordset.map(function (r) {
+      let items = remaining.recordset.map(function (r) {
         return {
           dbId: r.id,
           id: r.fb_id,
@@ -1182,6 +1213,7 @@ function createApiRouter(getPool) {
           anchorWordCount: r.anchor_word_count || 0,
         };
       });
+      items = filterStructuredFeedbackItemsForAbstract(items, sectionSlug);
       res.json({ items, removed: staleIds.length });
     } catch (e) {
       next(e);
@@ -1196,6 +1228,18 @@ function createApiRouter(getPool) {
         return apiErr(req, res, 404, 'errors.notFound');
 
       const sectionIdParam = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+
+      let omitEvidenceForSectionScores = false;
+      if (sectionIdParam) {
+        const slugRow = await query(
+          getPool,
+          `SELECT slug FROM project_sections WHERE id = @sid AND project_id = @pid`,
+          { sid: sectionIdParam, pid: projectId }
+        );
+        if (slugRow.recordset[0]) {
+          omitEvidenceForSectionScores = isAbstractSectionSlug(slugRow.recordset[0].slug);
+        }
+      }
 
       const scoreRows = await query(
         getPool,
@@ -1235,6 +1279,7 @@ function createApiRouter(getPool) {
           projectScores[mapped] += row.flagged_words || 0;
         }
         if (sectionIdParam && row.section_id === sectionIdParam) {
+          if (omitEvidenceForSectionScores && mapped === 'evidence') continue;
           if (sectionScores[mapped] !== undefined) {
             sectionScores[mapped] += row.flagged_words || 0;
           }

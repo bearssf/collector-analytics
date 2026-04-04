@@ -1387,14 +1387,27 @@
 .anvil-top-metrics__progress {
   min-width: 0;
 }
+.anvil-scoring-metrics-wrap {
+  min-width: 0;
+  flex: 0 1 auto;
+}
 .app-anvil-scoring-head.anvil-top-metrics__scoring {
   display: flex;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  column-gap: 2rem;
+  row-gap: 0.75rem;
   flex-shrink: 0;
   margin: 0;
 }
 .anvil-scoring-group {
   min-width: 145px;
+}
+.anvil-scoring-group + .anvil-scoring-group {
+  padding-left: 1.25rem;
+  margin-left: 0.25rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 .anvil-scoring-title {
   font-size: 0.72rem;
