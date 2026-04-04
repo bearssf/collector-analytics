@@ -510,6 +510,7 @@
     },
     "training": {
       "skipOverview": "Skip this Overview",
+      "back": "Back",
       "next": "Next",
       "finish": "Finish",
       "walkthrough": {}

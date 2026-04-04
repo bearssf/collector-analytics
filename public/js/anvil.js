@@ -2304,8 +2304,17 @@
     var sectionWords = 0;
     var sectionTarget = 0;
     if (currentSection) {
-      var pctShare = currentSection.progress_percent || 0;
-      sectionTarget = Math.round(totalTarget * pctShare / 100);
+      var secSlug = currentSection.slug != null ? String(currentSection.slug).trim() : '';
+      var bySlug =
+        bundle.templateMeta &&
+        bundle.templateMeta.sectionWordTargetsBySlug &&
+        bundle.templateMeta.sectionWordTargetsBySlug;
+      if (secSlug && bySlug && bySlug[secSlug] != null && Number.isFinite(Number(bySlug[secSlug]))) {
+        sectionTarget = Math.max(0, Math.round(Number(bySlug[secSlug])));
+      } else {
+        var pctShare = currentSection.progress_percent || 0;
+        sectionTarget = Math.round(totalTarget * pctShare / 100);
+      }
       sectionWords = countWords(currentSection.body);
       sectionPct = sectionTarget > 0 ? Math.min(100, Math.round((sectionWords / sectionTarget) * 100)) : 0;
     }

@@ -165,7 +165,7 @@
       table.className = 'tpl-sections-table';
       const thead = document.createElement('thead');
       thead.innerHTML =
-        '<tr><th>Order</th><th></th><th>Title</th><th>Slug</th><th>% of doc</th><th>Projected words (this section)</th></tr>';
+        '<tr><th>Order</th><th></th><th>Title</th><th>Slug</th><th>% of doc</th><th>Words (section)</th></tr>';
       table.appendChild(thead);
       const tbody = document.createElement('tbody');
       const totalW = t.projectedTotalWords != null ? Number(t.projectedTotalWords) : NaN;
@@ -290,7 +290,34 @@
         tdPct.appendChild(inPct);
 
         const tdProj = document.createElement('td');
-        tdProj.textContent = projectedWordsForSection(totalW, s.percent);
+        const projWrap = document.createElement('div');
+        projWrap.className = 'tpl-proj-words';
+        const inWords = document.createElement('input');
+        inWords.type = 'number';
+        inWords.min = '0';
+        inWords.max = '500000';
+        inWords.className = 'tpl-proj-words-input';
+        inWords.placeholder = 'Auto';
+        inWords.setAttribute('aria-label', 'Projected words for this section (optional override)');
+        inWords.value =
+          s.projectedWords != null && s.projectedWords !== '' ? String(Math.round(Number(s.projectedWords))) : '';
+        inWords.addEventListener('change', function () {
+          const raw = inWords.value.trim();
+          if (raw === '') {
+            delete s.projectedWords;
+          } else {
+            const n = Math.round(Number(raw));
+            s.projectedWords = Number.isFinite(n) ? n : null;
+          }
+          render();
+        });
+        const hint = document.createElement('div');
+        hint.className = 'tpl-proj-hint';
+        hint.textContent =
+          'From %: ' + projectedWordsForSection(totalW, s.percent);
+        projWrap.appendChild(inWords);
+        projWrap.appendChild(hint);
+        tdProj.appendChild(projWrap);
 
         tr.appendChild(tdTitle);
         tr.appendChild(tdSlug);
@@ -318,7 +345,7 @@
       const note = document.createElement('p');
       note.className = 'proj-note';
       note.textContent =
-        'Estimated completion in the Anvil compares total words across all sections to the projected total above.';
+        'Anvil and dashboard use per-section word targets when you enter them; otherwise they use % × projected total. Document completion compares all section words to the projected total above.';
       card.appendChild(note);
 
       const actions = document.createElement('div');

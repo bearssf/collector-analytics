@@ -26,6 +26,10 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 0.35rem; }
     th, td { text-align: left; padding: 0.35rem 0.45rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
     th { color: rgba(255,255,255,0.45); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .tpl-proj-words { display: flex; flex-direction: column; gap: 0.2rem; min-width: 7rem; }
+    .tpl-proj-words-input { max-width: 6.5rem; }
+    .tpl-proj-hint { font-size: 0.68rem; color: rgba(255,255,255,0.4); line-height: 1.25; }
+    .tpl-proj-words input[type="number"] { width: auto; min-width: 4.5rem; max-width: 7rem; box-sizing: border-box; }
     td input { width: 100%; box-sizing: border-box; padding: 0.3rem 0.4rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.35); color: #fff; font: inherit; }
     td input.pct { max-width: 4rem; }
     .sum-row { font-weight: 600; color: #8ab4ff; }
@@ -70,6 +74,7 @@
   <p class="sub">
     Set each section&rsquo;s share of the document (must total 100%) and a <strong>projected total word count</strong> for the whole piece.
     Reorder sections with <strong>↑</strong>/<strong>↓</strong> or by dragging the <strong>⠿</strong> handle; delete a row with <strong>Delete</strong> (at least one section remains).
+    Enter optional <strong>word targets</strong> per section, or leave blank to use the value derived from % and projected total (hint line shows the calculated amount).
     Per-section targets and estimated document completion in the Anvil use these values. Templates marked <code>deprecated</code> in the JSON file are hidden here but stay on disk for existing projects.
     This page is not linked in the app &mdash; bookmark your secret URL.
   </p>

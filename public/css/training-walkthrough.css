@@ -76,6 +76,23 @@
   color: rgba(20, 24, 32, 0.92);
 }
 
+.tw-btn--back {
+  background: transparent;
+  color: rgba(20, 24, 32, 0.85);
+  border: 1px solid rgba(20, 24, 32, 0.22);
+  font-weight: 500;
+}
+
+.tw-btn--back:hover:not(:disabled) {
+  background: rgba(20, 24, 32, 0.06);
+  color: rgba(20, 24, 32, 0.92);
+}
+
+.tw-btn--back:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .tw-arrow {
   position: absolute;
   width: 0;

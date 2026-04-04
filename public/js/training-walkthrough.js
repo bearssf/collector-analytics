@@ -17,6 +17,7 @@
   var arrow = null;
   var textEl = null;
   var btn = null;
+  var backBtn = null;
   var skipBtn = null;
   var stepIndex = 0;
   var steps = [];
@@ -47,11 +48,16 @@
     skipBtn.type = 'button';
     skipBtn.className = 'tw-btn tw-btn--skip';
     skipBtn.textContent = trn('skipOverview', 'Skip this Overview');
+    backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'tw-btn tw-btn--back';
+    backBtn.textContent = trn('back', 'Back');
     btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tw-btn';
     btn.textContent = trn('next', 'Next');
     actions.appendChild(skipBtn);
+    actions.appendChild(backBtn);
     actions.appendChild(btn);
     card.appendChild(arrow);
     card.appendChild(textEl);
@@ -61,6 +67,7 @@
     document.body.appendChild(root);
 
     skipBtn.addEventListener('click', onSkip);
+    backBtn.addEventListener('click', onBack);
     btn.addEventListener('click', onContinue);
     dim.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -183,6 +190,10 @@
     var s = steps[i];
     textEl.textContent = s.text || '';
     btn.textContent = i >= steps.length - 1 ? trn('finish', 'Finish') : trn('next', 'Next');
+    if (backBtn) {
+      backBtn.disabled = i <= 0;
+      backBtn.setAttribute('aria-disabled', i <= 0 ? 'true' : 'false');
+    }
 
     clearTarget();
     var el = null;
@@ -237,6 +248,12 @@
     postJson('/api/me/training/complete', { pageSlug: pageSlug }).catch(function () {
       /* completion is best-effort; tour already dismissed */
     });
+  }
+
+  function onBack() {
+    if (stepIndex <= 0) return;
+    stepIndex -= 1;
+    showStep(stepIndex);
   }
 
   function onContinue() {
