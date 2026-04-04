@@ -554,6 +554,7 @@
       "scoreGrammar": "Grammar",
       "scoreStrong": "Strong",
       "scoreModerate": "Moderate",
+      "scorePoor": "Poor",
       "scoreLow": "Low",
       "anchorLabel": "Anchor",
       "confirmBtn": "Confirm",

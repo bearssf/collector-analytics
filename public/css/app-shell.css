@@ -1393,16 +1393,15 @@
 }
 .app-anvil-scoring-head.anvil-top-metrics__scoring {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
   justify-content: flex-end;
-  column-gap: 2rem;
-  row-gap: 0.75rem;
+  column-gap: 1.75rem;
   flex-shrink: 0;
   margin: 0;
 }
 .anvil-scoring-group {
-  min-width: 145px;
+  min-width: 128px;
 }
 .anvil-scoring-group + .anvil-scoring-group {
   padding-left: 1.25rem;
@@ -1430,7 +1429,7 @@
   color: rgba(255, 255, 255, 0.75);
 }
 .anvil-score-bar {
-  width: 50px;
+  width: 56px;
   height: 7px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -1445,15 +1444,25 @@
 .anvil-score-fill--strong { background: #3b743c; }
 .anvil-score-fill--moderate { background: #d59372; }
 .anvil-score-fill--low { background: #d9534f; }
+.anvil-score-fill--poor { background: #d9534f; }
+.anvil-score-pct {
+  font-size: 0.68rem;
+  font-weight: 600;
+  width: 34px;
+  flex-shrink: 0;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.85);
+}
 .anvil-score-rating {
   font-size: 0.68rem;
   font-weight: 600;
-  width: 56px;
+  min-width: 52px;
   flex-shrink: 0;
 }
 .anvil-score-rating--strong { color: #3b743c; }
 .anvil-score-rating--moderate { color: #d59372; }
 .anvil-score-rating--low { color: #d9534f; }
+.anvil-score-rating--poor { color: #d9534f; }
 
 .anvil-save-btn:disabled {
   opacity: 0.4;
@@ -1746,25 +1755,35 @@
   box-sizing: border-box;
 }
 .app-anvil-page-head__left {
-  flex: 1;
+  flex: 1 1 36%;
+  max-width: min(36%, 19rem);
   min-width: 0;
 }
 .app-anvil-page-head__left h1 {
   margin: 0 0 0.35rem;
 }
 .app-anvil-scoring-head {
-  flex: 0 0 auto;
-  max-width: min(48%, 24rem);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
 }
 @media (max-width: 720px) {
   .app-anvil-page-head {
     flex-wrap: wrap;
+  }
+  .app-anvil-page-head__left {
+    max-width: 100%;
+    flex: 1 1 100%;
   }
   .app-anvil-scoring-head {
     max-width: 100%;
     width: 100%;
     display: flex;
     justify-content: flex-end;
+  }
+  .app-anvil-scoring-head.anvil-top-metrics__scoring {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 .app-body--anvil .app-canvas > #anvil-root {

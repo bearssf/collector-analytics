@@ -51,11 +51,14 @@
   var MIN_REVIEW_INTERVAL_MS = 22000;
   var MIN_PLAIN_CHARS = 15;
 
-  /** Per-section: first successful structured (Bedrock) review completed in this session. */
-  var sectionStructuredReviewDone = Object.create(null);
+  function sectionHasStructuredReview(sec) {
+    if (!sec) return false;
+    var t = sec.structured_review_at;
+    return t != null && String(t).trim() !== '';
+  }
 
   function hasCompletedInitialReviewForSection() {
-    return selectedId != null && !!sectionStructuredReviewDone[selectedId];
+    return selectedId != null && sectionHasStructuredReview(sectionById(selectedId));
   }
   var charsSinceFingerprint = 0;
 
@@ -1322,16 +1325,44 @@
     return c;
   }
 
-  function computeSectionScores() {
-    var cats = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+  function qualityTierFromPercent(p) {
+    var n = Number(p);
+    if (Number.isNaN(n)) return 'strong';
+    if (n > 75) return 'strong';
+    if (n >= 51) return 'moderate';
+    return 'poor';
+  }
+
+  function countWordsForCurrentSection() {
+    var cur = sectionById(selectedId);
+    if (!cur) return 0;
+    if (quill || document.getElementById('anvil-fallback')) {
+      return countWords(getDraftHtml());
+    }
+    return countWords(cur.body || '');
+  }
+
+  /** Starts at 100%; each open (active/pending) suggestion deducts (anchor words / section words) × 100. */
+  function computeSectionQualityPercents() {
+    var cats = { logic: 100, clarity: 100, evidence: 100, grammar: 100 };
     var omitEvidence = isAbstractSection(sectionById(selectedId));
+    var sectionWords = countWordsForCurrentSection();
+    if (sectionWords <= 0) return cats;
+
+    var deductions = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
     feedbackRows.forEach(function (row) {
-      if (row.status !== 'applied' && row.status !== 'dismissed' && row.status !== 'resolved') return;
+      var st = row.status;
+      if (st !== 'active' && st !== 'pending') return;
       var mapped = mapScoringCategory(row.item.category);
       if (omitEvidence && mapped === 'evidence') return;
-      if (cats[mapped] !== undefined) {
-        cats[mapped] += (row.item.anchorWordCount || countAnchorWords(row.item.anchorText));
-      }
+      if (deductions[mapped] === undefined) return;
+      var aw = row.item.anchorWordCount || countAnchorWords(row.item.anchorText);
+      deductions[mapped] += (aw / sectionWords) * 100;
+    });
+
+    ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
+      var v = 100 - deductions[cat];
+      cats[cat] = Math.max(0, Math.min(100, Math.round(v)));
     });
     return cats;
   }
@@ -1342,43 +1373,25 @@
     return t ? t.split(/\s+/).length : 0;
   }
 
-  function ratingForRatio(flagged, total) {
-    if (total === 0) return 'strong';
-    var ratio = flagged / total;
-    var strongT = parseFloat(root.dataset.scoreStrong || '0.05');
-    var modT = parseFloat(root.dataset.scoreModerate || '0.15');
-    if (ratio <= strongT) return 'strong';
-    if (ratio <= modT) return 'moderate';
-    return 'low';
-  }
-
   function updateScoring() {
     var panel = document.getElementById('anvil-scoring-panel');
     if (!panel || panel.hidden) return;
     if (skipStructuredFeedback(sectionById(selectedId))) return;
-    var sectionScores = computeSectionScores();
+    var sectionPercents = computeSectionQualityPercents();
     var current = sectionById(selectedId);
-    var sectionWords = current ? countWords(current.body || getDraftHtml()) : 0;
     var sectionHtml = buildScoringGroupHtml(
       anvilT('sectionQuality', 'Section Quality'),
-      sectionScores,
-      sectionWords,
+      sectionPercents,
       { omitEvidence: isAbstractSection(current) }
     );
 
-    api('/projects/' + projectId + '/feedback-scores?sectionId=' + selectedId, 'GET')
+    api('/projects/' + projectId + '/feedback-scores', 'GET')
       .then(function (data) {
         var projectHtml = '';
         if (data && data.project) {
-          var projCats = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
-          var projTotal = 0;
-          ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
-            if (data.project[cat]) {
-              projCats[cat] = data.project[cat].flaggedWords || 0;
-              projTotal = data.project[cat].totalWords || projTotal;
-            }
+          projectHtml = buildScoringGroupHtml(anvilT('projectQuality', 'Project Quality'), data.project, {
+            fromApi: true,
           });
-          projectHtml = buildScoringGroupHtml(anvilT('projectQuality', 'Project Quality'), projCats, projTotal, {});
         }
         panel.innerHTML = sectionHtml + projectHtml;
       })
@@ -1387,9 +1400,10 @@
       });
   }
 
-  function buildScoringGroupHtml(title, cats, totalWords, opts) {
+  function buildScoringGroupHtml(title, catMap, opts) {
     opts = opts || {};
     var omitEvidence = !!opts.omitEvidence;
+    var fromApi = !!opts.fromApi;
     var catLabel = {
       logic: anvilT('scoreLogic', 'Logic'),
       clarity: anvilT('scoreClarity', 'Clarity'),
@@ -1399,19 +1413,28 @@
     var ratingLabelMap = {
       strong: anvilT('scoreStrong', 'Strong'),
       moderate: anvilT('scoreModerate', 'Moderate'),
-      low: anvilT('scoreLow', 'Low'),
+      poor: anvilT('scorePoor', 'Poor'),
     };
     var html = '<div class="anvil-scoring-group"><div class="anvil-scoring-title">' + escapeHtml(title) + '</div>';
     var order = omitEvidence ? ['logic', 'clarity', 'grammar'] : ['logic', 'clarity', 'evidence', 'grammar'];
     order.forEach(function (cat) {
-      var flagged = cats[cat] || 0;
-      var rating = ratingForRatio(flagged, totalWords);
-      var fillPct = rating === 'strong' ? 100 : rating === 'moderate' ? 66 : 33;
+      var entry = catMap[cat];
+      var pct;
+      var rating;
+      if (fromApi && entry && typeof entry === 'object' && entry.percent != null) {
+        pct = Math.round(Number(entry.percent));
+        rating = entry.rating || qualityTierFromPercent(pct);
+      } else {
+        pct = Math.round(Number(entry != null ? entry : 100));
+        rating = qualityTierFromPercent(pct);
+      }
+      var fillPct = Math.max(0, Math.min(100, pct));
       var label = catLabel[cat] || cat;
       var ratingLabel = ratingLabelMap[rating] || rating;
       html += '<div class="anvil-score-row">' +
         '<span class="anvil-score-label">' + label + '</span>' +
         '<div class="anvil-score-bar"><div class="anvil-score-fill anvil-score-fill--' + rating + '" style="width:' + fillPct + '%"></div></div>' +
+        '<span class="anvil-score-pct">' + pct + '%</span>' +
         '<span class="anvil-score-rating anvil-score-rating--' + rating + '">' + ratingLabel + '</span>' +
       '</div>';
     });
@@ -1496,7 +1519,10 @@
           return;
         }
         if (!isIncremental) {
-          sectionStructuredReviewDone[selectedId] = true;
+          var secRow = sectionById(selectedId);
+          if (secRow && data.structuredReviewAt) {
+            secRow.structured_review_at = data.structuredReviewAt;
+          }
           var scorePanel = document.getElementById('anvil-scoring-panel');
           if (scorePanel && !skipStructuredFeedback(sectionById(selectedId))) {
             scorePanel.hidden = false;

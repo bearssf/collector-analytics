@@ -65,6 +65,26 @@ function filterStructuredFeedbackItemsForAbstract(items, sectionSlug) {
   });
 }
 
+function mapQualityCategory(cat) {
+  var c = (cat || '').toLowerCase();
+  if (c === 'spelling' || c === 'formatting') return 'grammar';
+  return c;
+}
+
+function qualityTierFromPercent(p) {
+  var n = Number(p);
+  if (Number.isNaN(n)) return 'strong';
+  if (n > 75) return 'strong';
+  if (n >= 51) return 'moderate';
+  return 'poor';
+}
+
+function clampQualityPercent(x) {
+  var n = Number(x);
+  if (Number.isNaN(n)) return 100;
+  return Math.max(0, Math.min(100, n));
+}
+
 function mapSuggestionRow(r) {
   if (!r) return null;
   return rowToSuggestion({
@@ -1050,12 +1070,31 @@ function createApiRouter(getPool) {
       });
       allItems = filterStructuredFeedbackItemsForAbstract(allItems, sec.slug);
 
+      await query(
+        getPool,
+        `UPDATE project_sections
+         SET structured_review_at = COALESCE(structured_review_at, NOW(6)), updated_at = NOW(6)
+         WHERE id = @sid AND project_id = @pid`,
+        { sid: sectionId, pid: projectId }
+      );
+      const srRow = await query(
+        getPool,
+        `SELECT structured_review_at FROM project_sections WHERE id = @sid AND project_id = @pid`,
+        { sid: sectionId, pid: projectId }
+      );
+      const sra = srRow.recordset[0] && srRow.recordset[0].structured_review_at;
+      let structuredReviewAt = null;
+      if (sra) {
+        structuredReviewAt = sra instanceof Date ? sra.toISOString() : String(sra);
+      }
+
       res.json({
         items: allItems,
         skipped: false,
         shortDraft: false,
         bedrockConfigured: true,
         inserted: insertedCount,
+        structuredReviewAt,
       });
     } catch (e) {
       next(e);
@@ -1227,87 +1266,48 @@ function createApiRouter(getPool) {
       if (!(await ownsProject(getPool, projectId, req.session.userId)))
         return apiErr(req, res, 404, 'errors.notFound');
 
-      const sectionIdParam = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
-
-      let omitEvidenceForSectionScores = false;
-      if (sectionIdParam) {
-        const slugRow = await query(
-          getPool,
-          `SELECT slug FROM project_sections WHERE id = @sid AND project_id = @pid`,
-          { sid: sectionIdParam, pid: projectId }
-        );
-        if (slugRow.recordset[0]) {
-          omitEvidenceForSectionScores = isAbstractSectionSlug(slugRow.recordset[0].slug);
-        }
-      }
-
-      const scoreRows = await query(
-        getPool,
-        `SELECT section_id, category, SUM(anchor_word_count) AS flagged_words
-         FROM anvil_feedback
-         WHERE project_id = @pid AND status IN ('applied','dismissed','resolved')
-         GROUP BY section_id, category`,
-        { pid: projectId }
-      );
-
       const wordRows = await query(
         getPool,
         `SELECT id, body FROM project_sections WHERE project_id = @pid`,
         { pid: projectId }
       );
-      const sectionWords = {};
       let totalProjectWords = 0;
       for (const wr of wordRows.recordset) {
         const text = wr.body ? String(wr.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '';
         const wc = text ? text.split(/\s+/).length : 0;
-        sectionWords[wr.id] = wc;
         totalProjectWords += wc;
       }
 
-      function mapCat(cat) {
-        var c = (cat || '').toLowerCase();
-        if (c === 'spelling' || c === 'formatting') return 'grammar';
-        return c;
-      }
+      const openFeedback = await query(
+        getPool,
+        `SELECT f.category, f.anchor_word_count, ps.slug AS section_slug
+         FROM anvil_feedback f
+         INNER JOIN project_sections ps ON ps.id = f.section_id AND ps.project_id = f.project_id
+         WHERE f.project_id = @pid AND f.status IN ('active','pending')`,
+        { pid: projectId }
+      );
 
-      var sectionScores = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
-      var projectScores = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
-
-      for (const row of scoreRows.recordset) {
-        var mapped = mapCat(row.category);
-        if (projectScores[mapped] !== undefined) {
-          projectScores[mapped] += row.flagged_words || 0;
-        }
-        if (sectionIdParam && row.section_id === sectionIdParam) {
-          if (omitEvidenceForSectionScores && mapped === 'evidence') continue;
-          if (sectionScores[mapped] !== undefined) {
-            sectionScores[mapped] += row.flagged_words || 0;
-          }
+      var deductions = { logic: 0, clarity: 0, evidence: 0, grammar: 0 };
+      if (totalProjectWords > 0) {
+        for (const row of openFeedback.recordset) {
+          var mapped = mapQualityCategory(row.category);
+          if (deductions[mapped] === undefined) continue;
+          if (isAbstractSectionSlug(row.section_slug) && mapped === 'evidence') continue;
+          var aw = row.anchor_word_count || 0;
+          deductions[mapped] += (aw / totalProjectWords) * 100;
         }
       }
 
-      var sectionTotalWords = sectionIdParam ? (sectionWords[sectionIdParam] || 0) : 0;
-
-      const strongThreshold = parseFloat(process.env.SCORE_STRONG_THRESHOLD || '0.05');
-      const moderateThreshold = parseFloat(process.env.SCORE_MODERATE_THRESHOLD || '0.15');
-
-      function ratingFor(flagged, total) {
-        if (total === 0) return { flaggedWords: flagged, totalWords: total, ratio: 0, rating: 'strong' };
-        var ratio = flagged / total;
-        var rating = ratio <= strongThreshold ? 'strong' : ratio <= moderateThreshold ? 'moderate' : 'low';
-        return { flaggedWords: flagged, totalWords: total, ratio: Math.round(ratio * 10000) / 10000, rating: rating };
-      }
-
-      var result = {
-        section: {},
-        project: {},
-      };
+      var project = {};
       ['logic', 'clarity', 'evidence', 'grammar'].forEach(function (cat) {
-        result.section[cat] = ratingFor(sectionScores[cat], sectionTotalWords);
-        result.project[cat] = ratingFor(projectScores[cat], totalProjectWords);
+        var pct = clampQualityPercent(100 - deductions[cat]);
+        project[cat] = {
+          percent: Math.round(pct),
+          rating: qualityTierFromPercent(pct),
+        };
       });
 
-      res.json(result);
+      res.json({ project });
     } catch (e) {
       next(e);
     }
