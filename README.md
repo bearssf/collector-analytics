@@ -157,7 +157,7 @@ Set a random **`ADMIN_TEMPLATE_EDITOR_TOKEN`** in `.env` (minimum **8** characte
 
 Use the query form so the secret can contain any character (including `/`). A path-only URL `.../admin/project-templates/<SECRET>` still works if the secret has **no** `/` in it (Express only captures one path segment).
 
-Use it to edit section titles, slugs, each section’s **% of the document** (must total 100% per template), and **projected total word count** for the whole piece. Data is stored in `data/project-templates.json`. New projects inherit section weights from their template. In the Anvil, the progress row shows **Section target** (~words for the current section) and **Document** (~% complete vs the projected total) when those values are set.
+Use it to edit section titles, slugs, each section’s **% of the document** (must total 100% per template), and **projected total word count** for the whole piece. Data is stored in `data/project-templates.json`. **Saves write that JSON back exactly as submitted** (after validation only)—the server does not recompute percentages or slugs on save. New projects inherit section weights from their template. In the Anvil, the progress row shows **Section target** (~words for the current section) and **Document** (~% complete vs the projected total) when those values are set.
 
 ## Repository
 
