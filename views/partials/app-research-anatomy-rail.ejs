@@ -26,4 +26,23 @@
       </div>
     </div>
   </div>
+
+  <div class="ra-modal" id="ra-modal-insufficient" hidden role="dialog" aria-modal="true" aria-labelledby="ra-modal-insufficient-title">
+    <div class="ra-modal__backdrop" data-ra-modal-close></div>
+    <div class="ra-modal__panel">
+      <p class="ra-modal__text" id="ra-modal-insufficient-title"><%= t('workspace.researchAnatomy.modalInsufficient') %></p>
+      <button type="button" class="ra-modal__btn ra-modal__btn--primary" id="ra-modal-insufficient-ok"><%= t('workspace.researchAnatomy.modalBtnOk') %></button>
+    </div>
+  </div>
+
+  <div class="ra-modal" id="ra-modal-time" hidden role="dialog" aria-modal="true" aria-labelledby="ra-modal-time-title">
+    <div class="ra-modal__backdrop" data-ra-modal-close></div>
+    <div class="ra-modal__panel">
+      <p class="ra-modal__text" id="ra-modal-time-title"><%= t('workspace.researchAnatomy.modalTimeBody') %></p>
+      <div class="ra-modal__actions">
+        <button type="button" class="ra-modal__btn" id="ra-modal-time-cancel"><%= t('workspace.researchAnatomy.modalBtnCancel') %></button>
+        <button type="button" class="ra-modal__btn ra-modal__btn--primary" id="ra-modal-time-confirm"><%= t('workspace.researchAnatomy.modalBtnContinue') %></button>
+      </div>
+    </div>
+  </div>
 </aside>

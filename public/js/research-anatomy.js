@@ -17,6 +17,10 @@
   const tbody = document.getElementById('ra-assessment-tbody');
   const tableWrap = document.querySelector('.ra-assessment-table-wrap');
   const emptyEl = document.getElementById('ra-assessment-empty');
+  const modalInsufficient = document.getElementById('ra-modal-insufficient');
+  const modalTime = document.getElementById('ra-modal-time');
+
+  const minWords = I.minWords != null ? Number(I.minWords) : 100;
 
   function readLs() {
     try {
@@ -41,6 +45,14 @@
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return String(iso);
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  function showModal(el) {
+    if (el) el.hidden = false;
+  }
+
+  function hideModal(el) {
+    if (el) el.hidden = true;
   }
 
   function setRailSpan(el, active) {
@@ -121,6 +133,30 @@
     });
     setRailSpan(el, false);
   });
+
+  if (modalInsufficient) {
+    var okIns = document.getElementById('ra-modal-insufficient-ok');
+    if (okIns) okIns.addEventListener('click', function () { hideModal(modalInsufficient); });
+    modalInsufficient.querySelectorAll('[data-ra-modal-close]').forEach(function (b) {
+      b.addEventListener('click', function () { hideModal(modalInsufficient); });
+    });
+  }
+  if (modalTime) {
+    var cancelTime = document.getElementById('ra-modal-time-cancel');
+    var confirmTime = document.getElementById('ra-modal-time-confirm');
+    if (cancelTime)
+      cancelTime.addEventListener('click', function () {
+        hideModal(modalTime);
+      });
+    if (confirmTime)
+      confirmTime.addEventListener('click', function () {
+        hideModal(modalTime);
+        executeReview();
+      });
+    modalTime.querySelectorAll('[data-ra-modal-close]').forEach(function (b) {
+      b.addEventListener('click', function () { hideModal(modalTime); });
+    });
+  }
 
   function applyResults(results) {
     if (!results || !results.byTile) return;
@@ -229,7 +265,30 @@
     }
   }
 
-  async function runReview() {
+  async function onReviewButtonClick() {
+    if (!btn || btn.disabled) return;
+
+    var ex;
+    try {
+      ex = await fetch('/api/projects/' + projectId + '/research-anatomy/export-text', {
+        credentials: 'same-origin',
+      });
+      if (!ex.ok) return;
+    } catch (e) {
+      return;
+    }
+
+    var payload = await ex.json();
+    var wc = payload.wordCount != null ? Number(payload.wordCount) : 0;
+    if (wc < minWords) {
+      showModal(modalInsufficient);
+      return;
+    }
+
+    showModal(modalTime);
+  }
+
+  async function executeReview() {
     if (!btn) return;
     btn.disabled = true;
     if (statusEl) {
@@ -238,15 +297,16 @@
     }
     if (cooldownEl) cooldownEl.hidden = true;
 
-    let s3Key = null;
+    var s3Key = null;
     try {
-      const ex = await fetch('/api/projects/' + projectId + '/research-anatomy/export-text', {
+      var ex = await fetch('/api/projects/' + projectId + '/research-anatomy/export-text', {
         credentials: 'same-origin',
       });
       if (!ex.ok) throw new Error('export');
-      const { text } = await ex.json();
+      var payload = await ex.json();
+      var text = payload.text || '';
 
-      const pres = await fetch('/api/projects/' + projectId + '/research-anatomy/presign', {
+      var pres = await fetch('/api/projects/' + projectId + '/research-anatomy/presign', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -254,9 +314,9 @@
       });
 
       if (pres.ok) {
-        const p = await pres.json();
+        var p = await pres.json();
         if (p.uploadUrl && p.key) {
-          const put = await fetch(p.uploadUrl, {
+          var put = await fetch(p.uploadUrl, {
             method: 'PUT',
             body: new Blob([text], { type: 'text/plain;charset=utf-8' }),
             headers: { 'Content-Type': p.contentType || 'text/plain; charset=utf-8' },
@@ -266,28 +326,36 @@
         }
       }
 
-      const run = await fetch('/api/projects/' + projectId + '/research-anatomy/run', {
+      var run = await fetch('/api/projects/' + projectId + '/research-anatomy/run', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s3Key: s3Key }),
       });
 
+      if (run.status === 400) {
+        var err400 = await run.json().catch(function () { return {}; });
+        if (err400.error === 'insufficient_words') {
+          showModal(modalInsufficient);
+          await fetchStatus();
+          if (statusEl) statusEl.hidden = true;
+          return;
+        }
+        throw new Error('run');
+      }
+
       if (run.status === 429) {
-        const err = await run.json().catch(function () {
-          return {};
-        });
-        if (err.cooldownUntil) writeLs({ lockedUntil: err.cooldownUntil, everCompleted: true });
+        var err429 = await run.json().catch(function () { return {}; });
+        if (err429.cooldownUntil)
+          writeLs({ lockedUntil: err429.cooldownUntil, everCompleted: true });
         await fetchStatus();
         if (statusEl) statusEl.hidden = true;
         return;
       }
 
       if (run.status === 503) {
-        const err = await run.json().catch(function () {
-          return {};
-        });
-        if (err.error === 'bedrock_not_configured' && statusEl) {
+        var err503 = await run.json().catch(function () { return {}; });
+        if (err503.error === 'bedrock_not_configured' && statusEl) {
           statusEl.hidden = false;
           statusEl.textContent = I.bedrockMissing || 'AI not configured.';
         }
@@ -297,14 +365,14 @@
 
       if (!run.ok) throw new Error('run');
 
-      let tries = 0;
-      const poll = setInterval(async function () {
+      var tries = 0;
+      var poll = setInterval(async function () {
         tries += 1;
-        const st = await fetch('/api/projects/' + projectId + '/research-anatomy/status', {
+        var st = await fetch('/api/projects/' + projectId + '/research-anatomy/status', {
           credentials: 'same-origin',
         });
         if (!st.ok) return;
-        const data = await st.json();
+        var data = await st.json();
         if (data.latest && data.latest.status === 'complete' && data.results) {
           clearInterval(poll);
           applyResults(data.results);
@@ -334,6 +402,6 @@
     }
   }
 
-  if (btn) btn.addEventListener('click', runReview);
+  if (btn) btn.addEventListener('click', onReviewButtonClick);
   fetchStatus();
 })();

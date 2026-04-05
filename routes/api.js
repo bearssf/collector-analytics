@@ -52,8 +52,13 @@ const {
   validateS3KeyForUser,
   startResearchAnatomyReview,
   randomSuffix,
+  MIN_REVIEW_WORDS,
 } = require('../lib/researchAnatomyService');
-const { versionIdFromBundle, buildSectionAwareDocument } = require('../lib/researchAnatomyPipeline');
+const {
+  versionIdFromBundle,
+  buildSectionAwareDocument,
+  countWords,
+} = require('../lib/researchAnatomyPipeline');
 
 function tReq(req, key, vars) {
   return i18n.t((req && req.locale) || 'en', key, vars);
@@ -2091,6 +2096,8 @@ function createApiRouter(getPool) {
       res.json({
         text,
         versionId: versionIdFromBundle(bundle),
+        wordCount: countWords(text),
+        minWords: MIN_REVIEW_WORDS,
       });
     } catch (e) {
       next(e);
@@ -2159,6 +2166,13 @@ function createApiRouter(getPool) {
           return res.status(429).json({
             error: 'Review cooldown active.',
             cooldownUntil: started.cooldownUntil ? started.cooldownUntil.toISOString() : null,
+          });
+        }
+        if (started.status === 400 && started.error === 'insufficient_words') {
+          return res.status(400).json({
+            error: 'insufficient_words',
+            wordCount: started.wordCount != null ? started.wordCount : 0,
+            minWords: MIN_REVIEW_WORDS,
           });
         }
         return res.status(started.status || 400).json({ error: started.error || 'error' });

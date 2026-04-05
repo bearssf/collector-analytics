@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Research Anatomy stats (admin)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1.25rem; background: #0f1419; color: #e6edf3; line-height: 1.45; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+    p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 40rem; }
+    table { border-collapse: collapse; width: 100%; max-width: 36rem; font-size: 0.88rem; margin-top: 0.5rem; }
+    th, td { border: 1px solid #30363d; padding: 0.5rem 0.6rem; text-align: left; }
+    th { background: #161b22; color: #8b949e; font-weight: 600; width: 55%; }
+    td { font-variant-numeric: tabular-nums; }
+    code { font-size: 0.85em; background: #21262d; padding: 0.1rem 0.35rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Research Anatomy — review statistics</h1>
+  <p class="hint">Use <code>?token=…</code> with <code>ADMIN_RESEARCH_ANATOMY_STATS_TOKEN</code> (same pattern as other admin tools). Timing is from <strong>review request</strong> (run start) to <strong>results stored</strong>.</p>
+  <% function fmtMs(ms) {
+    if (ms == null || Number.isNaN(Number(ms))) return '—';
+    var n = Number(ms);
+    if (n < 1000) return Math.round(n) + ' ms';
+    var s = n / 1000;
+    if (s < 60) return s.toFixed(1) + ' s';
+    var m = Math.floor(s / 60);
+    var rs = s - m * 60;
+    return m + 'm ' + rs.toFixed(0) + 's';
+  }
+  var st = typeof stats !== 'undefined' ? stats : {};
+  %>
+  <table>
+    <tbody>
+      <tr><th>Total runs (all statuses)</th><td><%= st.totalRuns != null ? st.totalRuns : 0 %></td></tr>
+      <tr><th>Completed reviews</th><td><%= st.completedRuns != null ? st.completedRuns : 0 %></td></tr>
+      <tr><th>Failed</th><td><%= st.failedRuns != null ? st.failedRuns : 0 %></td></tr>
+      <tr><th>In progress</th><td><%= st.processingRuns != null ? st.processingRuns : 0 %></td></tr>
+      <tr><th>Average time (request → results)</th><td><%= fmtMs(st.avgDurationMs) %></td></tr>
+      <tr><th>Total words reviewed (completed)</th><td><%= st.totalWordsReviewed != null ? Math.round(st.totalWordsReviewed) : 0 %></td></tr>
+      <tr><th>Average words per completed review</th><td><%= st.avgWordsPerRun != null && !Number.isNaN(st.avgWordsPerRun) ? st.avgWordsPerRun.toFixed(1) : '—' %></td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

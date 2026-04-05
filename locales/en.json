@@ -452,7 +452,12 @@
       "colComponent": "Component",
       "colScore": "Score",
       "tableEmpty": "Run a review to see scores here.",
-      "bedrockMissing": "AI review is not configured on the server."
+      "bedrockMissing": "AI review is not configured on the server.",
+      "modalInsufficient": "Not enough has been written to support a review.",
+      "modalTimeBody": "This may take several minutes. The review is processing; results will appear here when ready.",
+      "modalBtnOk": "OK",
+      "modalBtnContinue": "Start review",
+      "modalBtnCancel": "Cancel"
     },
     "placeholderStrong": "Placeholder workspace.",
     "placeholderRest": "Section-specific writing, capture, or visualization will load here for",
@@ -476,6 +481,7 @@
     "admin": "Admin",
     "adminTemplates": "Project templates",
     "adminTraining": "Training walkthrough",
+    "adminResearchAnatomy": "Research Anatomy stats",
     "home": "Home",
     "pageTour": "Page Tour"
   },

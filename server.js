@@ -62,6 +62,8 @@ const {
   trainingAnchorsForAdmin,
   ensureTrainingWalkthroughSchema,
 } = require('./lib/trainingWalkthrough');
+const { getResearchAnatomyAdminStats } = require('./lib/researchAnatomyStats');
+const { MIN_REVIEW_WORDS } = require('./lib/researchAnatomyService');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
 const {
@@ -208,12 +210,14 @@ function applyAdminSidebarNavLocals(req, res) {
   res.locals.showAdminNav = false;
   res.locals.adminProjectTemplatesHref = '';
   res.locals.adminTrainingHref = '';
+  res.locals.adminResearchAnatomyHref = '';
   if (!req.session || !req.session.user || !req.session.user.email) return;
   if (String(req.session.user.email).toLowerCase() !== ADMIN_SIDEBAR_NAV_EMAIL.toLowerCase()) {
     return;
   }
   const tplTok = trimAdminTemplateToken(process.env.ADMIN_TEMPLATE_EDITOR_TOKEN);
   const trainTok = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
+  const raTok = trimAdminTemplateToken(process.env.ADMIN_RESEARCH_ANATOMY_STATS_TOKEN);
   if (tplTok.length >= ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
     res.locals.adminProjectTemplatesHref =
       '/admin/project-templates?token=' + encodeURIComponent(tplTok);
@@ -222,8 +226,14 @@ function applyAdminSidebarNavLocals(req, res) {
     res.locals.adminTrainingHref =
       '/admin/training-walkthrough?token=' + encodeURIComponent(trainTok);
   }
+  if (raTok.length >= ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
+    res.locals.adminResearchAnatomyHref =
+      '/admin/research-anatomy-stats?token=' + encodeURIComponent(raTok);
+  }
   res.locals.showAdminNav = !!(
-    res.locals.adminProjectTemplatesHref || res.locals.adminTrainingHref
+    res.locals.adminProjectTemplatesHref ||
+    res.locals.adminTrainingHref ||
+    res.locals.adminResearchAnatomyHref
   );
 }
 
@@ -348,6 +358,33 @@ app.get(
 app.post('/admin/training-walkthrough/step', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingUpsert));
 app.post('/admin/training-walkthrough/delete', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingDelete));
 app.post('/admin/training-walkthrough/reorder', requireAdminTrainingEditorToken, asyncHandler(postAdminTrainingReorder));
+
+function requireAdminResearchAnatomyStatsToken(req, res, next) {
+  const secret = trimAdminTemplateToken(process.env.ADMIN_RESEARCH_ANATOMY_STATS_TOKEN);
+  if (!secret || secret.length < ADMIN_TEMPLATE_TOKEN_MIN_LEN) {
+    return sendAdminGateNotFound(res);
+  }
+  const token = trimAdminTemplateToken(adminTemplateTokenFromReq(req));
+  if (token !== secret) {
+    return sendAdminGateNotFound(res);
+  }
+  next();
+}
+
+async function renderAdminResearchAnatomyStats(req, res, next) {
+  try {
+    const stats = await getResearchAnatomyAdminStats(getPool);
+    res.render('admin-research-anatomy-stats', { stats });
+  } catch (e) {
+    next(e);
+  }
+}
+
+app.get(
+  '/admin/research-anatomy-stats',
+  requireAdminResearchAnatomyStatsToken,
+  asyncHandler(renderAdminResearchAnatomyStats)
+);
 
 function asyncHandler(fn) {
   return function (req, res, next) {
@@ -1170,6 +1207,7 @@ app.get(
       autosaveCharThreshold: AUTOSAVE_CHAR_THRESHOLD,
       scoreStrongThreshold: SCORE_STRONG_THRESHOLD,
       scoreModerateThreshold: SCORE_MODERATE_THRESHOLD,
+      minReviewWords: MIN_REVIEW_WORDS,
       ...trainingRenderLocals(res),
     });
   })

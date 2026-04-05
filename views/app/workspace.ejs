@@ -32,9 +32,7 @@
       <% } %>
       <% if (phaseSlug === 'crucible') { %>
         <p class="sub app-crucible-intro"><%= t('workspace.crucibleIntro') %></p>
-      <% } else if (phaseSlug === 'framework') { %>
-        <p class="sub"><%- t('workspace.frameworkSub', { project: projectTitle }) %></p>
-      <% } else if (phaseSlug !== 'anvil') { %>
+      <% } else if (phaseSlug !== 'anvil' && phaseSlug !== 'framework') { %>
         <p class="sub"><%= t('workspace.genericPhaseSub', { project: projectTitle }) %></p>
       <% } %>
 
@@ -91,7 +89,8 @@
       cooldownPrefix: <%- JSON.stringify(t('workspace.researchAnatomy.cooldownPrefix')) %>,
       statusProcessing: <%- JSON.stringify(t('workspace.researchAnatomy.statusProcessing')) %>,
       statusError: <%- JSON.stringify(t('workspace.researchAnatomy.statusError')) %>,
-      bedrockMissing: <%- JSON.stringify(t('workspace.researchAnatomy.bedrockMissing')) %>
+      bedrockMissing: <%- JSON.stringify(t('workspace.researchAnatomy.bedrockMissing')) %>,
+      minWords: <%= typeof minReviewWords !== 'undefined' ? minReviewWords : 100 %>
     };
   </script>
   <script src="/js/research-anatomy.js" defer></script>

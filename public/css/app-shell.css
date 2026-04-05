@@ -4481,24 +4481,40 @@
 .dash-rail-renewal__link:hover { text-decoration: underline; }
 
 /* ── Research Anatomy: center stage + right rail (20% / 80%) ── */
-.app-body--research-anatomy .app-canvas .sub {
-  margin-bottom: 0.75rem;
+.app-body--workspace-shell.app-body--research-anatomy .app-canvas {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.app-body--research-anatomy .app-canvas > .ra-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .ra-stage {
   background: #000000;
-  margin: 0 -1.25rem -2rem;
-  padding: 0 1.25rem 2.5rem;
+  margin: 0;
+  padding: 0 0 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 @media (min-width: 960px) {
   .ra-stage {
-    margin: 0 -1.75rem -2.5rem;
-    padding: 0 1.75rem 2.5rem;
+    padding: 0 0 2rem;
   }
 }
 .ra-stage__inner {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 32px 0 48px;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 1.25rem 0 2rem;
+  box-sizing: border-box;
+  flex: 1;
 }
 .ra-stage__header { margin-bottom: 32px; }
 .ra-stage__title-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
@@ -4823,4 +4839,68 @@
   margin: 0.35rem 0 0;
 }
 .ra-assessment-table-wrap.is-populated .ra-assessment-empty { display: none; }
+
+/* Research Anatomy — modals (fixed; safe inside aside) */
+.app-insight.app-research-anatomy-rail { position: relative; }
+.ra-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+.ra-modal[hidden] {
+  display: none !important;
+}
+.ra-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+.ra-modal__panel {
+  position: relative;
+  z-index: 1;
+  max-width: 22rem;
+  width: 100%;
+  padding: 1.15rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #121214;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.ra-modal__text {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.88);
+}
+.ra-modal__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.ra-modal__btn {
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.ra-modal__btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.ra-modal__btn--primary {
+  border-color: rgba(47, 128, 237, 0.5);
+  background: rgba(47, 128, 237, 0.2);
+  font-weight: 600;
+}
+.ra-modal__btn--primary:hover {
+  background: rgba(47, 128, 237, 0.35);
+}
 
