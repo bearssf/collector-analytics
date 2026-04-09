@@ -10,12 +10,6 @@
     .rs1-top { text-align: center; margin-bottom: 1rem; }
     .rs1-top a { color: #58a6ff; text-decoration: none; font-size: 0.9rem; }
     .rs1-top a:hover { text-decoration: underline; }
-    .rs1-top-sep { color: #484f58; font-size: 0.9rem; }
-    .rs1-top-linkbtn {
-      background: none; border: none; padding: 0; margin: 0;
-      font: inherit; font-size: 0.9rem; color: #58a6ff; cursor: pointer; text-decoration: underline;
-    }
-    .rs1-top-linkbtn:hover { color: #79b8ff; }
     h1 { font-size: 1.2rem; margin: 0 0 0.35rem; font-weight: 600; text-align: center; }
     p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 44rem; margin-left: auto; margin-right: auto; text-align: center; }
     h2 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; color: #c9d1d9; }
@@ -65,8 +59,6 @@
 <body>
   <div class="rs1-top">
     <a href="/admin/research-stage1-timing">Bedrock run times</a>
-    <span class="rs1-top-sep" aria-hidden="true"> · </span>
-    <button type="button" class="rs1-top-linkbtn" id="rs1-start-over-top">Start over</button>
   </div>
   <h1>Research — Stage 1 decomposition</h1>
   <p class="hint">Bedrock prompt builds a query plan. After the run, resolve construct overlaps (if any), pick exactly <strong>three</strong> adjacent fields, then save the final plan for Stage 2. Sign in as <code>bearssf@tiffin.edu</code>.</p>
