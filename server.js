@@ -64,6 +64,8 @@ const {
   ensureTrainingWalkthroughSchema,
 } = require('./lib/trainingWalkthrough');
 const { getResearchAnatomyAdminStats } = require('./lib/researchAnatomyStats');
+const { isBedrockConfigured } = require('./lib/bedrockReview');
+const { runStage1Decomposition } = require('./lib/researchStage1Decomposition');
 const { MIN_REVIEW_WORDS } = require('./lib/researchAnatomyService');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
@@ -235,10 +237,12 @@ function applyAdminSidebarNavLocals(req, res) {
   res.locals.adminProjectTemplatesHref = '';
   res.locals.adminTrainingHref = '';
   res.locals.adminResearchAnatomyHref = '';
+  res.locals.adminResearchStage1Href = '';
   if (!req.session || !req.session.user || !req.session.user.email) return;
   if (String(req.session.user.email).toLowerCase() !== ADMIN_SIDEBAR_NAV_EMAIL.toLowerCase()) {
     return;
   }
+  res.locals.adminResearchStage1Href = '/admin/research-stage1';
   const tplTok = trimAdminTemplateToken(process.env.ADMIN_TEMPLATE_EDITOR_TOKEN);
   const trainTok = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
   const raTok = researchAnatomyStatsAdminToken();
@@ -257,7 +261,8 @@ function applyAdminSidebarNavLocals(req, res) {
   res.locals.showAdminNav = !!(
     res.locals.adminProjectTemplatesHref ||
     res.locals.adminTrainingHref ||
-    res.locals.adminResearchAnatomyHref
+    res.locals.adminResearchAnatomyHref ||
+    res.locals.adminResearchStage1Href
   );
 }
 
@@ -412,6 +417,89 @@ app.get(
   '/admin/research-anatomy-stats',
   requireAdminResearchAnatomyStatsToken,
   asyncHandler(renderAdminResearchAnatomyStats)
+);
+
+function requireBearssfAdminSession(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  }
+  if (
+    !req.session.user ||
+    String(req.session.user.email).toLowerCase() !== ADMIN_SIDEBAR_NAV_EMAIL.toLowerCase()
+  ) {
+    return res.status(403).json({ ok: false, error: 'Forbidden.' });
+  }
+  next();
+}
+
+function requireBearssfAdminPage(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.redirect(`/?signin=1&next=${encodeURIComponent(req.originalUrl)}`);
+  }
+  if (
+    !req.session.user ||
+    String(req.session.user.email).toLowerCase() !== ADMIN_SIDEBAR_NAV_EMAIL.toLowerCase()
+  ) {
+    return res
+      .status(403)
+      .type('html')
+      .send(
+        '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forbidden</title></head><body><p>Forbidden.</p></body></html>'
+      );
+  }
+  next();
+}
+
+async function renderAdminResearchStage1(req, res) {
+  res.render('admin-research-stage1', {});
+}
+
+async function postAdminResearchStage1Decompose(req, res) {
+  try {
+    if (!isBedrockConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        error: 'Bedrock is not configured (AWS_REGION and model / inference profile env vars).',
+      });
+    }
+    const body = req.body || {};
+    const title = String(body.title || '').trim();
+    const keywordsRaw = body.keywords;
+    let keywords = [];
+    if (Array.isArray(keywordsRaw)) {
+      keywords = keywordsRaw.map((k) => String(k).trim()).filter(Boolean);
+    } else if (keywordsRaw != null && String(keywordsRaw).trim()) {
+      keywords = String(keywordsRaw)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    const projectType = String(body.projectType || body.project_type || 'dissertation').trim();
+    const description =
+      body.description != null && String(body.description).trim()
+        ? String(body.description).trim()
+        : null;
+
+    const plan = await runStage1Decomposition({
+      title,
+      keywords,
+      projectType,
+      description,
+    });
+    res.json({ ok: true, plan });
+  } catch (e) {
+    if (e && e.code === 'VALIDATION') {
+      return res.status(400).json({ ok: false, error: e.message || 'Invalid input.' });
+    }
+    res.status(500).json({ ok: false, error: e.message || 'Decomposition failed.' });
+  }
+}
+
+app.get('/admin/research-stage1', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage1));
+app.post(
+  '/api/admin/research-stage1-decompose',
+  requireBearssfAdminSession,
+  asyncHandler(postAdminResearchStage1Decompose)
 );
 
 function asyncHandler(fn) {

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Research — Stage 1 decomposition (admin)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1.25rem 1.5rem 2rem; background: #0f1419; color: #e6edf3; line-height: 1.45; font-size: 0.92rem; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.35rem; font-weight: 600; }
+    p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 44rem; }
+    label { display: block; font-size: 0.78rem; color: #8b949e; margin-bottom: 0.25rem; }
+    input[type="text"], textarea, select {
+      width: 100%; max-width: 44rem; box-sizing: border-box;
+      padding: 0.45rem 0.55rem; border-radius: 8px; border: 1px solid #30363d;
+      background: #0d1117; color: #e6edf3; font: inherit;
+    }
+    textarea { min-height: 4rem; resize: vertical; }
+    .row { margin-bottom: 0.85rem; max-width: 44rem; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0; }
+    button {
+      padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #388bfd;
+      background: rgba(56, 139, 253, 0.2); color: #e6edf3; font: inherit; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { border-color: #30363d; background: #21262d; }
+    #rs1-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; }
+    #rs1-status.err { color: #f85149; }
+    #rs1-status.ok { color: #3fb950; }
+    #rs1-out {
+      margin: 0; padding: 1rem; border-radius: 8px; border: 1px solid #30363d;
+      background: #0d1117; color: #c9d1d9; font-size: 0.8rem; line-height: 1.4;
+      white-space: pre-wrap; word-break: break-word; max-width: 56rem; overflow: auto; max-height: 70vh;
+    }
+    code { font-size: 0.88em; background: #21262d; padding: 0.1rem 0.35rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Research — Stage 1 decomposition</h1>
+  <p class="hint">Runs the literature query-plan prompt against <strong>Amazon Bedrock</strong> (same env as The Anvil: <code>AWS_REGION</code>, inference profile or <code>BEDROCK_MODEL_ID</code>). Sign in as <code>bearssf@tiffin.edu</code> required.</p>
+
+  <div class="row">
+    <label for="rs1-title">Title</label>
+    <input type="text" id="rs1-title" autocomplete="off"
+      value="Critical thinking skills and dispositions in intercultural business relationship formation" />
+  </div>
+  <div class="row">
+    <label for="rs1-keywords">Keywords (comma-separated)</label>
+    <input type="text" id="rs1-keywords" autocomplete="off"
+      value="critical thinking, intercultural competence, business relationships, dispositions" />
+  </div>
+  <div class="row">
+    <label for="rs1-type">Project type</label>
+    <select id="rs1-type">
+      <option value="assignment">assignment</option>
+      <option value="dissertation" selected>dissertation</option>
+      <option value="conference">conference</option>
+      <option value="journal">journal</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="rs1-desc">Additional context (optional)</label>
+    <textarea id="rs1-desc" placeholder="Optional notes for the model…"></textarea>
+  </div>
+
+  <div class="toolbar">
+    <button type="button" id="rs1-run">Run decomposition</button>
+    <button type="button" class="secondary" id="rs1-clear">Clear output</button>
+  </div>
+  <div id="rs1-status" aria-live="polite"></div>
+  <pre id="rs1-out"></pre>
+
+  <script src="/js/admin-research-stage1.js"></script>
+</body>
+</html>
