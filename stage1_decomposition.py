@@ -100,7 +100,9 @@ CALIBRATION BY PROJECT TYPE:
 - conference: 4-6 core constructs, 3-5 retrieval queries, heavy recency bias (last 3-5 years), emphasis on trending methodologies
 - journal: 4-7 core constructs, 4-6 retrieval queries, balanced temporal range, emphasis on theoretical frameworks
 
-Be exhaustive with synonyms. Academic disciplines use wildly different terminology for overlapping concepts. A construct that education researchers call "metacognition" might appear as "self-regulated learning" in psychology, "reflective practice" in professional development, or "double-loop learning" in organizational theory. Your synonym expansion is the single most important factor in retrieval quality."""
+Be exhaustive with synonyms. Academic disciplines use wildly different terminology for overlapping concepts. A construct that education researchers call "metacognition" might appear as "self-regulated learning" in psychology, "reflective practice" in professional development, or "double-loop learning" in organizational theory. Your synonym expansion is the single most important factor in retrieval quality.
+
+OUTPUT SIZE (critical): You must return a single valid JSON object that fits in the model output limit. Prefer quality over quantity: at most 10 synonyms, 8 narrower_terms, and 6 broader_terms per construct; keep each notes field under 180 characters; overlap_description and rationale to one or two sentences; each keyword_query under 700 characters. If you risk running long, drop optional overlap flags before truncating core constructs or retrieval_queries."""
 
 
 def trim_bedrock_env(value: str | None) -> str:
@@ -155,15 +157,60 @@ def _extract_assistant_text(parsed: dict[str, Any]) -> str:
     return ""
 
 
+def _strip_markdown_fence(t: str) -> str:
+    s = t.strip()
+    fence = re.match(r"^```(?:json)?\s*", s, re.IGNORECASE)
+    if fence:
+        s = s[fence.end() :]
+        if s.rstrip().endswith("```"):
+            s = s.rstrip()[:-3].strip()
+    return s
+
+
+def _extract_balanced_json_object(s: str) -> str:
+    """Extract a single top-level JSON object by brace matching (respects strings)."""
+    start = s.find("{")
+    if start == -1:
+        raise ValueError("No JSON object start {")
+    depth = 0
+    in_string = False
+    escape = False
+    i = start
+    while i < len(s):
+        c = s[i]
+        if escape:
+            escape = False
+            i += 1
+            continue
+        if in_string:
+            if c == "\\":
+                escape = True
+            elif c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+            i += 1
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return s[start : i + 1]
+        i += 1
+    raise ValueError("Incomplete JSON object (unbalanced braces or truncated string)")
+
+
 def _parse_json_from_model_output(text: str) -> dict[str, Any]:
     """Strip optional markdown fences and parse JSON."""
-    t = text.strip()
-    fence = re.match(r"^```(?:json)?\s*", t, re.IGNORECASE)
-    if fence:
-        t = t[fence.end() :]
-        if t.rstrip().endswith("```"):
-            t = t.rstrip()[:-3].strip()
-    return json.loads(t)
+    t = _strip_markdown_fence(text)
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError:
+        extracted = _extract_balanced_json_object(t)
+        return json.loads(extracted)
 
 
 def decompose_research_topic(
@@ -172,7 +219,7 @@ def decompose_research_topic(
     project_type: str,
     description: str | None = None,
     *,
-    max_tokens: int = 8192,
+    max_tokens: int | None = None,
     temperature: float = 0.2,
 ) -> dict[str, Any]:
     """
@@ -190,9 +237,13 @@ def decompose_research_topic(
     model_id = resolve_bedrock_model_id()
     user_message = build_user_message(title, keywords, project_type, description)
 
+    cap = min(int(os.environ.get("STAGE1_MAX_OUTPUT_TOKENS_CAP", "16384")), 64000)
+    default_mt = int(os.environ.get("STAGE1_MAX_OUTPUT_TOKENS", "8192"))
+    resolved_max = min(cap, max_tokens if max_tokens is not None else default_mt)
+
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
+        "max_tokens": resolved_max,
         "temperature": temperature,
         "system": SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": user_message}],
@@ -209,7 +260,20 @@ def decompose_research_topic(
     raw = response["body"].read().decode("utf-8")
     parsed_response = json.loads(raw)
     assistant_text = _extract_assistant_text(parsed_response)
+    stop_reason = str(
+        parsed_response.get("stop_reason") or parsed_response.get("stopReason") or ""
+    )
     if not assistant_text.strip():
         raise ValueError("Empty model response; cannot parse JSON plan.")
 
-    return _parse_json_from_model_output(assistant_text)
+    try:
+        return _parse_json_from_model_output(assistant_text)
+    except (json.JSONDecodeError, ValueError) as e:
+        msg = f"Could not parse JSON from model: {e}"
+        if stop_reason == "max_tokens":
+            msg += (
+                " The model hit the output token limit (response was truncated mid-JSON). "
+                "Try project type 'assignment' or 'conference', fewer keywords, or set "
+                "STAGE1_MAX_OUTPUT_TOKENS if your Bedrock model allows a higher max."
+            )
+        raise ValueError(msg) from e
