@@ -21,6 +21,26 @@
     statusEl.className = cls || '';
   }
 
+  /** Avoid opaque "Unexpected token '<'" when the server returns an HTML error/login page. */
+  function parseFetchJson(r) {
+    return r.text().then(function (text) {
+      var t = String(text || '').replace(/^\uFEFF/, '').trim();
+      if (!t) return {};
+      if (t.charAt(0) === '<') {
+        throw new Error(
+          'Server returned a web page instead of JSON (HTTP ' +
+            r.status +
+            '). Refresh, sign in again, or check deployment and the /api URL.'
+        );
+      }
+      try {
+        return JSON.parse(t);
+      } catch (e) {
+        throw new Error('Invalid JSON from server (HTTP ' + r.status + '): ' + (e.message || e));
+      }
+    });
+  }
+
   function parseSSEStream(textChunk, carry) {
     var events = [];
     var buf = (carry.buf || '') + textChunk;
@@ -306,8 +326,8 @@
     })
       .then(function (r) {
         if (!r.ok) {
-          return r.json().then(function (err) {
-            throw new Error(err.error || 'Request failed');
+          return parseFetchJson(r).then(function (err) {
+            throw new Error((err && err.error) || 'Request failed (HTTP ' + r.status + ')');
           });
         }
         var reader = r.body.getReader();
@@ -345,7 +365,7 @@
 
   fetch('/api/admin/research-stage1-latest-plan', { credentials: 'same-origin' })
     .then(function (r) {
-      return r.json();
+      return parseFetchJson(r);
     })
     .then(function (data) {
       if (!data.ok || !data.plan || !typeEl) return;
@@ -362,7 +382,7 @@
     setStatus('Loading…', '');
     fetch('/api/admin/research-stage2-latest', { credentials: 'same-origin' })
       .then(function (r) {
-        return r.json();
+        return parseFetchJson(r);
       })
       .then(function (data) {
         if (!data.ok || !data.hasData) {

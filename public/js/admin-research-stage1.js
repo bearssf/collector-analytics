@@ -28,6 +28,26 @@
     statusEl.className = cls || '';
   }
 
+  /** Avoid opaque "Unexpected token '<'" when the server returns an HTML error/login page. */
+  function parseFetchJson(r) {
+    return r.text().then(function (text) {
+      var t = String(text || '').replace(/^\uFEFF/, '').trim();
+      if (!t) return {};
+      if (t.charAt(0) === '<') {
+        throw new Error(
+          'Server returned a web page instead of JSON (HTTP ' +
+            r.status +
+            '). Refresh, sign in again, or check deployment and the /api URL.'
+        );
+      }
+      try {
+        return JSON.parse(t);
+      } catch (e) {
+        throw new Error('Invalid JSON from server (HTTP ' + r.status + '): ' + (e.message || e));
+      }
+    });
+  }
+
   function parseKeywords(raw) {
     return String(raw || '')
       .split(',')
@@ -260,7 +280,7 @@
       body: JSON.stringify({ plan: payload, project_type: payload.project_type }),
     })
       .then(function (r) {
-        return r.json().then(function (data) {
+        return parseFetchJson(r).then(function (data) {
           return { ok: r.ok, data: data };
         });
       })
@@ -315,7 +335,7 @@
       }),
     })
       .then(function (r) {
-        return r.json().then(function (data) {
+        return parseFetchJson(r).then(function (data) {
           return { ok: r.ok, data: data };
         });
       })
