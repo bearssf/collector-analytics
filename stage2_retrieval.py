@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,6 +47,46 @@ RECENCY_WEIGHT: dict[str, float] = {
 }
 
 TITLE_FUZZY_THRESHOLD = 0.90
+# If OpenAlex returns fewer than this with concept filter + keyword, also run search without concepts.
+OPENALEX_RELAX_MIN_RESULTS = 50
+
+
+def _effective_year_end(y1: Optional[int]) -> int:
+    """Ensure retrieval includes recent work through at least 2026 and the current calendar year."""
+    now_y = datetime.now().year
+    return max(y1 if y1 is not None else now_y, now_y, 2026)
+
+
+def year_for_histogram(y: Any) -> Optional[int]:
+    """Normalize publication year for stats (handles int, float, str from JSON/DB)."""
+    if y is None or y == "":
+        return None
+    if isinstance(y, bool):
+        return None
+    if isinstance(y, (int, float)):
+        try:
+            yi = int(y)
+            return yi if 1000 <= yi <= 2100 else None
+        except (TypeError, ValueError):
+            return None
+    s = str(y).strip()
+    m = re.match(r"^(\d{4})", s)
+    if m:
+        yi = int(m.group(1))
+        return yi if 1000 <= yi <= 2100 else None
+    try:
+        yi = int(float(s))
+        return yi if 1000 <= yi <= 2100 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _s2_request_headers() -> dict[str, str]:
+    h = {"User-Agent": "AcademiqForge-Stage2/1.0", "Accept": "application/json"}
+    key = (os.environ.get("SEMANTIC_SCHOLAR_API_KEY") or os.environ.get("S2_API_KEY") or "").strip()
+    if key:
+        h["x-api-key"] = key
+    return h
 
 
 def _http_get_json(url: str, headers: Optional[dict[str, str]] = None) -> dict[str, Any]:
@@ -339,6 +380,8 @@ def build_openalex_works_url(
     mailto: str,
     cursor: Optional[str],
     concept_cache: dict[str, str],
+    *,
+    apply_concept_filter: bool = True,
 ) -> str:
     params: list[tuple[str, str]] = [("mailto", mailto), ("per_page", "200")]
     if keyword_query and str(keyword_query).strip():
@@ -350,17 +393,98 @@ def build_openalex_works_url(
     if date_to:
         filters.append(f"to_publication_date:{date_to}")
 
-    cids = resolve_openalex_concept_ids(concept_names, mailto, concept_cache)
-    if cids:
-        filters.append("concepts.id:" + "|".join(cids))
+    if apply_concept_filter:
+        cids = resolve_openalex_concept_ids(concept_names, mailto, concept_cache)
+        if cids:
+            filters.append("concepts.id:" + "|".join(cids))
 
     if filters:
         params.append(("filter", ",".join(filters)))
-    if cursor:
+    if cursor is not None:
         params.append(("cursor", cursor))
 
     q = urllib.parse.urlencode(params, safe="|,:")
     return f"{OPENALEX_BASE}/works?{q}"
+
+
+def _openalex_page_fetch_loop(
+    kw: str,
+    concept_list: list[str],
+    date_from: Optional[str],
+    date_to: Optional[str],
+    mailto: str,
+    concept_cache: dict[str, str],
+    skipped: list[dict[str, str]],
+    purpose: str,
+    *,
+    apply_concept_filter: bool,
+    max_results: int,
+    pages_log: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Cursor paging per OpenAlex docs: first request must use cursor=*."""
+    out: list[dict[str, Any]] = []
+    cursor_token: Optional[str] = "*"
+    while len(out) < max_results:
+        url = build_openalex_works_url(
+            str(kw),
+            concept_list,
+            date_from,
+            date_to,
+            mailto,
+            cursor_token,
+            concept_cache,
+            apply_concept_filter=apply_concept_filter,
+        )
+        try:
+            data = http_get_json_polite(url, sleep_after=OPENALEX_DELAY_SEC)
+        except Exception as e:
+            err = str(e)
+            LOG.warning("OpenAlex request failed for %s: %s", purpose, err)
+            skipped.append({"purpose": purpose, "api": "openalex", "error": err[:500]})
+            pages_log.append(
+                {
+                    "error": err[:300],
+                    "url_preview": url[:420],
+                    "concept_filter": apply_concept_filter,
+                }
+            )
+            break
+
+        meta = data.get("meta") or {}
+        results = data.get("results") or []
+        next_c = meta.get("next_cursor")
+        pages_log.append(
+            {
+                "http_ok": True,
+                "batch_returned": len(results),
+                "meta_count": meta.get("count"),
+                "has_next_cursor": bool(next_c),
+                "url_preview": url[:420],
+                "concept_filter": apply_concept_filter,
+            }
+        )
+        LOG.info(
+            "OpenAlex purpose=%s concept_filter=%s batch=%s meta_count=%s next=%s",
+            purpose,
+            apply_concept_filter,
+            len(results),
+            meta.get("count"),
+            bool(next_c),
+        )
+
+        for w in results:
+            if isinstance(w, dict):
+                out.append(openalex_normalize_work(w, purpose))
+                if len(out) >= max_results:
+                    break
+
+        if not results:
+            break
+        if not next_c:
+            break
+        cursor_token = next_c
+
+    return out
 
 
 def fetch_openalex_for_query(
@@ -370,7 +494,7 @@ def fetch_openalex_for_query(
     concept_cache: dict[str, str],
     skipped: list[dict[str, str]],
     purpose: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     kw = rq.get("keyword_query") or ""
     concepts = rq.get("openalex_concepts") or []
     if isinstance(concepts, str):
@@ -378,41 +502,89 @@ def fetch_openalex_for_query(
     tp = temporal or {}
     y0, y1 = parse_recommended_range(tp.get("recommended_range"))
     date_from = f"{y0}-01-01" if y0 else None
-    date_to = f"{y1}-12-31" if y1 else None
+    y1_eff: Optional[int] = None
+    date_to = None
+    if y1 is not None:
+        y1_eff = _effective_year_end(y1)
+        date_to = f"{y1_eff}-12-31"
+    elif y0 is not None:
+        y1_eff = _effective_year_end(None)
+        date_to = f"{y1_eff}-12-31"
     concept_list = [str(c).strip() for c in concepts if c and str(c).strip()]
+    trace: dict[str, Any] = {
+        "keyword_query_preview": _trunc_text(str(kw).strip(), 400) if str(kw).strip() else "",
+        "date_from": date_from,
+        "date_to": date_to,
+        "year_end_adjusted_to": y1_eff,
+        "concept_labels": concept_list,
+        "pages": [],
+        "total_returned": 0,
+        "relaxed_no_concept_fetch": False,
+        "relaxed_additional": 0,
+        "errors": [],
+    }
+
     if not str(kw).strip() and not concept_list and not date_from and not date_to:
-        return []
+        return [], trace
 
-    out: list[dict[str, Any]] = []
-    cursor: Optional[str] = None
-    total = 0
-    max_results = 500
+    pages_primary: list[dict[str, Any]] = []
+    out = _openalex_page_fetch_loop(
+        str(kw),
+        concept_list,
+        date_from,
+        date_to,
+        mailto,
+        concept_cache,
+        skipped,
+        purpose,
+        apply_concept_filter=True,
+        max_results=500,
+        pages_log=pages_primary,
+    )
+    trace["pages"].extend(pages_primary)
+    trace["total_returned"] = len(out)
 
-    while total < max_results:
-        url = build_openalex_works_url(
-            str(kw), concept_list, date_from, date_to, mailto, cursor, concept_cache
+    if (
+        len(out) < OPENALEX_RELAX_MIN_RESULTS
+        and str(kw).strip()
+        and concept_list
+    ):
+        pages_relaxed: list[dict[str, Any]] = []
+        extra = _openalex_page_fetch_loop(
+            str(kw),
+            concept_list,
+            date_from,
+            date_to,
+            mailto,
+            concept_cache,
+            skipped,
+            purpose,
+            apply_concept_filter=False,
+            max_results=500,
+            pages_log=pages_relaxed,
         )
-        try:
-            data = http_get_json_polite(url, sleep_after=OPENALEX_DELAY_SEC)
-        except Exception as e:
-            err = str(e)
-            LOG.warning("OpenAlex request failed for %s: %s", purpose, err)
-            skipped.append({"purpose": purpose, "api": "openalex", "error": err[:500]})
-            break
-
-        results = data.get("results") or []
-        for w in results:
-            if isinstance(w, dict):
-                out.append(openalex_normalize_work(w, purpose))
-                total += 1
-                if total >= max_results:
+        trace["relaxed_no_concept_fetch"] = True
+        trace["pages"].extend(pages_relaxed)
+        seen = {p.get("source_id") for p in out}
+        added = 0
+        for p in extra:
+            sid = p.get("source_id")
+            if sid and sid not in seen:
+                seen.add(sid)
+                out.append(p)
+                added += 1
+                if len(out) >= 500:
                     break
+        trace["relaxed_additional"] = added
+        trace["total_returned"] = len(out)
+        LOG.info(
+            "OpenAlex relaxed fetch (no concept filter) purpose=%s added=%s total=%s",
+            purpose,
+            added,
+            len(out),
+        )
 
-        cursor = (data.get("meta") or {}).get("next_cursor")
-        if not cursor or not results:
-            break
-
-    return out
+    return out[:500], trace
 
 
 def _s2_rate_limit_backoff_sleep(total_sec: float) -> None:
@@ -443,10 +615,18 @@ def fetch_s2_for_query(
     limiter: S2RateLimiter,
     skipped: list[dict[str, str]],
     purpose: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     kw = str(rq.get("keyword_query") or "").strip()
+    trace: dict[str, Any] = {
+        "query_preview": _trunc_text(kw, 400) if kw else "",
+        "requests": [],
+        "total_returned": 0,
+        "truncated": False,
+        "errors": [],
+    }
     if not kw:
-        return []
+        trace["errors"].append("empty_keyword_query")
+        return [], trace
     if len(kw) > S2_MAX_QUERY_CHARS:
         LOG.warning(
             "Truncating Semantic Scholar query from %d to %d chars (purpose=%s)",
@@ -455,6 +635,7 @@ def fetch_s2_for_query(
             purpose,
         )
         kw = kw[:S2_MAX_QUERY_CHARS]
+        trace["truncated"] = True
 
     fields = (
         "paperId,externalIds,title,abstract,authors,year,venue,citationCount,"
@@ -463,7 +644,7 @@ def fetch_s2_for_query(
     out: list[dict[str, Any]] = []
     offset = 0
     per_page = 100
-    max_total = 200
+    max_total = 400
 
     while len(out) < max_total:
         limiter.wait_turn()
@@ -471,20 +652,84 @@ def fetch_s2_for_query(
             {"query": kw, "offset": offset, "limit": per_page, "fields": fields}
         )
         url = f"{S2_BASE}/paper/search?{params}"
+        req = urllib.request.Request(url, headers=_s2_request_headers())
         try:
-            data = http_get_json_polite(url, sleep_after=0)
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                status = getattr(resp, "status", None) or resp.getcode()
+                raw = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(raw)
         except urllib.error.HTTPError as e:
+            err_body = ""
+            try:
+                err_body = e.read().decode("utf-8", errors="replace")[:2000]
+            except Exception:
+                pass
+            LOG.error(
+                "S2 HTTPError purpose=%s status=%s offset=%s url_len=%s body=%s",
+                purpose,
+                e.code,
+                offset,
+                len(url),
+                err_body[:500],
+            )
+            trace["requests"].append(
+                {
+                    "offset": offset,
+                    "http_status": e.code,
+                    "url_preview": url[:500],
+                    "error_body_preview": err_body[:400],
+                    "results_in_batch": 0,
+                }
+            )
             if e.code == 429:
                 LOG.warning("S2 rate limited; backing off 60s")
                 _s2_rate_limit_backoff_sleep(60.0)
                 continue
-            skipped.append({"purpose": purpose, "api": "semantic_scholar", "error": str(e)[:500]})
+            skipped.append(
+                {
+                    "purpose": purpose,
+                    "api": "semantic_scholar",
+                    "error": f"HTTP {e.code}: {err_body[:400]}",
+                }
+            )
+            trace["errors"].append(f"HTTP {e.code}: {err_body[:300]}")
             break
         except Exception as e:
-            skipped.append({"purpose": purpose, "api": "semantic_scholar", "error": str(e)[:500]})
+            err = str(e)
+            LOG.error("S2 request failed purpose=%s offset=%s: %s url_preview=%s", purpose, offset, err, url[:400])
+            skipped.append({"purpose": purpose, "api": "semantic_scholar", "error": err[:500]})
+            trace["requests"].append(
+                {
+                    "offset": offset,
+                    "http_status": None,
+                    "url_preview": url[:500],
+                    "exception": err[:400],
+                    "results_in_batch": 0,
+                }
+            )
+            trace["errors"].append(err[:300])
             break
 
         hits = data.get("data") or []
+        total_hits = data.get("total")
+        LOG.info(
+            "S2 purpose=%s offset=%s http_status=%s batch=%s total_field=%s url_preview=%s",
+            purpose,
+            offset,
+            status,
+            len(hits),
+            total_hits,
+            url[:400],
+        )
+        trace["requests"].append(
+            {
+                "offset": offset,
+                "http_status": status,
+                "url_preview": url[:500],
+                "results_in_batch": len(hits),
+                "total_reported": total_hits,
+            }
+        )
         for p in hits:
             if isinstance(p, dict):
                 out.append(semantic_scholar_normalize(p, purpose))
@@ -492,7 +737,8 @@ def fetch_s2_for_query(
             break
         offset += per_page
 
-    return out[:max_total]
+    trace["total_returned"] = len(out[:max_total])
+    return out[:max_total], trace
 
 
 def merge_records(oa: dict[str, Any], s2: dict[str, Any]) -> dict[str, Any]:
@@ -633,11 +879,12 @@ def score_papers(
     nq = max(1, len(retrieval_queries))
     max_cite = max((int(p.get("citation_count") or 0) for p in papers), default=0)
     y_min, y_max = parse_recommended_range((temporal or {}).get("recommended_range"))
+    y_max_eff = _effective_year_end(y_max) if (y_max is not None or y_min is not None) else y_max
     recency_weight = RECENCY_WEIGHT.get(project_type, 0.2)
     w_q, w_c = 0.35, 0.25
     w_cv = max(0.0, 1.0 - w_q - w_c - recency_weight)
     construct_rows = build_construct_keywords(core_constructs)
-    window_start = (y_max or 2024) - 4
+    window_start = (y_max_eff or 2024) - 4
 
     for p in papers:
         qh = p.get("_query_hits") or []
@@ -657,9 +904,9 @@ def score_papers(
                 recency = 1.0
             elif y_min is not None and yi < y_min:
                 recency = 0.0
-            elif y_max is not None and y_min is not None and y_max > y_min:
-                span = y_max - y_min
-                dist = y_max - yi
+            elif y_max_eff is not None and y_min is not None and y_max_eff > y_min:
+                span = y_max_eff - y_min
+                dist = y_max_eff - yi
                 recency = max(0.0, 1.0 - (dist / max(span, 1)) * 0.8)
             else:
                 recency = 0.7
@@ -815,6 +1062,7 @@ def run_stage2(
     concept_cache: dict[str, str] = {}
     limiter = S2RateLimiter()
     skipped: list[dict[str, str]] = []
+    query_trace: list[dict[str, Any]] = []
 
     all_oa: list[dict[str, Any]] = []
     all_s2: list[dict[str, Any]] = []
@@ -839,12 +1087,16 @@ def run_stage2(
         kw_raw = str(rq.get("keyword_query") or "").strip()
         concept_list = _normalize_rq_concepts(rq)
         y0, y1 = parse_recommended_range(temporal.get("recommended_range"))
-        date_from = f"{y0}-01-01" if y0 else None
-        date_to = f"{y1}-12-31" if y1 else None
+        y1_disp: Optional[int] = None
+        if y1 is not None or y0 is not None:
+            y1_disp = _effective_year_end(y1)
         n_cid = (
             len(set(resolve_openalex_concept_ids(concept_list, mailto, concept_cache)))
             if concept_list
             else 0
+        )
+        year_filter_label = (
+            _date_filter_phrase(y0, y1_disp) if y1_disp is not None else _date_filter_phrase(y0, y1)
         )
 
         emit(
@@ -857,17 +1109,24 @@ def run_stage2(
                 "keyword_preview": _trunc_text(kw_raw, 120) if kw_raw else "",
                 "openalex_concepts": concept_list[:12],
                 "openalex_concept_filters": n_cid,
-                "year_filter": _date_filter_phrase(y0, y1),
+                "year_filter": year_filter_label,
             }
         )
+        oa_trace: dict[str, Any] = {}
         try:
-            oa = fetch_openalex_for_query(rq, temporal, mailto, concept_cache, skipped, purpose)
+            oa, oa_trace = fetch_openalex_for_query(rq, temporal, mailto, concept_cache, skipped, purpose)
         except Exception as e:
             LOG.warning("OpenAlex fetch failed: %s", e)
             skipped.append({"purpose": purpose, "api": "openalex", "error": str(e)[:500]})
             oa = []
+            oa_trace = {"error": str(e)[:500], "pages": [], "total_returned": 0}
 
-        oa_bullets: list[str] = [f"{len(oa)} works fetched (per-query cap applies)"]
+        oa_bullets: list[str] = [f"{len(oa)} works fetched (cursor paging, cap 500/query)"]
+        if oa_trace.get("relaxed_no_concept_fetch"):
+            oa_bullets.append(
+                f"Supplemental keyword-only OpenAlex pass added {oa_trace.get('relaxed_additional', 0)} works "
+                f"(concept filter was strict; <{OPENALEX_RELAX_MIN_RESULTS} from filtered pass)"
+            )
         if kw_raw:
             oa_bullets.append(f"Keyword / search string: {_trunc_text(kw_raw)}")
         else:
@@ -879,9 +1138,10 @@ def run_stage2(
             oa_bullets.append(f"OpenAlex concept labels: {shown}")
         if n_cid:
             oa_bullets.append(f"{n_cid} distinct concept ID(s) resolved for OpenAlex filter")
-        if date_from or date_to:
+        if oa_trace.get("date_from") or oa_trace.get("date_to"):
             oa_bullets.append(
-                f"Publication date filter: {(date_from or '…')} → {(date_to or '…')}"
+                f"Publication date filter: {(oa_trace.get('date_from') or '…')} → "
+                f"{(oa_trace.get('date_to') or '…')}"
             )
         push_stack(
             "openalex",
@@ -899,12 +1159,14 @@ def run_stage2(
                 "keyword_preview": _trunc_text(kw_raw, 120) if kw_raw else "",
             }
         )
+        s2_trace: dict[str, Any] = {}
         try:
-            s2 = fetch_s2_for_query(rq, limiter, skipped, purpose)
+            s2, s2_trace = fetch_s2_for_query(rq, limiter, skipped, purpose)
         except Exception as e:
             LOG.warning("S2 fetch failed: %s", e)
             skipped.append({"purpose": purpose, "api": "semantic_scholar", "error": str(e)[:500]})
             s2 = []
+            s2_trace = {"error": str(e)[:500], "requests": [], "total_returned": 0}
 
         if not oa and not s2:
             zero_queries.append(purpose)
@@ -915,6 +1177,8 @@ def run_stage2(
         s2_bullets = [
             f"{len(s2)} papers fetched from Semantic Scholar (per-query cap applies)",
         ]
+        if s2_trace.get("errors"):
+            s2_bullets.append("S2 issues: " + "; ".join(str(x) for x in s2_trace["errors"])[:300])
         if kw_raw:
             s2_bullets.append(f"Semantic Scholar query text: {_trunc_text(kw_raw)}")
         else:
@@ -924,6 +1188,17 @@ def run_stage2(
             "semantic_scholar",
             f"Semantic Scholar — query {i + 1} of {max(1, nq)}: {purpose}",
             s2_bullets,
+        )
+
+        query_trace.append(
+            {
+                "index": i + 1,
+                "purpose": purpose,
+                "openalex": oa_trace,
+                "semantic_scholar": s2_trace,
+                "openalex_count": len(oa),
+                "semantic_scholar_count": len(s2),
+            }
         )
 
     total_before = len(all_oa) + len(all_s2)
@@ -977,9 +1252,9 @@ def run_stage2(
 
     year_dist: dict[str, int] = {}
     for p in final_papers:
-        y = p.get("year")
-        if y is not None:
-            ys = str(int(y))
+        yb = year_for_histogram(p.get("year"))
+        if yb is not None:
+            ys = str(yb)
             year_dist[ys] = year_dist.get(ys, 0) + 1
 
     for z in zero_queries:
@@ -996,6 +1271,7 @@ def run_stage2(
         "query_errors": skipped,
         "source_breakdown": source_breakdown,
         "activity_log": activity_log,
+        "query_trace": query_trace,
     }
 
     return {"corpus": final_papers, "statistics": stats}

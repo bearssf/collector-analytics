@@ -35,6 +35,11 @@
     .stack-step-meta { font-size: 0.72rem; color: #6e7681; font-variant-numeric: tabular-nums; margin: 0 0 0.35rem; }
     .stack-bullets { margin: 0; padding-left: 1.1rem; color: #8b949e; line-height: 1.45; }
     .stack-bullets li { margin-bottom: 0.15rem; }
+    .rs2-trace-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 0.35rem; }
+    .rs2-trace-table th, .rs2-trace-table td { border-bottom: 1px solid #30363d; padding: 0.4rem 0.35rem; text-align: left; vertical-align: top; }
+    .rs2-trace-table th { color: #8b949e; font-weight: 600; }
+    .rs2-trace-table td.trace-detail { color: #8b949e; line-height: 1.4; max-width: 36rem; }
+    .rs2-trace-table .trace-line { margin-bottom: 0.2rem; }
     #rs2-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; text-align: center; }
     #rs2-status.err { color: #f85149; }
     #rs2-status.ok { color: #3fb950; }
@@ -78,7 +83,7 @@
     <a href="/admin/research-stage1-timing">Bedrock run times</a>
   </div>
   <h1>Research — Stage 2 corpus retrieval</h1>
-  <p class="hint">Uses your <strong>latest saved Stage 1 plan</strong> from the server. Retrieves from OpenAlex and Semantic Scholar, deduplicates, scores, and trims the corpus. Polite pool: <code>OPENALEX_MAILTO</code> or your signed-in email. Requires <code>python3</code> and <code>stage2_retrieval.py</code> on the server.</p>
+  <p class="hint">Uses your <strong>latest saved Stage 1 plan</strong> from the server. Retrieves from OpenAlex and Semantic Scholar, deduplicates, scores, and trims the corpus. Polite pool: <code>OPENALEX_MAILTO</code> or your signed-in email. Optional higher S2 limits: set <code>SEMANTIC_SCHOLAR_API_KEY</code> (or <code>S2_API_KEY</code>). Requires <code>python3</code> and <code>stage2_retrieval.py</code> on the server.</p>
 
   <div class="row">
     <label for="rs2-type">Corpus size profile (Stage 1 project type)</label>
@@ -120,6 +125,12 @@
     <div class="card">
       <h2>Year distribution</h2>
       <div id="rs2-chart-years" class="chart-block"></div>
+    </div>
+
+    <div id="rs2-query-trace-wrap" class="card rs2-hidden">
+      <h2>Per-query API trace</h2>
+      <p class="hint" style="text-align:left;margin:0 0 0.35rem;font-size:0.76rem;">Each retrieval row: OpenAlex and Semantic Scholar counts, request pages, HTTP status, and error bodies (S2 boolean queries may need simplifying if you see 4xx).</p>
+      <div id="rs2-query-trace"></div>
     </div>
 
     <div class="card">

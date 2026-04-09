@@ -272,23 +272,27 @@
 
   function renderYearHist(yd) {
     chartYearsEl.innerHTML = '';
-    var years = Object.keys(yd || {})
-      .map(function (y) {
-        return parseInt(y, 10);
-      })
-      .filter(function (y) {
-        return !isNaN(y);
-      })
-      .sort(function (a, b) {
-        return a - b;
-      });
+    var pairs = [];
+    Object.keys(yd || {}).forEach(function (k) {
+      var y = parseInt(k, 10);
+      var c = Number(yd[k]);
+      if (!isNaN(y) && isFinite(c)) {
+        pairs.push({ y: y, c: c });
+      }
+    });
+    pairs.sort(function (a, b) {
+      return a.y - b.y;
+    });
+    var years = pairs.map(function (p) {
+      return p.y;
+    });
+    var counts = pairs.map(function (p) {
+      return p.c;
+    });
     if (!years.length) {
       chartYearsEl.textContent = 'No year data.';
       return;
     }
-    var counts = years.map(function (y) {
-      return yd[String(y)] || 0;
-    });
     var max = Math.max.apply(null, counts);
     if (max <= 0) max = 1;
     var wrap = document.createElement('div');
@@ -311,6 +315,131 @@
       wrap.appendChild(col);
     });
     chartYearsEl.appendChild(wrap);
+  }
+
+  function renderQueryTrace(qt) {
+    var wrap = document.getElementById('rs2-query-trace-wrap');
+    var host = document.getElementById('rs2-query-trace');
+    if (!wrap || !host) return;
+    host.innerHTML = '';
+    if (!qt || !qt.length) {
+      wrap.classList.add('rs2-hidden');
+      return;
+    }
+    wrap.classList.remove('rs2-hidden');
+    var table = document.createElement('table');
+    table.className = 'rs2-trace-table';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['#', 'Purpose', 'OpenAlex', 'S2', 'Per-API log'].forEach(function (h, idx) {
+      var th = document.createElement('th');
+      if (idx === 0 || idx === 2 || idx === 3) th.className = 'num';
+      th.textContent = h;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tb = document.createElement('tbody');
+    qt.forEach(function (row) {
+      var oa = row.openalex || {};
+      var s2 = row.semantic_scholar || {};
+      var oaN =
+        row.openalex_count != null ? row.openalex_count : oa.total_returned != null ? oa.total_returned : '—';
+      var s2N =
+        row.semantic_scholar_count != null
+          ? row.semantic_scholar_count
+          : s2.total_returned != null
+            ? s2.total_returned
+            : '—';
+      var tr = document.createElement('tr');
+      var td0 = document.createElement('td');
+      td0.className = 'num';
+      td0.textContent = String(row.index != null ? row.index : '');
+      var td1 = document.createElement('td');
+      td1.textContent = row.purpose || '';
+      var td2 = document.createElement('td');
+      td2.className = 'num';
+      td2.textContent = String(oaN);
+      var td3 = document.createElement('td');
+      td3.className = 'num';
+      td3.textContent = String(s2N);
+      var td4 = document.createElement('td');
+      td4.className = 'trace-detail';
+      var lines = [];
+      if (oa.keyword_query_preview) {
+        lines.push('OA search preview: ' + oa.keyword_query_preview.slice(0, 220));
+      }
+      if (oa.relaxed_no_concept_fetch) {
+        lines.push(
+          'OA supplemental keyword-only pass added ' + (oa.relaxed_additional || 0) + ' (strict concept filter yielded few hits).'
+        );
+      }
+      if (oa.pages && oa.pages.length) {
+        oa.pages.forEach(function (pg, j) {
+          if (pg.error) {
+            lines.push('OpenAlex page ' + (j + 1) + ' error: ' + String(pg.error).slice(0, 200));
+          } else if (pg.http_ok) {
+            lines.push(
+              'OpenAlex page ' +
+                (j + 1) +
+                ': +' +
+                (pg.batch_returned || 0) +
+                ' (meta count ' +
+                (pg.meta_count != null ? pg.meta_count : '—') +
+                ')' +
+                (pg.has_next_cursor ? ', more pages' : ', end')
+            );
+          }
+        });
+      }
+      if (s2.query_preview) {
+        lines.push('S2 query preview: ' + String(s2.query_preview).slice(0, 220));
+      }
+      if (s2.truncated) {
+        lines.push('S2 query was truncated to ' + 2800 + ' chars for URL limits.');
+      }
+      if (s2.requests && s2.requests.length) {
+        s2.requests.forEach(function (rq, j) {
+          var st = rq.http_status != null ? rq.http_status : '—';
+          var bit =
+            'S2 request ' +
+            (j + 1) +
+            ': HTTP ' +
+            st +
+            ', +' +
+            (rq.results_in_batch || 0) +
+            (rq.total_reported != null ? ' (total field ' + rq.total_reported + ')' : '');
+          lines.push(bit);
+          if (rq.url_preview) {
+            lines.push('URL: ' + String(rq.url_preview).slice(0, 280));
+          }
+          if (rq.error_body_preview) {
+            lines.push('S2 body: ' + String(rq.error_body_preview).slice(0, 250));
+          }
+          if (rq.exception) {
+            lines.push('S2 exception: ' + String(rq.exception).slice(0, 200));
+          }
+        });
+      }
+      if (s2.errors && s2.errors.length) {
+        lines.push('S2 errors: ' + s2.errors.join(' | ').slice(0, 400));
+      }
+      td4.innerHTML = lines.length
+        ? lines
+            .map(function (line) {
+              return '<div class="trace-line">' + esc(line) + '</div>';
+            })
+            .join('')
+        : '—';
+      tr.appendChild(td0);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tr.appendChild(td3);
+      tr.appendChild(td4);
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    host.appendChild(table);
   }
 
   function getSortVal(p, key) {
@@ -423,6 +552,7 @@
         clearActivityStack();
       }
     }
+    renderQueryTrace(stats.query_trace || []);
     resultsEl.classList.remove('rs2-hidden');
   }
 
