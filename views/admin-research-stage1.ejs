@@ -29,6 +29,11 @@
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     button.secondary { border-color: #30363d; background: #21262d; }
     button.danger { border-color: #da3633; background: rgba(218, 54, 51, 0.15); }
+    .toolbar a.primary-link {
+      display: inline-block; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #388bfd;
+      background: rgba(56, 139, 253, 0.2); color: #e6edf3; font: inherit; text-decoration: none;
+    }
+    .toolbar a.primary-link:hover { filter: brightness(1.08); }
     #rs1-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; text-align: center; }
     #rs1-status.err { color: #f85149; }
     #rs1-status.ok { color: #3fb950; }
@@ -120,6 +125,7 @@
     <p class="hint">Saved on the server. Unselected adjacent fields and overlap metadata were removed from the stored object.</p>
     <pre id="rs1-final-out"></pre>
     <div class="toolbar">
+      <a class="primary-link" href="/admin/research-stage2">Continue to Stage 2 retrieval →</a>
       <button type="button" class="secondary" id="rs1-start-over">Start over</button>
     </div>
   </div>

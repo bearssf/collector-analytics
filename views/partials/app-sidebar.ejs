@@ -96,6 +96,12 @@
       <% if (typeof adminResearchStage1TimingHref !== 'undefined' && adminResearchStage1TimingHref) { %>
         <a href="<%= adminResearchStage1TimingHref %>"><%= t('sidebar.adminResearchStage1Timing') %></a>
       <% } %>
+      <% if (typeof adminResearchStage2Href !== 'undefined' && adminResearchStage2Href) { %>
+        <a href="<%= adminResearchStage2Href %>"><%= t('sidebar.adminResearchStage2') %></a>
+      <% } %>
+      <% if (typeof adminResearchStage2EnrichmentHref !== 'undefined' && adminResearchStage2EnrichmentHref) { %>
+        <a href="<%= adminResearchStage2EnrichmentHref %>"><%= t('sidebar.adminResearchStage2Enrichment') %></a>
+      <% } %>
     </nav>
   </div>
   <% } %>

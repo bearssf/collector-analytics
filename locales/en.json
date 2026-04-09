@@ -506,6 +506,8 @@
     "adminResearchAnatomy": "Research Anatomy stats",
     "adminResearchStage1": "Research — Stage 1 plan",
     "adminResearchStage1Timing": "Research — Bedrock times",
+    "adminResearchStage2": "Research — Stage 2 retrieval",
+    "adminResearchStage2Enrichment": "Research — Stage 2 enrichment",
     "home": "Home",
     "pageTour": "Page Tour"
   },

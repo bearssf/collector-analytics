@@ -5,6 +5,7 @@ const { createPool, query, queryRaw } = require('./lib/db');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 
 const { ensureCoreSchema } = require('./lib/schema');
 const {
@@ -70,7 +71,9 @@ const {
   recordStage1BedrockRun,
   listStage1BedrockRuns,
   saveStage1FinalPlan,
+  getLatestStage1FinalPlan,
 } = require('./lib/researchStage1Storage');
+const { saveStage2Corpus, getLatestStage2Corpus } = require('./lib/researchStage2Storage');
 const { MIN_REVIEW_WORDS } = require('./lib/researchAnatomyService');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
@@ -249,6 +252,8 @@ function applyAdminSidebarNavLocals(req, res) {
   }
   res.locals.adminResearchStage1Href = '/admin/research-stage1';
   res.locals.adminResearchStage1TimingHref = '/admin/research-stage1-timing';
+  res.locals.adminResearchStage2Href = '/admin/research-stage2';
+  res.locals.adminResearchStage2EnrichmentHref = '/admin/research-stage2-enrichment';
   const tplTok = trimAdminTemplateToken(process.env.ADMIN_TEMPLATE_EDITOR_TOKEN);
   const trainTok = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
   const raTok = researchAnatomyStatsAdminToken();
@@ -269,7 +274,9 @@ function applyAdminSidebarNavLocals(req, res) {
     res.locals.adminTrainingHref ||
     res.locals.adminResearchAnatomyHref ||
     res.locals.adminResearchStage1Href ||
-    res.locals.adminResearchStage1TimingHref
+    res.locals.adminResearchStage1TimingHref ||
+    res.locals.adminResearchStage2Href ||
+    res.locals.adminResearchStage2EnrichmentHref
   );
 }
 
@@ -522,6 +529,10 @@ async function postAdminResearchStage1Finalize(req, res) {
     }
     const cleaned = JSON.parse(JSON.stringify(plan));
     delete cleaned.construct_overlap_flags;
+    const pt = req.body && req.body.project_type;
+    if (pt != null && String(pt).trim()) {
+      cleaned.project_type = String(pt).trim();
+    }
     await saveStage1FinalPlan(getPool, req.session.userId, cleaned);
     res.json({ ok: true });
   } catch (e) {
@@ -529,8 +540,217 @@ async function postAdminResearchStage1Finalize(req, res) {
   }
 }
 
+const STAGE2_CORPUS_TYPES = ['assignment', 'dissertation', 'conference', 'journal'];
+
+async function renderAdminResearchStage2(req, res) {
+  res.render('admin-research-stage2', {});
+}
+
+async function renderAdminResearchStage2Enrichment(req, res) {
+  res.render('admin-research-stage2-enrichment', {});
+}
+
+async function getApiAdminResearchStage1LatestPlan(req, res) {
+  try {
+    const row = await getLatestStage1FinalPlan(getPool, req.session.userId);
+    if (!row) {
+      return res.status(404).json({
+        ok: false,
+        error: 'No saved Stage 1 plan. Finalize a plan on Stage 1 first.',
+      });
+    }
+    let plan;
+    try {
+      plan = JSON.parse(String(row.plan_json));
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: 'Stored plan is invalid JSON.' });
+    }
+    res.json({ ok: true, plan });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'Failed to load plan.' });
+  }
+}
+
+async function getApiAdminResearchStage2Latest(req, res) {
+  try {
+    const data = await getLatestStage2Corpus(getPool, req.session.userId);
+    if (!data) {
+      return res.json({ ok: true, hasData: false });
+    }
+    res.json({
+      ok: true,
+      hasData: true,
+      corpus: data.corpus,
+      statistics: data.statistics,
+      project_type: data.project_type,
+      created_at: data.created_at,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'Failed to load corpus.' });
+  }
+}
+
+function postAdminResearchStage2Run(req, res) {
+  const projectTypeRaw = String((req.body && req.body.projectType) || 'dissertation').trim();
+  const projectType = STAGE2_CORPUS_TYPES.includes(projectTypeRaw)
+    ? projectTypeRaw
+    : 'dissertation';
+  const mailto =
+    (req.session.user && req.session.user.email) ||
+    process.env.OPENALEX_MAILTO ||
+    'bearssf@tiffin.edu';
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  (async () => {
+    let plan = req.body && req.body.plan;
+    if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
+      try {
+        const row = await getLatestStage1FinalPlan(getPool, req.session.userId);
+        if (!row) {
+          res.write(
+            `data: ${JSON.stringify({
+              event: 'error',
+              message: 'No saved Stage 1 plan. Complete Stage 1 and save the final plan first.',
+            })}\n\n`
+          );
+          res.end();
+          return;
+        }
+        plan = JSON.parse(String(row.plan_json));
+      } catch (e) {
+        res.write(
+          `data: ${JSON.stringify({
+            event: 'error',
+            message: e.message || 'Could not load Stage 1 plan.',
+          })}\n\n`
+        );
+        res.end();
+        return;
+      }
+    }
+
+    const effectiveType =
+      (plan && plan.project_type && STAGE2_CORPUS_TYPES.includes(String(plan.project_type).trim())
+        ? String(plan.project_type).trim()
+        : null) || projectType;
+
+    const payloadObj = {
+      decomposition: plan,
+      project_type: effectiveType,
+      mailto: String(mailto),
+    };
+    const scriptPath = path.join(__dirname, 'stage2_retrieval.py');
+    const child = spawn(process.env.PYTHON || 'python3', [scriptPath], {
+      env: { ...process.env, PYTHONUNBUFFERED: '1' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stderrBuf = '';
+    child.stderr.on('data', (chunk) => {
+      stderrBuf += chunk.toString();
+      const parts = stderrBuf.split(/\r?\n/);
+      stderrBuf = parts.pop() || '';
+      for (const line of parts) {
+        if (line.startsWith('STAGE2_PROG ')) {
+          const jsonStr = line.slice(12).trim();
+          try {
+            const ev = JSON.parse(jsonStr);
+            res.write(`data: ${JSON.stringify(ev)}\n\n`);
+          } catch (_) {
+            /* ignore */
+          }
+        }
+      }
+    });
+
+    let stdoutBuf = '';
+    child.stdout.on('data', (c) => {
+      stdoutBuf += c.toString();
+    });
+
+    child.on('error', (err) => {
+      try {
+        res.write(
+          `data: ${JSON.stringify({ event: 'error', message: err.message || 'spawn failed' })}\n\n`
+        );
+      } catch (_) {
+        /* ignore */
+      }
+      res.end();
+    });
+
+    child.on('close', async (code) => {
+      try {
+        if (code !== 0 && !stdoutBuf.trim()) {
+          res.write(
+            `data: ${JSON.stringify({
+              event: 'error',
+              message: `Python exited with code ${code}`,
+            })}\n\n`
+          );
+          res.end();
+          return;
+        }
+        const result = JSON.parse(stdoutBuf);
+        try {
+          await saveStage2Corpus(
+            getPool,
+            req.session.userId,
+            effectiveType,
+            result.corpus || [],
+            result.statistics || {}
+          );
+        } catch (saveErr) {
+          console.error('[research-stage2] Save failed:', saveErr.message || saveErr);
+        }
+        res.write(`data: ${JSON.stringify({ event: 'done', result })}\n\n`);
+      } catch (e) {
+        res.write(
+          `data: ${JSON.stringify({
+            event: 'error',
+            message: e.message || 'Invalid Python output',
+            stdoutPreview: stdoutBuf.slice(0, 500),
+          })}\n\n`
+        );
+      }
+      res.end();
+    });
+
+    try {
+      child.stdin.write(JSON.stringify(payloadObj));
+      child.stdin.end();
+    } catch (e) {
+      try {
+        res.write(`data: ${JSON.stringify({ event: 'error', message: e.message || 'stdin' })}\n\n`);
+      } catch (_) {
+        /* ignore */
+      }
+      res.end();
+    }
+  })().catch((e) => {
+    try {
+      res.write(`data: ${JSON.stringify({ event: 'error', message: e.message || 'failed' })}\n\n`);
+    } catch (_) {
+      /* ignore */
+    }
+    res.end();
+  });
+}
+
 app.get('/admin/research-stage1', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage1));
 app.get('/admin/research-stage1-timing', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage1Timing));
+app.get('/admin/research-stage2', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage2));
+app.get(
+  '/admin/research-stage2-enrichment',
+  requireBearssfAdminPage,
+  asyncHandler(renderAdminResearchStage2Enrichment)
+);
 app.post(
   '/api/admin/research-stage1-decompose',
   requireBearssfAdminSession,
@@ -541,6 +761,17 @@ app.post(
   requireBearssfAdminSession,
   asyncHandler(postAdminResearchStage1Finalize)
 );
+app.get(
+  '/api/admin/research-stage1-latest-plan',
+  requireBearssfAdminSession,
+  asyncHandler(getApiAdminResearchStage1LatestPlan)
+);
+app.get(
+  '/api/admin/research-stage2-latest',
+  requireBearssfAdminSession,
+  asyncHandler(getApiAdminResearchStage2Latest)
+);
+app.post('/api/admin/research-stage2-run', requireBearssfAdminSession, postAdminResearchStage2Run);
 
 function asyncHandler(fn) {
   return function (req, res, next) {

@@ -251,12 +251,13 @@
   function finalizePlan() {
     var payload = JSON.parse(JSON.stringify(workingPlan));
     delete payload.construct_overlap_flags;
+    payload.project_type = (typeEl && typeEl.value) || 'dissertation';
 
     fetch('/api/admin/research-stage1-finalize', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: payload }),
+      body: JSON.stringify({ plan: payload, project_type: payload.project_type }),
     })
       .then(function (r) {
         return r.json().then(function (data) {
