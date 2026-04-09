@@ -706,6 +706,9 @@ function postAdminResearchStage2Run(req, res) {
           } catch (_) {
             /* ignore */
           }
+        } else if (line.trim()) {
+          // Python logging (OpenAlex / Semantic Scholar detail) — appears in host logs (Render, etc.)
+          console.error('[research-stage2:py]', line.length > 2500 ? `${line.slice(0, 2500)}…` : line);
         }
       }
     });

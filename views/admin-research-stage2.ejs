@@ -83,7 +83,7 @@
     <a href="/admin/research-stage1-timing">Bedrock run times</a>
   </div>
   <h1>Research — Stage 2 corpus retrieval</h1>
-  <p class="hint">Uses your <strong>latest saved Stage 1 plan</strong> from the server. Retrieves from OpenAlex and Semantic Scholar, deduplicates, scores, and trims the corpus. Polite pool: <code>OPENALEX_MAILTO</code> or your signed-in email. Optional higher S2 limits: set <code>SEMANTIC_SCHOLAR_API_KEY</code> (or <code>S2_API_KEY</code>). Requires <code>python3</code> and <code>stage2_retrieval.py</code> on the server.</p>
+  <p class="hint">Uses your <strong>latest saved Stage 1 plan</strong> from the server. Retrieves from OpenAlex and Semantic Scholar, deduplicates, scores, and trims the corpus. Polite pool: <code>OPENALEX_MAILTO</code> or your signed-in email. Optional S2 rate limits: <code>S2_API_KEY</code> or <code>SEMANTIC_SCHOLAR_API_KEY</code>. After a run, <strong>Per-query API trace</strong> (below) mirrors what is stored in <code>statistics_json.query_trace</code> for that saved corpus. Python stderr lines (including <code>LOG.info</code> for each S2/OpenAlex call) are forwarded to the app server log stream as <code>[research-stage2:py]</code>. Requires <code>python3</code> and <code>stage2_retrieval.py</code> on the server.</p>
 
   <div class="row">
     <label for="rs2-type">Corpus size profile (Stage 1 project type)</label>

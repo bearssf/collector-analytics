@@ -83,7 +83,7 @@ def year_for_histogram(y: Any) -> Optional[int]:
 
 def _s2_request_headers() -> dict[str, str]:
     h = {"User-Agent": "AcademiqForge-Stage2/1.0", "Accept": "application/json"}
-    key = (os.environ.get("SEMANTIC_SCHOLAR_API_KEY") or os.environ.get("S2_API_KEY") or "").strip()
+    key = (os.environ.get("S2_API_KEY") or os.environ.get("SEMANTIC_SCHOLAR_API_KEY") or "").strip()
     if key:
         h["x-api-key"] = key
     return h
