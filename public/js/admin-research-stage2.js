@@ -4,6 +4,8 @@
   var loadSavedBtn = document.getElementById('rs2-load-saved');
   var statusEl = document.getElementById('rs2-status');
   var progressEl = document.getElementById('rs2-progress');
+  var stackEl = document.getElementById('rs2-stack');
+  var stackWrapEl = document.getElementById('rs2-stack-wrap');
   var warnZeroEl = document.getElementById('rs2-warn-zero');
   var warnErrEl = document.getElementById('rs2-warn-err');
   var resultsEl = document.getElementById('rs2-results');
@@ -62,16 +64,69 @@
   function formatProgress(ev) {
     if (!ev || ev.event !== 'progress') return '';
     var api = ev.api === 'semantic_scholar' ? 'Semantic Scholar' : 'OpenAlex';
-    return (
-      'Running query ' +
-      ev.index +
-      ' of ' +
-      ev.total +
-      ' against ' +
-      api +
-      ': ' +
-      (ev.purpose || '')
-    );
+    var parts = [
+      'In flight: query ' + ev.index + ' / ' + ev.total + ' · ' + api,
+      ev.purpose ? 'Purpose: ' + ev.purpose : '',
+    ];
+    if (ev.keyword_preview) {
+      parts.push('Keywords: ' + ev.keyword_preview);
+    }
+    if (ev.api !== 'semantic_scholar') {
+      if (ev.openalex_concept_filters != null && ev.openalex_concept_filters > 0) {
+        parts.push(ev.openalex_concept_filters + ' OpenAlex concept ID filter(s)');
+      }
+      if (ev.openalex_concepts && ev.openalex_concepts.length) {
+        var labs = ev.openalex_concepts.slice(0, 4).join(', ');
+        if (ev.openalex_concepts.length > 4) {
+          labs += ' …';
+        }
+        parts.push('Concept labels: ' + labs);
+      }
+      if (ev.year_filter && ev.year_filter !== 'none') {
+        parts.push('Years: ' + ev.year_filter);
+      }
+    }
+    return parts.filter(Boolean).join(' — ');
+  }
+
+  function clearActivityStack() {
+    if (stackEl) stackEl.innerHTML = '';
+    if (stackWrapEl) stackWrapEl.classList.add('rs2-hidden');
+  }
+
+  function showActivityStack() {
+    if (stackWrapEl) stackWrapEl.classList.remove('rs2-hidden');
+  }
+
+  function appendActivityEntry(entry) {
+    if (!stackEl || !entry) return;
+    showActivityStack();
+    var item = document.createElement('div');
+    var kind = String(entry.kind || 'step').replace(/[^a-z0-9_-]/gi, '_');
+    item.className = 'stack-item stack-' + kind;
+    var title = document.createElement('div');
+    title.className = 'stack-title';
+    title.textContent = entry.title || '';
+    item.appendChild(title);
+    var ul = document.createElement('ul');
+    ul.className = 'stack-bullets';
+    (entry.bullets || []).forEach(function (b) {
+      var li = document.createElement('li');
+      li.textContent = b;
+      ul.appendChild(li);
+    });
+    item.appendChild(ul);
+    stackEl.appendChild(item);
+    stackEl.scrollTop = stackEl.scrollHeight;
+  }
+
+  function renderActivityLog(log) {
+    clearActivityStack();
+    if (!log || !log.length) return;
+    showActivityStack();
+    for (var i = 0; i < log.length; i++) {
+      appendActivityEntry(log[i]);
+    }
   }
 
   function authorsShort(authors) {
@@ -290,6 +345,11 @@
     renderYearHist(stats.year_distribution || {});
     sortState = { key: 'relevance_score', dir: 'desc' };
     renderTable(lastCorpus);
+    if (stats.activity_log && stats.activity_log.length) {
+      renderActivityLog(stats.activity_log);
+    } else {
+      clearActivityStack();
+    }
     resultsEl.classList.remove('rs2-hidden');
   }
 
@@ -297,6 +357,8 @@
     if (!ev || !ev.event) return;
     if (ev.event === 'progress') {
       progressEl.textContent = formatProgress(ev);
+    } else if (ev.event === 'stack' && ev.entry) {
+      appendActivityEntry(ev.entry);
     } else if (ev.event === 'done' && ev.result) {
       progressEl.textContent = '';
       setStatus('Retrieval complete. Corpus saved for Enrichment.', 'ok');
@@ -312,6 +374,8 @@
     loadSavedBtn.disabled = true;
     setStatus('Retrieving…', '');
     progressEl.textContent = '';
+    clearActivityStack();
+    showActivityStack();
     resultsEl.classList.add('rs2-hidden');
     warnZeroEl.classList.add('rs2-hidden');
     warnErrEl.classList.add('rs2-hidden');

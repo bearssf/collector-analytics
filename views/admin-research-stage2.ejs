@@ -20,7 +20,20 @@
     button { padding: 0.5rem 1rem; border: 1px solid #388bfd; background: rgba(56, 139, 253, 0.2); color: #e6edf3; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     button.secondary { border-color: #30363d; background: #21262d; }
-    #rs2-progress { min-height: 1.5rem; font-size: 0.88rem; color: #8ab4ff; margin: 0.5rem 0; text-align: center; max-width: 48rem; margin-left: auto; margin-right: auto; }
+    #rs2-progress { min-height: 1.5rem; font-size: 0.82rem; color: #8ab4ff; margin: 0.5rem 0; text-align: center; max-width: 52rem; margin-left: auto; margin-right: auto; line-height: 1.4; }
+    .rs2-stack-card { max-width: 52rem; margin: 0 auto 1rem; padding: 0.85rem 1rem; border: 1px solid #30363d; border-radius: 10px; background: rgba(0,0,0,0.2); }
+    .rs2-stack-card h2 { font-size: 0.85rem; margin: 0 0 0.5rem; color: #8b949e; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    #rs2-stack { max-height: min(55vh, 28rem); overflow-y: auto; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.65rem; }
+    .stack-item { border-left: 3px solid #484f58; padding: 0.35rem 0 0.35rem 0.65rem; background: rgba(255,255,255,0.02); border-radius: 0 6px 6px 0; }
+    .stack-item.stack-init { border-left-color: #8b949e; }
+    .stack-item.stack-openalex { border-left-color: #58a6ff; }
+    .stack-item.stack-semantic_scholar { border-left-color: #a371f7; }
+    .stack-item.stack-dedupe { border-left-color: #d4a72c; }
+    .stack-item.stack-score { border-left-color: #3fb950; }
+    .stack-item.stack-trim { border-left-color: #f0883e; }
+    .stack-title { font-weight: 600; color: #c9d1d9; margin-bottom: 0.25rem; }
+    .stack-bullets { margin: 0; padding-left: 1.1rem; color: #8b949e; line-height: 1.45; }
+    .stack-bullets li { margin-bottom: 0.15rem; }
     #rs2-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; text-align: center; }
     #rs2-status.err { color: #f85149; }
     #rs2-status.ok { color: #3fb950; }
@@ -81,7 +94,13 @@
     <button type="button" class="secondary" id="rs2-load-saved">Load last saved corpus</button>
   </div>
   <div id="rs2-status" aria-live="polite"></div>
-  <div id="rs2-progress"></div>
+  <div id="rs2-progress" aria-live="polite"></div>
+
+  <div id="rs2-stack-wrap" class="rs2-stack-card rs2-hidden">
+    <h2>What ran</h2>
+    <p class="hint" style="text-align:left;margin:0 0 0.5rem;font-size:0.76rem;">Step-by-step volumes: documents fetched, search strings, concept filters, then dedupe, scoring, and trim.</p>
+    <div id="rs2-stack"></div>
+  </div>
 
   <div id="rs2-warn-zero" class="warn-banner rs2-hidden"></div>
   <div id="rs2-warn-err" class="warn-banner err-banner rs2-hidden"></div>

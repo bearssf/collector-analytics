@@ -734,6 +734,30 @@ def _strip_internal(papers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _trunc_text(s: Any, max_len: int = 240) -> str:
+    t = str(s or "").strip()
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1] + "…"
+
+
+def _normalize_rq_concepts(rq: dict[str, Any]) -> list[str]:
+    concepts = rq.get("openalex_concepts") or []
+    if isinstance(concepts, str):
+        concepts = [concepts]
+    return [str(c).strip() for c in concepts if c and str(c).strip()]
+
+
+def _date_filter_phrase(y0: Optional[int], y1: Optional[int]) -> str:
+    if y0 is not None and y1 is not None:
+        return f"{y0}–{y1}"
+    if y0 is not None:
+        return f"from {y0}"
+    if y1 is not None:
+        return f"through {y1}"
+    return "none"
+
+
 def run_stage2(
     decomposition: dict[str, Any],
     *,
@@ -744,6 +768,13 @@ def run_stage2(
     def emit(ev: dict[str, Any]) -> None:
         if progress:
             progress(ev)
+
+    activity_log: list[dict[str, Any]] = []
+
+    def push_stack(kind: str, title: str, bullets: list[str]) -> None:
+        entry: dict[str, Any] = {"kind": kind, "title": title, "bullets": bullets}
+        activity_log.append(entry)
+        emit({"event": "stack", "entry": entry})
 
     rq_list = [q for q in (decomposition.get("retrieval_queries") or []) if isinstance(q, dict)]
     temporal = decomposition.get("temporal_parameters") or {}
@@ -756,9 +787,33 @@ def run_stage2(
     all_s2: list[dict[str, Any]] = []
     zero_queries: list[str] = []
     nq = len(rq_list)
+    corpus_target = CORPUS_TARGET.get(project_type, 200)
+    rec_w = RECENCY_WEIGHT.get(project_type, 0.2)
+    rng = temporal.get("recommended_range")
+    rng_s = str(rng).strip() if rng else "—"
+
+    init_bullets = [
+        f"{nq} retrieval quer{'y' if nq == 1 else 'ies'} from Stage 1",
+        f"{len(core)} core construct{'s' if len(core) != 1 else ''} (for coverage & trimming)",
+        f"Corpus target: {corpus_target} documents ({project_type} profile)",
+        f"Recommended year range (Stage 1): {rng_s}",
+        f"OpenAlex polite pool mailto: {_trunc_text(mailto, 48)}",
+    ]
+    push_stack("init", "Pipeline inputs", init_bullets)
 
     for i, rq in enumerate(rq_list):
         purpose = str(rq.get("purpose") or f"query_{i}")
+        kw_raw = str(rq.get("keyword_query") or "").strip()
+        concept_list = _normalize_rq_concepts(rq)
+        y0, y1 = parse_recommended_range(temporal.get("recommended_range"))
+        date_from = f"{y0}-01-01" if y0 else None
+        date_to = f"{y1}-12-31" if y1 else None
+        n_cid = (
+            len(set(resolve_openalex_concept_ids(concept_list, mailto, concept_cache)))
+            if concept_list
+            else 0
+        )
+
         emit(
             {
                 "event": "progress",
@@ -766,6 +821,10 @@ def run_stage2(
                 "total": max(1, nq),
                 "purpose": purpose,
                 "api": "openalex",
+                "keyword_preview": _trunc_text(kw_raw, 120) if kw_raw else "",
+                "openalex_concepts": concept_list[:12],
+                "openalex_concept_filters": n_cid,
+                "year_filter": _date_filter_phrase(y0, y1),
             }
         )
         try:
@@ -775,6 +834,28 @@ def run_stage2(
             skipped.append({"purpose": purpose, "api": "openalex", "error": str(e)[:500]})
             oa = []
 
+        oa_bullets: list[str] = [f"{len(oa)} works fetched (per-query cap applies)"]
+        if kw_raw:
+            oa_bullets.append(f"Keyword / search string: {_trunc_text(kw_raw)}")
+        else:
+            oa_bullets.append("No keyword search string (concepts and/or date filter only)")
+        if concept_list:
+            shown = ", ".join(_trunc_text(c, 80) for c in concept_list[:8])
+            if len(concept_list) > 8:
+                shown += f" … (+{len(concept_list) - 8} more labels)"
+            oa_bullets.append(f"OpenAlex concept labels: {shown}")
+        if n_cid:
+            oa_bullets.append(f"{n_cid} distinct concept ID(s) resolved for OpenAlex filter")
+        if date_from or date_to:
+            oa_bullets.append(
+                f"Publication date filter: {(date_from or '…')} → {(date_to or '…')}"
+            )
+        push_stack(
+            "openalex",
+            f"OpenAlex — query {i + 1} of {max(1, nq)}: {purpose}",
+            oa_bullets,
+        )
+
         emit(
             {
                 "event": "progress",
@@ -782,6 +863,7 @@ def run_stage2(
                 "total": max(1, nq),
                 "purpose": purpose,
                 "api": "semantic_scholar",
+                "keyword_preview": _trunc_text(kw_raw, 120) if kw_raw else "",
             }
         )
         try:
@@ -796,13 +878,57 @@ def run_stage2(
 
         all_oa.extend(oa)
         all_s2.extend(s2)
+        cum = len(all_oa) + len(all_s2)
+        s2_bullets = [
+            f"{len(s2)} papers fetched from Semantic Scholar (per-query cap applies)",
+        ]
+        if kw_raw:
+            s2_bullets.append(f"Semantic Scholar query text: {_trunc_text(kw_raw)}")
+        else:
+            s2_bullets.append("No keyword query — Semantic Scholar skipped for this row")
+        s2_bullets.append(f"Cumulative raw rows so far (OpenAlex + S2): {cum}")
+        push_stack(
+            "semantic_scholar",
+            f"Semantic Scholar — query {i + 1} of {max(1, nq)}: {purpose}",
+            s2_bullets,
+        )
 
     total_before = len(all_oa) + len(all_s2)
     combined = all_oa + all_s2
     merged, source_breakdown = deduplicate_papers(combined)
 
+    br = source_breakdown
+    push_stack(
+        "dedupe",
+        "Deduplicate & merge by DOI / title",
+        [
+            f"{total_before} raw records combined (all queries, both APIs)",
+            f"{len(merged)} unique works after deduplication",
+            f"Source overlap: both APIs {br['both']}, OpenAlex-only {br['openalex_only']}, "
+            f"Semantic Scholar-only {br['semantic_scholar_only']}",
+        ],
+    )
+
     score_papers(merged, rq_list, core, temporal, project_type)
+    push_stack(
+        "score",
+        "Relevance scoring",
+        [
+            f"Scored {len(merged)} papers",
+            f"Signals: query hit breadth ({nq} retrieval purposes), citation strength, "
+            f"recency (weight {rec_w:.2f} for {project_type}), construct text coverage",
+        ],
+    )
+
     final_papers = trim_corpus(merged, core, project_type)
+    push_stack(
+        "trim",
+        "Trim to corpus target",
+        [
+            f"Ranked pool: {len(merged)} → final corpus: {len(final_papers)} (target {corpus_target})",
+            "Construct-aware floor: at least 5 papers per construct where available, then top scores",
+        ],
+    )
 
     construct_rows = build_construct_keywords(core)
     papers_per_construct: dict[str, int] = {}
@@ -836,6 +962,7 @@ def run_stage2(
         "zero_result_queries": zero_queries,
         "query_errors": skipped,
         "source_breakdown": source_breakdown,
+        "activity_log": activity_log,
     }
 
     return {"corpus": final_papers, "statistics": stats}
