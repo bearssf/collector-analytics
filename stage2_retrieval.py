@@ -28,6 +28,8 @@ REQUEST_TIMEOUT = 30
 OPENALEX_DELAY_SEC = 1.0
 S2_MAX_REQ = 100
 S2_WINDOW_SEC = 300
+# GET /paper/search — long boolean queries can exceed URL limits or upset proxies.
+S2_MAX_QUERY_CHARS = 2800
 
 CORPUS_TARGET: dict[str, int] = {
     "assignment": 40,
@@ -413,6 +415,29 @@ def fetch_openalex_for_query(
     return out
 
 
+def _s2_rate_limit_backoff_sleep(total_sec: float) -> None:
+    """Sleep in chunks and emit SSE heartbeats so the client connection is not idle-only."""
+    deadline = time.time() + total_sec
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        time.sleep(min(12.0, remaining))
+        sys.stderr.write(
+            "STAGE2_PROG "
+            + json.dumps(
+                {
+                    "event": "heartbeat",
+                    "source": "semantic_scholar",
+                    "note": "Rate limited — backing off (still running)",
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+        sys.stderr.flush()
+
+
 def fetch_s2_for_query(
     rq: dict[str, Any],
     limiter: S2RateLimiter,
@@ -422,6 +447,14 @@ def fetch_s2_for_query(
     kw = str(rq.get("keyword_query") or "").strip()
     if not kw:
         return []
+    if len(kw) > S2_MAX_QUERY_CHARS:
+        LOG.warning(
+            "Truncating Semantic Scholar query from %d to %d chars (purpose=%s)",
+            len(kw),
+            S2_MAX_QUERY_CHARS,
+            purpose,
+        )
+        kw = kw[:S2_MAX_QUERY_CHARS]
 
     fields = (
         "paperId,externalIds,title,abstract,authors,year,venue,citationCount,"
@@ -443,7 +476,7 @@ def fetch_s2_for_query(
         except urllib.error.HTTPError as e:
             if e.code == 429:
                 LOG.warning("S2 rate limited; backing off 60s")
-                time.sleep(60)
+                _s2_rate_limit_backoff_sleep(60.0)
                 continue
             skipped.append({"purpose": purpose, "api": "semantic_scholar", "error": str(e)[:500]})
             break

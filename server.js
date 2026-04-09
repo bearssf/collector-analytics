@@ -601,11 +601,49 @@ function postAdminResearchStage2Run(req, res) {
     process.env.OPENALEX_MAILTO ||
     'bearssf@tiffin.edu';
 
+  if (typeof req.setTimeout === 'function') {
+    req.setTimeout(0);
+  }
+  if (typeof res.setTimeout === 'function') {
+    res.setTimeout(0);
+  }
+
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') {
     res.flushHeaders();
+  }
+
+  let stopKeepAlive = () => {};
+  let sseClosed = false;
+  function closeSse() {
+    if (sseClosed) return;
+    sseClosed = true;
+    stopKeepAlive();
+    try {
+      res.end();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function startSseKeepAlive() {
+    const raw = parseInt(process.env.STAGE2_SSE_KEEPALIVE_MS || '15000', 10);
+    const ms = Math.min(Math.max(Number.isFinite(raw) && raw > 0 ? raw : 15000, 5000), 120000);
+    const tid = setInterval(() => {
+      try {
+        if (sseClosed) return;
+        res.write(': keepalive\n\n');
+      } catch (_) {
+        stopKeepAlive();
+      }
+    }, ms);
+    stopKeepAlive = () => {
+      clearInterval(tid);
+      stopKeepAlive = () => {};
+    };
   }
 
   (async () => {
@@ -620,7 +658,7 @@ function postAdminResearchStage2Run(req, res) {
               message: 'No saved Stage 1 plan. Complete Stage 1 and save the final plan first.',
             })}\n\n`
           );
-          res.end();
+          closeSse();
           return;
         }
         plan = JSON.parse(String(row.plan_json));
@@ -631,7 +669,7 @@ function postAdminResearchStage2Run(req, res) {
             message: e.message || 'Could not load Stage 1 plan.',
           })}\n\n`
         );
-        res.end();
+        closeSse();
         return;
       }
     }
@@ -647,6 +685,7 @@ function postAdminResearchStage2Run(req, res) {
       mailto: String(mailto),
     };
     const scriptPath = path.join(__dirname, 'stage2_retrieval.py');
+    startSseKeepAlive();
     const child = spawn(process.env.PYTHON || 'python3', [scriptPath], {
       env: { ...process.env, PYTHONUNBUFFERED: '1' },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -654,6 +693,7 @@ function postAdminResearchStage2Run(req, res) {
 
     let stderrBuf = '';
     child.stderr.on('data', (chunk) => {
+      if (sseClosed) return;
       stderrBuf += chunk.toString();
       const parts = stderrBuf.split(/\r?\n/);
       stderrBuf = parts.pop() || '';
@@ -677,16 +717,19 @@ function postAdminResearchStage2Run(req, res) {
 
     child.on('error', (err) => {
       try {
-        res.write(
-          `data: ${JSON.stringify({ event: 'error', message: err.message || 'spawn failed' })}\n\n`
-        );
+        if (!sseClosed) {
+          res.write(
+            `data: ${JSON.stringify({ event: 'error', message: err.message || 'spawn failed' })}\n\n`
+          );
+        }
       } catch (_) {
         /* ignore */
       }
-      res.end();
+      closeSse();
     });
 
     child.on('close', async (code) => {
+      if (sseClosed) return;
       try {
         if (code !== 0 && !stdoutBuf.trim()) {
           res.write(
@@ -695,7 +738,7 @@ function postAdminResearchStage2Run(req, res) {
               message: `Python exited with code ${code}`,
             })}\n\n`
           );
-          res.end();
+          closeSse();
           return;
         }
         const result = JSON.parse(stdoutBuf);
@@ -720,7 +763,7 @@ function postAdminResearchStage2Run(req, res) {
           })}\n\n`
         );
       }
-      res.end();
+      closeSse();
     });
 
     try {
@@ -732,7 +775,7 @@ function postAdminResearchStage2Run(req, res) {
       } catch (_) {
         /* ignore */
       }
-      res.end();
+      closeSse();
     }
   })().catch((e) => {
     try {
@@ -740,7 +783,7 @@ function postAdminResearchStage2Run(req, res) {
     } catch (_) {
       /* ignore */
     }
-    res.end();
+    closeSse();
   });
 }
 

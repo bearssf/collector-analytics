@@ -357,6 +357,9 @@
     if (!ev || !ev.event) return;
     if (ev.event === 'progress') {
       progressEl.textContent = formatProgress(ev);
+    } else if (ev.event === 'heartbeat') {
+      progressEl.textContent =
+        (ev.note || 'Still running…') + (ev.source ? ' · ' + String(ev.source).replace(/_/g, ' ') : '');
     } else if (ev.event === 'stack' && ev.entry) {
       appendActivityEntry(ev.entry);
     } else if (ev.event === 'done' && ev.result) {
@@ -419,7 +422,16 @@
         return pump();
       })
       .catch(function (e) {
-        setStatus(e.message || 'Failed', 'err');
+        var raw = e && e.message ? String(e.message) : 'Failed';
+        if (/failed to fetch|networkerror|load failed|network error/i.test(raw)) {
+          setStatus(
+            'Connection lost during retrieval (browser or proxy closed an idle stream). Retry after deploy — the server now sends periodic keepalives for long Semantic Scholar waits. Technical: ' +
+              raw,
+            'err'
+          );
+        } else {
+          setStatus(raw, 'err');
+        }
       })
       .then(function () {
         runBtn.disabled = false;
