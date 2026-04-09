@@ -77,6 +77,7 @@ const { saveStage2Corpus, getLatestStage2Corpus } = require('./lib/researchStage
 const { MIN_REVIEW_WORDS } = require('./lib/researchAnatomyService');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
+const { ensureStripeCustomer, getExistingValidStripeCustomerId } = require('./lib/billingElements');
 const {
   ensurePasswordResetSchema,
   createPasswordResetToken,
@@ -1180,14 +1181,14 @@ app.get(
       );
     }
     await ensureSubscriptionRow(getPool, req.session.userId);
-    const subRow = await getSubscriptionRow(getPool, req.session.userId);
-    if (!subRow || !subRow.stripe_customer_id) {
+    const customerId = await getExistingValidStripeCustomerId(stripe, getPool, req.session.userId);
+    if (!customerId) {
       return res.redirect(302, '/app/account?billing=portal_no_customer');
     }
     const base = String(process.env.PUBLIC_BASE_URL).replace(/\/$/, '');
     try {
       const portalSession = await stripe.billingPortal.sessions.create({
-        customer: subRow.stripe_customer_id,
+        customer: customerId,
         return_url: `${base}/app/account?billing=portal_return`,
         locale: i18n.stripeLocale(req.locale),
       });
@@ -1238,10 +1239,7 @@ app.get(
       return res.redirect(302, '/billing/portal');
     }
     await ensureSubscriptionRow(getPool, req.session.userId);
-    const subRow = await getSubscriptionRow(getPool, req.session.userId);
-    if (!subRow?.stripe_customer_id) {
-      return res.redirect(302, '/app/account?billing=pm_no_customer');
-    }
+    await ensureStripeCustomer(stripe, getPool, req.session.userId, req.session.user?.email);
     const projects = await listProjects(getPool, req.session.userId);
     const currentProjectId = null;
     res.render('app/billing-payment-method', {
@@ -1302,7 +1300,11 @@ app.get(
         text: at('flashPmError'),
       };
     }
-    const subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
+    let subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
+    if (isStripeBillingConfigured(stripe) && subscriptionRow?.stripe_customer_id) {
+      await getExistingValidStripeCustomerId(stripe, getPool, req.session.userId);
+      subscriptionRow = await getSubscriptionRow(getPool, req.session.userId);
+    }
     const profileRow = await getUserProfileRow(getPool, req.session.userId);
     let profile = rowToPublicUser(profileRow);
     if (!profile) {

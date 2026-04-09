@@ -9,6 +9,7 @@ const { applyStripeSubscriptionObject } = require('../lib/billingStripe');
 const {
   resolvePriceIdFromRequest,
   createSubscriptionPaymentIntentClientSecret,
+  ensureStripeCustomer,
 } = require('../lib/billingElements');
 const { resolvePromotionCodeId } = require('../lib/billingPromotion');
 const { applyPaymentMethodFromSetupIntent } = require('../lib/billingPaymentMethod');
@@ -133,12 +134,14 @@ function createBillingApiRouter(getPool, stripe) {
           .status(503)
           .json({ error: 'On-site card updates require STRIPE_PUBLISHABLE_KEY (pk_...).' });
       }
-      const row = await getSubscriptionRow(getPool, req.session.userId);
-      if (!row?.stripe_customer_id) {
-        return res.status(400).json({ error: 'No Stripe customer. Subscribe or use checkout first.' });
-      }
+      const customerId = await ensureStripeCustomer(
+        stripe,
+        getPool,
+        req.session.userId,
+        req.session.user?.email
+      );
       const setupIntent = await stripe.setupIntents.create({
-        customer: row.stripe_customer_id,
+        customer: customerId,
         payment_method_types: ['card'],
       });
       if (!setupIntent.client_secret) {
