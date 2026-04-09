@@ -19,9 +19,28 @@
   var adjacentProceedBtn = document.getElementById('rs1-adjacent-proceed');
   var finalOutEl = document.getElementById('rs1-final-out');
   var startOverBtn = document.getElementById('rs1-start-over');
+  var startOverTopBtn = document.getElementById('rs1-start-over-top');
 
   var workingPlan = null;
   var overlapQueue = [];
+
+  function resetStage1Flow() {
+    workingPlan = null;
+    overlapQueue = [];
+    outEl.textContent = '';
+    outEl.classList.add('rs1-hidden');
+    finalOutEl.textContent = '';
+    overlapListEl.innerHTML = '';
+    adjacentListEl.innerHTML = '';
+    adjacentErrEl.textContent = '';
+    adjacentErrEl.classList.add('rs1-hidden');
+    adjacentCounterEl.textContent = 'Selected: 0 of 3';
+    overlapDoneBtn.disabled = true;
+    adjacentProceedBtn.disabled = true;
+    adjacentProceedBtn.onclick = null;
+    showPanels(true, false, false, false);
+    setStatus('', '');
+  }
 
   function setStatus(msg, cls) {
     statusEl.textContent = msg || '';
@@ -281,15 +300,17 @@
     goToAdjacentStep();
   });
 
-  startOverBtn.addEventListener('click', function () {
-    workingPlan = null;
-    overlapQueue = [];
-    outEl.textContent = '';
-    outEl.classList.add('rs1-hidden');
-    finalOutEl.textContent = '';
-    showPanels(true, false, false, false);
-    setStatus('', '');
-  });
+  function onStartOver() {
+    if (workingPlan != null) {
+      if (!window.confirm('Discard this run and return to the form?')) return;
+    }
+    resetStage1Flow();
+  }
+
+  startOverBtn.addEventListener('click', onStartOver);
+  if (startOverTopBtn) {
+    startOverTopBtn.addEventListener('click', onStartOver);
+  }
 
   runBtn.addEventListener('click', function () {
     var title = (titleEl && titleEl.value) || '';
