@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Research — Bedrock run times (admin)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1.25rem 1.5rem 2rem; background: #0f1419; color: #e6edf3; line-height: 1.45; font-size: 0.92rem; }
+    .rs1-top { text-align: center; margin-bottom: 1.25rem; }
+    .rs1-top a { color: #58a6ff; text-decoration: none; }
+    .rs1-top a:hover { text-decoration: underline; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.75rem; font-weight: 600; text-align: center; }
+    p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 44rem; text-align: center; margin-left: auto; margin-right: auto; }
+    table { width: 100%; max-width: 40rem; margin: 0 auto; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { border: 1px solid #30363d; padding: 0.5rem 0.65rem; text-align: left; }
+    th { background: #161b22; color: #8b949e; font-weight: 600; }
+    td.num { font-variant-numeric: tabular-nums; text-align: right; }
+    .empty { color: #8b949e; text-align: center; padding: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="rs1-top">
+    <a href="/admin/research-stage1">← Research — Stage 1 decomposition</a>
+  </div>
+  <h1>Bedrock processing times</h1>
+  <p class="hint">Elapsed time from request sent to Bedrock until the response was received. Signed-in as <code>bearssf@tiffin.edu</code> only.</p>
+
+  <% var rows = typeof runs !== 'undefined' && runs ? runs : []; %>
+  <% if (rows.length === 0) { %>
+    <p class="empty">No runs recorded yet. Run a decomposition from the Stage 1 page.</p>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date (server)</th>
+          <th>Time taken</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function (r) {
+          var d = r.created_at;
+          var label = '—';
+          try {
+            if (d) {
+              var dt = d instanceof Date ? d : new Date(d);
+              if (!isNaN(dt.getTime())) label = dt.toLocaleString();
+            }
+          } catch (e) { }
+          var ms = r.duration_ms != null ? Number(r.duration_ms) : 0;
+          var sec = (ms / 1000).toFixed(2);
+        %>
+        <tr>
+          <td><%= r.id %></td>
+          <td><%= label %></td>
+          <td class="num"><%= sec %> s (<%= ms %> ms)</td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</body>
+</html>

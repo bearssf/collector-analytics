@@ -66,6 +66,11 @@ const {
 const { getResearchAnatomyAdminStats } = require('./lib/researchAnatomyStats');
 const { isBedrockConfigured } = require('./lib/bedrockReview');
 const { runStage1Decomposition } = require('./lib/researchStage1Decomposition');
+const {
+  recordStage1BedrockRun,
+  listStage1BedrockRuns,
+  saveStage1FinalPlan,
+} = require('./lib/researchStage1Storage');
 const { MIN_REVIEW_WORDS } = require('./lib/researchAnatomyService');
 const { fetchBillingHistoryForCustomer } = require('./lib/billingHistory');
 const { applyPaymentMethodFromSetupIntent } = require('./lib/billingPaymentMethod');
@@ -243,6 +248,7 @@ function applyAdminSidebarNavLocals(req, res) {
     return;
   }
   res.locals.adminResearchStage1Href = '/admin/research-stage1';
+  res.locals.adminResearchStage1TimingHref = '/admin/research-stage1-timing';
   const tplTok = trimAdminTemplateToken(process.env.ADMIN_TEMPLATE_EDITOR_TOKEN);
   const trainTok = trimAdminTemplateToken(process.env.ADMIN_TRAINING_EDITOR_TOKEN);
   const raTok = researchAnatomyStatsAdminToken();
@@ -262,7 +268,8 @@ function applyAdminSidebarNavLocals(req, res) {
     res.locals.adminProjectTemplatesHref ||
     res.locals.adminTrainingHref ||
     res.locals.adminResearchAnatomyHref ||
-    res.locals.adminResearchStage1Href
+    res.locals.adminResearchStage1Href ||
+    res.locals.adminResearchStage1TimingHref
   );
 }
 
@@ -480,13 +487,20 @@ async function postAdminResearchStage1Decompose(req, res) {
         ? String(body.description).trim()
         : null;
 
+    const t0 = Date.now();
     const plan = await runStage1Decomposition({
       title,
       keywords,
       projectType,
       description,
     });
-    res.json({ ok: true, plan });
+    const durationMs = Date.now() - t0;
+    try {
+      await recordStage1BedrockRun(getPool, req.session.userId, durationMs);
+    } catch (logErr) {
+      console.error('[research-stage1] Could not log Bedrock run timing:', logErr.message || logErr);
+    }
+    res.json({ ok: true, plan, durationMs });
   } catch (e) {
     if (e && e.code === 'VALIDATION') {
       return res.status(400).json({ ok: false, error: e.message || 'Invalid input.' });
@@ -495,11 +509,37 @@ async function postAdminResearchStage1Decompose(req, res) {
   }
 }
 
+async function renderAdminResearchStage1Timing(req, res) {
+  const runs = await listStage1BedrockRuns(getPool, req.session.userId, 500);
+  res.render('admin-research-stage1-timing', { runs });
+}
+
+async function postAdminResearchStage1Finalize(req, res) {
+  try {
+    const plan = req.body && req.body.plan;
+    if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
+      return res.status(400).json({ ok: false, error: 'Missing plan object.' });
+    }
+    const cleaned = JSON.parse(JSON.stringify(plan));
+    delete cleaned.construct_overlap_flags;
+    await saveStage1FinalPlan(getPool, req.session.userId, cleaned);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || 'Save failed.' });
+  }
+}
+
 app.get('/admin/research-stage1', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage1));
+app.get('/admin/research-stage1-timing', requireBearssfAdminPage, asyncHandler(renderAdminResearchStage1Timing));
 app.post(
   '/api/admin/research-stage1-decompose',
   requireBearssfAdminSession,
   asyncHandler(postAdminResearchStage1Decompose)
+);
+app.post(
+  '/api/admin/research-stage1-finalize',
+  requireBearssfAdminSession,
+  asyncHandler(postAdminResearchStage1Finalize)
 );
 
 function asyncHandler(fn) {

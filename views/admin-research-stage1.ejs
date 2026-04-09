@@ -7,8 +7,12 @@
   <title>Research — Stage 1 decomposition (admin)</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 0; padding: 1.25rem 1.5rem 2rem; background: #0f1419; color: #e6edf3; line-height: 1.45; font-size: 0.92rem; }
-    h1 { font-size: 1.2rem; margin: 0 0 0.35rem; font-weight: 600; }
-    p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 44rem; }
+    .rs1-top { text-align: center; margin-bottom: 1rem; }
+    .rs1-top a { color: #58a6ff; text-decoration: none; font-size: 0.9rem; }
+    .rs1-top a:hover { text-decoration: underline; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.35rem; font-weight: 600; text-align: center; }
+    p.hint { font-size: 0.82rem; color: #8b949e; margin: 0 0 1rem; max-width: 44rem; margin-left: auto; margin-right: auto; text-align: center; }
+    h2 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; color: #c9d1d9; }
     label { display: block; font-size: 0.78rem; color: #8b949e; margin-bottom: 0.25rem; }
     input[type="text"], textarea, select {
       width: 100%; max-width: 44rem; box-sizing: border-box;
@@ -16,59 +20,109 @@
       background: #0d1117; color: #e6edf3; font: inherit;
     }
     textarea { min-height: 4rem; resize: vertical; }
-    .row { margin-bottom: 0.85rem; max-width: 44rem; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0; }
+    .row { margin-bottom: 0.85rem; max-width: 44rem; margin-left: auto; margin-right: auto; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center; margin: 1rem 0; }
     button {
       padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #388bfd;
       background: rgba(56, 139, 253, 0.2); color: #e6edf3; font: inherit; cursor: pointer;
     }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     button.secondary { border-color: #30363d; background: #21262d; }
-    #rs1-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; }
+    button.danger { border-color: #da3633; background: rgba(218, 54, 51, 0.15); }
+    #rs1-status { min-height: 1.25rem; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.5rem; text-align: center; }
     #rs1-status.err { color: #f85149; }
     #rs1-status.ok { color: #3fb950; }
-    #rs1-out {
-      margin: 0; padding: 1rem; border-radius: 8px; border: 1px solid #30363d;
+    #rs1-out, #rs1-final-out {
+      margin: 0 auto; padding: 1rem; border-radius: 8px; border: 1px solid #30363d;
       background: #0d1117; color: #c9d1d9; font-size: 0.8rem; line-height: 1.4;
-      white-space: pre-wrap; word-break: break-word; max-width: 56rem; overflow: auto; max-height: 70vh;
+      white-space: pre-wrap; word-break: break-word; max-width: 56rem; overflow: auto; max-height: 50vh;
     }
     code { font-size: 0.88em; background: #21262d; padding: 0.1rem 0.35rem; border-radius: 4px; }
+    .rs1-hidden { display: none !important; }
+    .rs1-section { max-width: 48rem; margin: 0 auto; }
+    .overlap-card {
+      border: 1px solid #30363d; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; background: rgba(255,255,255,0.03);
+    }
+    .overlap-card h3 { font-size: 0.95rem; margin: 0 0 0.5rem; color: #8ab4ff; }
+    .overlap-card p { margin: 0.35rem 0; font-size: 0.85rem; color: #c9d1d9; }
+    .overlap-card .actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .adj-item {
+      border: 1px solid #30363d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+      display: flex; gap: 0.75rem; align-items: flex-start;
+    }
+    .adj-item input { margin-top: 0.2rem; }
+    .adj-item strong { display: block; color: #e6edf3; }
+    .adj-counter { text-align: center; margin: 0.5rem 0; font-weight: 600; color: #8ab4ff; }
+    .err-banner { background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.35); color: #f85149; padding: 0.75rem 1rem; border-radius: 8px; max-width: 44rem; margin: 0 auto 1rem; }
   </style>
 </head>
 <body>
+  <div class="rs1-top">
+    <a href="/admin/research-stage1-timing">Bedrock run times</a>
+  </div>
   <h1>Research — Stage 1 decomposition</h1>
-  <p class="hint">Runs the literature query-plan prompt against <strong>Amazon Bedrock</strong> (same env as The Anvil: <code>AWS_REGION</code>, inference profile or <code>BEDROCK_MODEL_ID</code>). Sign in as <code>bearssf@tiffin.edu</code> required.</p>
+  <p class="hint">Bedrock prompt builds a query plan. After the run, resolve construct overlaps (if any), pick exactly <strong>three</strong> adjacent fields, then save the final plan for Stage 2. Sign in as <code>bearssf@tiffin.edu</code>.</p>
 
-  <div class="row">
-    <label for="rs1-title">Title</label>
-    <input type="text" id="rs1-title" autocomplete="off"
-      value="Critical thinking skills and dispositions in intercultural business relationship formation" />
-  </div>
-  <div class="row">
-    <label for="rs1-keywords">Keywords (comma-separated)</label>
-    <input type="text" id="rs1-keywords" autocomplete="off"
-      value="critical thinking, intercultural competence, business relationships, dispositions" />
-  </div>
-  <div class="row">
-    <label for="rs1-type">Project type</label>
-    <select id="rs1-type">
-      <option value="assignment">assignment</option>
-      <option value="dissertation" selected>dissertation</option>
-      <option value="conference">conference</option>
-      <option value="journal">journal</option>
-    </select>
-  </div>
-  <div class="row">
-    <label for="rs1-desc">Additional context (optional)</label>
-    <textarea id="rs1-desc" placeholder="Optional notes for the model…"></textarea>
+  <div id="rs1-panel-form" class="rs1-section">
+    <div class="row">
+      <label for="rs1-title">Title</label>
+      <input type="text" id="rs1-title" autocomplete="off"
+        value="Critical thinking skills and dispositions in intercultural business relationship formation" />
+    </div>
+    <div class="row">
+      <label for="rs1-keywords">Keywords (comma-separated)</label>
+      <input type="text" id="rs1-keywords" autocomplete="off"
+        value="critical thinking, intercultural competence, business relationships, dispositions" />
+    </div>
+    <div class="row">
+      <label for="rs1-type">Project type</label>
+      <select id="rs1-type">
+        <option value="assignment">assignment</option>
+        <option value="dissertation" selected>dissertation</option>
+        <option value="conference">conference</option>
+        <option value="journal">journal</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="rs1-desc">Additional context (optional)</label>
+      <textarea id="rs1-desc" placeholder="Optional notes for the model…"></textarea>
+    </div>
+    <div class="toolbar">
+      <button type="button" id="rs1-run">Run decomposition</button>
+      <button type="button" class="secondary" id="rs1-clear">Clear output</button>
+    </div>
+    <div id="rs1-status" aria-live="polite"></div>
+    <pre id="rs1-out" class="rs1-hidden"></pre>
   </div>
 
-  <div class="toolbar">
-    <button type="button" id="rs1-run">Run decomposition</button>
-    <button type="button" class="secondary" id="rs1-clear">Clear output</button>
+  <div id="rs1-panel-overlap" class="rs1-section rs1-hidden">
+    <h2>Construct overlap review</h2>
+    <p class="hint">For each pair, choose <strong>Merge</strong> (combine into the first label) or <strong>Keep distinct</strong>.</p>
+    <div id="rs1-overlap-list"></div>
+    <div class="toolbar">
+      <button type="button" id="rs1-overlap-done" class="secondary" disabled>Continue to adjacent fields →</button>
+    </div>
   </div>
-  <div id="rs1-status" aria-live="polite"></div>
-  <pre id="rs1-out"></pre>
+
+  <div id="rs1-panel-adjacent" class="rs1-section rs1-hidden">
+    <h2>Adjacent field selection</h2>
+    <p class="hint">Select exactly <strong>three</strong> adjacent disciplines to keep in the plan.</p>
+    <div id="rs1-adjacent-error" class="err-banner rs1-hidden"></div>
+    <div id="rs1-adjacent-counter" class="adj-counter">Selected: 0 of 3</div>
+    <div id="rs1-adjacent-list"></div>
+    <div class="toolbar">
+      <button type="button" id="rs1-adjacent-proceed" disabled>Save final plan &amp; finish</button>
+    </div>
+  </div>
+
+  <div id="rs1-panel-done" class="rs1-section rs1-hidden">
+    <h2>Final decomposition (Stage 2 input)</h2>
+    <p class="hint">Saved on the server. Unselected adjacent fields and overlap metadata were removed from the stored object.</p>
+    <pre id="rs1-final-out"></pre>
+    <div class="toolbar">
+      <button type="button" class="secondary" id="rs1-start-over">Start over</button>
+    </div>
+  </div>
 
   <script src="/js/admin-research-stage1.js"></script>
 </body>
