@@ -18,9 +18,72 @@
   var lastStats = null;
   var sortState = { key: 'relevance_score', dir: 'desc' };
 
+  var runTimerId = null;
+  var phaseTimerId = null;
+  var runStartedAt = 0;
+  var lastStepAt = 0;
+  var phaseStartedAt = 0;
+  var progressLineBase = '';
+
   function setStatus(msg, cls) {
     statusEl.textContent = msg || '';
     statusEl.className = cls || '';
+  }
+
+  function formatDuration(sec) {
+    if (sec < 0 || !isFinite(sec)) return '0s';
+    if (sec < 60) return sec.toFixed(1) + 's';
+    var m = Math.floor(sec / 60);
+    var s = sec - m * 60;
+    return m + 'm ' + (s < 10 ? '0' : '') + s.toFixed(0) + 's';
+  }
+
+  function stopRunTimers() {
+    if (runTimerId) {
+      clearInterval(runTimerId);
+      runTimerId = null;
+    }
+    if (phaseTimerId) {
+      clearInterval(phaseTimerId);
+      phaseTimerId = null;
+    }
+  }
+
+  function tickTotalElapsed() {
+    if (!runStartedAt) return;
+    statusEl.textContent = 'Retrieving… · Run time ' + formatDuration((Date.now() - runStartedAt) / 1000);
+    statusEl.className = '';
+  }
+
+  function startRunElapsedTimer() {
+    stopRunTimers();
+    runStartedAt = Date.now();
+    lastStepAt = runStartedAt;
+    tickTotalElapsed();
+    runTimerId = setInterval(tickTotalElapsed, 500);
+  }
+
+  function refreshPhaseProgressLine() {
+    if (!progressLineBase) return;
+    var stepSec = phaseStartedAt ? (Date.now() - phaseStartedAt) / 1000 : 0;
+    progressEl.textContent = progressLineBase + ' · This step: ' + formatDuration(stepSec);
+  }
+
+  function startPhaseStopwatch(baseText) {
+    progressLineBase = baseText || '';
+    phaseStartedAt = Date.now();
+    if (phaseTimerId) {
+      clearInterval(phaseTimerId);
+    }
+    refreshPhaseProgressLine();
+    phaseTimerId = setInterval(refreshPhaseProgressLine, 250);
+  }
+
+  function pausePhaseStopwatch() {
+    if (phaseTimerId) {
+      clearInterval(phaseTimerId);
+      phaseTimerId = null;
+    }
   }
 
   /** Avoid opaque "Unexpected token '<'" when the server returns an HTML error/login page. */
@@ -98,7 +161,7 @@
     if (stackWrapEl) stackWrapEl.classList.remove('rs2-hidden');
   }
 
-  function appendActivityEntry(entry) {
+  function appendActivityEntry(entry, stepSeconds, totalRunSeconds) {
     if (!stackEl || !entry) return;
     showActivityStack();
     var item = document.createElement('div');
@@ -108,6 +171,13 @@
     title.className = 'stack-title';
     title.textContent = entry.title || '';
     item.appendChild(title);
+    if (stepSeconds != null && isFinite(stepSeconds) && totalRunSeconds != null && isFinite(totalRunSeconds)) {
+      var meta = document.createElement('div');
+      meta.className = 'stack-step-meta';
+      meta.textContent =
+        'Step time ' + formatDuration(stepSeconds) + ' · Run total ' + formatDuration(totalRunSeconds);
+      item.appendChild(meta);
+    }
     var ul = document.createElement('ul');
     ul.className = 'stack-bullets';
     (entry.bullets || []).forEach(function (b) {
@@ -125,7 +195,7 @@
     if (!log || !log.length) return;
     showActivityStack();
     for (var i = 0; i < log.length; i++) {
-      appendActivityEntry(log[i]);
+      appendActivityEntry(log[i], null, null);
     }
   }
 
@@ -310,7 +380,8 @@
     });
   });
 
-  function renderResult(result) {
+  function renderResult(result, opts) {
+    opts = opts || {};
     var stats = result.statistics || {};
     lastStats = stats;
     lastCorpus = result.corpus || [];
@@ -345,10 +416,12 @@
     renderYearHist(stats.year_distribution || {});
     sortState = { key: 'relevance_score', dir: 'desc' };
     renderTable(lastCorpus);
-    if (stats.activity_log && stats.activity_log.length) {
-      renderActivityLog(stats.activity_log);
-    } else {
-      clearActivityStack();
+    if (!opts.preserveActivityStack) {
+      if (stats.activity_log && stats.activity_log.length) {
+        renderActivityLog(stats.activity_log);
+      } else {
+        clearActivityStack();
+      }
     }
     resultsEl.classList.remove('rs2-hidden');
   }
@@ -356,18 +429,45 @@
   function handleEvent(ev) {
     if (!ev || !ev.event) return;
     if (ev.event === 'progress') {
-      progressEl.textContent = formatProgress(ev);
+      startPhaseStopwatch(formatProgress(ev));
     } else if (ev.event === 'heartbeat') {
-      progressEl.textContent =
+      var hb =
         (ev.note || 'Still running…') + (ev.source ? ' · ' + String(ev.source).replace(/_/g, ' ') : '');
+      if (!phaseTimerId) {
+        startPhaseStopwatch(hb);
+      } else {
+        progressLineBase = hb;
+        refreshPhaseProgressLine();
+      }
     } else if (ev.event === 'stack' && ev.entry) {
-      appendActivityEntry(ev.entry);
+      pausePhaseStopwatch();
+      progressLineBase = '';
+      var now = Date.now();
+      var stepSec = lastStepAt ? (now - lastStepAt) / 1000 : 0;
+      var totalSec = runStartedAt ? (now - runStartedAt) / 1000 : 0;
+      lastStepAt = now;
+      appendActivityEntry(ev.entry, stepSec, totalSec);
+      progressEl.textContent = '';
     } else if (ev.event === 'done' && ev.result) {
+      pausePhaseStopwatch();
+      progressLineBase = '';
       progressEl.textContent = '';
-      setStatus('Retrieval complete. Corpus saved for Enrichment.', 'ok');
-      renderResult(ev.result);
+      stopRunTimers();
+      var totalRun = runStartedAt ? (Date.now() - runStartedAt) / 1000 : 0;
+      runStartedAt = 0;
+      setStatus(
+        'Retrieval complete. Corpus saved for Enrichment.' +
+          (totalRun > 0 ? ' · Total run ' + formatDuration(totalRun) : '') +
+          '.',
+        'ok'
+      );
+      renderResult(ev.result, { preserveActivityStack: true });
     } else if (ev.event === 'error') {
+      pausePhaseStopwatch();
+      progressLineBase = '';
       progressEl.textContent = '';
+      stopRunTimers();
+      runStartedAt = 0;
       setStatus(ev.message || 'Error', 'err');
     }
   }
@@ -375,7 +475,9 @@
   runBtn.addEventListener('click', function () {
     runBtn.disabled = true;
     loadSavedBtn.disabled = true;
-    setStatus('Retrieving…', '');
+    stopRunTimers();
+    progressLineBase = '';
+    startRunElapsedTimer();
     progressEl.textContent = '';
     clearActivityStack();
     showActivityStack();
@@ -422,6 +524,11 @@
         return pump();
       })
       .catch(function (e) {
+        pausePhaseStopwatch();
+        progressLineBase = '';
+        progressEl.textContent = '';
+        stopRunTimers();
+        runStartedAt = 0;
         var raw = e && e.message ? String(e.message) : 'Failed';
         if (/failed to fetch|networkerror|load failed|network error/i.test(raw)) {
           setStatus(
@@ -434,6 +541,16 @@
         }
       })
       .then(function () {
+        if (runStartedAt) {
+          pausePhaseStopwatch();
+          progressLineBase = '';
+          progressEl.textContent = '';
+          stopRunTimers();
+          runStartedAt = 0;
+          if (statusEl.className === '' && /Retrieving/i.test(statusEl.textContent)) {
+            setStatus('Stream ended without a final result. Check server logs.', 'err');
+          }
+        }
         runBtn.disabled = false;
         loadSavedBtn.disabled = false;
       });
